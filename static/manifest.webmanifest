@@ -1,0 +1,18 @@
+{
+  "name": "DesuRSS",
+  "short_name": "DesuRSS",
+  "description": "Desuwa's RSS aggregator",
+  "display": "standalone",
+  "icons": [{
+    "src": "/static/icons/graphicsvibe-rss-feed-256.png",
+    "sizes": "256x256",
+    "type": "image/png"
+  }, {
+    "src": "/static/icons/graphicsvibe-rss-feed-128.png",
+    "sizes": "128x128",
+    "type": "image/png"
+  }],
+  "start_url": "/",
+  "background_color": "white",
+  "theme_color": "grey"
+}

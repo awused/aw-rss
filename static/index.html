@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <title>RSS Aggregator</title>
+    <link rel="icon" href="/favicon.ico?v=2"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'unsafe-inline' 'self' https:; worker-src 'self'; font-src https:">
+    <link rel="manifest" href="/static/manifest.webmanifest"/>
+
+    <link rel="stylesheet" type="text/css" href="/static/compiled/main.css"/>
+    <link rel="stylesheet" 
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+	integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+        crossorigin="anonymous"> 
+    <!--
+        <link rel="stylesheet" 
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" 
+          integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" 
+          crossorigin="anonymous"> 
+    -->
+
+    <script src="/static/compiled/system.js"></script>
+    <script src="/static/compiled/bundle.js"></script>
+
+    <!-- Current dependency of ng2-bootstrap -->
+    <!--
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ng2-bootstrap/1.0.11/ng2-bootstrap.min.js"></script>
+    -->
+    <!-- None of these should be necessary once ng2-bootstrap gains more features -->
+    <!--<script src="https://code.jquery.com/jquery-1.12.3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.2.0/js/tether.min.js"></script>
+    <script src="https://cdn.rawgit.com/twbs/bootstrap/v4-dev/dist/js/bootstrap.js"></script>
+    -->
+  </head>
+  <body>
+    <main>Loading...</main>
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .catch(function(error) {
+              console.log(
+                'Service worker registration failed, error:', error);
+            });
+      }
+    </script>
+
+    <script>
+      System.import('module').then(null, console.error.bind(console));
+    </script>
+  </body>
+</html>
+

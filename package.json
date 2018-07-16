@@ -1,0 +1,38 @@
+{
+  "name": "rss-aggregator",
+  "version": "0.0.0",
+  "dependencies": {
+    "@angular/common": "^6.0.4",
+    "@angular/compiler": "^6.0.4",
+    "@angular/core": "^6.0.4",
+    "@angular/http": "^6.0.4",
+    "@angular/platform-browser": "^6.0.4",
+    "@angular/platform-browser-dynamic": "^6.0.4",
+    "@angular/router": "^6.0.4",
+    "core-js": "^2.5.7",
+    "reflect-metadata": "^0.1.12",
+    "rxjs": "^6.2.0",
+    "systemjs": "^0.21.4",
+    "zone.js": "^0.8.26"
+  },
+  "devDependencies": {
+    "@angular/cli": "^6.0.8",
+    "@types/core-js": "^2.5.0",
+    "@types/node": "^10.3.2",
+    "concurrently": "^3.5.1",
+    "gulp": "^3.9.1",
+    "gulp-angular-embed-templates": "^2.3.0",
+    "gulp-change": "^1.0.0",
+    "gulp-clean": "^0.4.0",
+    "gulp-cli": "^2.0.1",
+    "gulp-concat": "^2.6.1",
+    "gulp-sass": "^4.0.1",
+    "gulp-sourcemaps": "^2.6.4",
+    "gulp-typescript": "^5.0.0-alpha.1",
+    "gulp-uglify": "^3.0.0",
+    "merge-stream": "^1.0.1",
+    "run-sequence": "^2.2.1",
+    "typescript": "^2.9.1",
+    "uglify-es": "^3.3.9"
+  }
+}

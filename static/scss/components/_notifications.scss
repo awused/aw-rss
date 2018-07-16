@@ -1,0 +1,10 @@
+notifications {
+  bottom: 0;
+  position: fixed;
+  width: 100%;
+ 
+  @media (min-width: 768px) {
+    right: 0;
+    width: 500px;
+  }
+}
