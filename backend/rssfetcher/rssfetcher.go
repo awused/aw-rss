@@ -203,7 +203,14 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 			f = newF
 		}
 
-		resp, err := this.httpClient.Get(f.Url())
+		req, err := http.NewRequest("GET", f.Url(), nil)
+		checkErrMaybePanic(err)
+		// Pretend to be wget. Some sites don't like an empty user agent.
+		// Reddit in particular will _always_ say to retry in a few seconds,
+		// even if you wait hours.
+		req.Header.Add("User-Agent", "Wget/1.19.5 (freebsd11.1)")
+
+		resp, err := this.httpClient.Do(req)
 		// Check immediately after the HTTP request
 		// If this has been killed do not write updates to the DB
 		select {
