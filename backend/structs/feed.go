@@ -8,9 +8,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/mmcdole/gofeed"
 )
 
 type Feed struct {
@@ -75,6 +77,48 @@ func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 		return nil, err
 	}
 	return feeds, nil
+}
+
+func (this *Feed) HandleUpdate(feed *gofeed.Feed) {
+	this.Title = getFeedTitle(this, feed)
+
+	if feed.Link != "" {
+		this.SiteUrl = feed.Link
+	} else {
+		if this.SiteUrl == "" {
+			// Default to the feed URL, only log this once
+			glog.Warningf("Feed without link [%s]", this)
+			this.SiteUrl = this.url
+		}
+	}
+}
+
+// "MangaDex RSS" is a terrible title for every per-series feed
+const mangadexItemRegexp = `^(.+) - [^-]+$`
+
+var mdire = regexp.MustCompile(mangadexItemRegexp)
+
+const mangadexSeriesRegexp = `^https://mangadex\.org/rss/[0-9a-z]+/manga_id/[0-9]+`
+
+var mdsre = regexp.MustCompile(mangadexSeriesRegexp)
+
+func getFeedTitle(f *Feed, feed *gofeed.Feed) string {
+	if feed.Title != "MangaDex RSS" {
+		return feed.Title
+	}
+
+	if feed.Items == nil || len(feed.Items) == 0 || !mdsre.MatchString(f.url) {
+		glog.Infof("%s", !mdsre.MatchString(f.url))
+		return feed.Title
+	}
+
+	groups := mdire.FindStringSubmatch(feed.Items[0].Title)
+	if groups == nil {
+		return feed.Title
+	}
+
+	glog.V(2).Infof("Overriding Mangadex RSS title with [%s]", groups[1])
+	return groups[1]
 }
 
 func (this *Feed) String() string {

@@ -79,7 +79,7 @@ func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
 		items = append(items, createNewItem(gfi, f))
 	}
 
-	handleFeedQuirks(items, gfItems, f)
+	handleItemQuirks(items, gfItems, f)
 
 	glog.V(2).Infof("Created %d items for [Feed: %d]", len(gfItems), f.Id())
 	return items
@@ -144,15 +144,16 @@ func getTimestamp(gfi *gofeed.Item) time.Time {
 
 const fictionRegexp = `^(https?://)?(www\.)(fictionpress\.com|fanfiction\.net)/`
 
+/*
+ Fictionpress and Fanfiction.net use the same feed generator.
+ Instead of publishing new items, they republish the same item
+ with the same id with a new publication date.
+ Make this unambiguous by appending the timestamp.
+*/
+var fre = regexp.MustCompile(fictionRegexp)
+
 // Handle quirky behaviour from poorly built feed generators
-func handleFeedQuirks(items []*Item, gfItems []*gofeed.Item, f *Feed) {
-	/*
-	 Fictionpress and Fanfiction.net use the same feed generator.
-	 Instead of publishing new items, they republish the same item
-	 with the same id with a new publication date.
-	 Make this unambiguous by appending the timestamp.
-	*/
-	fre := regexp.MustCompile(fictionRegexp)
+func handleItemQuirks(items []*Item, gfItems []*gofeed.Item, f *Feed) {
 	if fre.MatchString(f.Url()) {
 		for _, item := range items {
 			item.key = item.key + item.timestamp.String()

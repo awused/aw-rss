@@ -262,7 +262,7 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 			this.retryBackoff[f.Id()] = 1
 			this.mapLock.Unlock()
 		}
-		this.handleFeedUpdate(f, feed)
+		f.HandleUpdate(feed)
 		err = this.db.NonUserUpdateFeed(f)
 		if err != nil {
 			glog.Errorf("Error updating feed [%s]: %v", f, err)
@@ -386,20 +386,6 @@ func (this *rssFetcher) restartFailedRoutine(id int64) {
 
 	this.wg.Add(1)
 	go this.restartRoutine(feed, this.routines[id], backoffMinutes)
-}
-
-// TODO -- Move this into feed.go
-func (this *rssFetcher) handleFeedUpdate(f *Feed, feed *gofeed.Feed) {
-	f.Title = feed.Title
-	if feed.Link != "" {
-		f.SiteUrl = feed.Link
-	} else {
-		if f.SiteUrl == "" {
-			// Default to the feed URL, only log this once
-			glog.Warningf("Feed without link [%s]", f)
-			f.SiteUrl = f.Url()
-		}
-	}
 }
 
 func charsetReader(charset string, r io.Reader) (io.Reader, error) {
