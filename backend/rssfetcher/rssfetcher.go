@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +19,7 @@ import (
 )
 
 const dbPollPeriod = time.Duration(time.Minute * 5)
-const minPollPeriod = time.Duration(time.Minute * 5)
+const minPollPeriod = time.Duration(time.Minute * 10)
 const rssTimeout = 30 * time.Second
 
 type RssFetcher interface {
@@ -203,16 +204,13 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 			f = newF
 		}
 
-		req, err := http.NewRequest("GET", f.Url(), nil)
-		checkErrMaybePanic(err)
-		// Pretend to be wget. Some sites don't like an empty user agent.
-		// Reddit in particular will _always_ say to retry in a few seconds,
-		// even if you wait hours.
-		req.Header.Add("User-Agent", "Wget/1.19.5 (freebsd11.1)")
+		body := ""
+		if strings.HasPrefix(f.Url(), "!") {
+			body = this.runExternalCommandFeed(f, kill)
+		} else {
+			body = this.fetchHTTPFeed(f, kill)
+		}
 
-		resp, err := this.httpClient.Do(req)
-		// Check immediately after the HTTP request
-		// If this has been killed do not write updates to the DB
 		select {
 		case <-kill:
 			glog.V(1).Infof("Routine for [%s] killed by parent", f)
@@ -220,24 +218,6 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 		default:
 		}
 
-		if err != nil {
-			glog.Errorf("Error calling httpClient.Get for [%s]: %v", f, err)
-			f.LastFetchFailed = true
-			checkErrMaybePanic(this.db.NonUserUpdateFeed(f))
-			panic(err)
-		}
-
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		// Close unconditionally to avoid memory leaks
-		_ = resp.Body.Close()
-		if err != nil {
-			glog.Errorf("Error reading response body for [%s]: %v", f, err)
-			f.LastFetchFailed = true
-			checkErrMaybePanic(this.db.NonUserUpdateFeed(f))
-			panic(err)
-		}
-
-		body := string(bodyBytes)
 		feed, err := this.parser.ParseString(body)
 		if err != nil {
 			glog.Errorf("Error calling parser.ParseString for [%s]: %v", f, err)
@@ -286,6 +266,64 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 		case <-time.After(this.getSleepTime(f, feed, body)):
 		}
 	}
+}
+
+func (this *rssFetcher) runExternalCommandFeed(f *Feed, kill <-chan struct{}) string {
+	output, err := exec.Command("sh", "-c", f.Url()[1:]).Output()
+
+	// Check immediately after the command
+	// If this has been killed do not write updates to the DB
+	select {
+	case <-kill:
+		return ""
+	default:
+	}
+
+	if err != nil {
+		glog.Errorf("Error running external command for [%s]: %v", f, err)
+		f.LastFetchFailed = true
+		checkErrMaybePanic(this.db.NonUserUpdateFeed(f))
+		panic(err)
+	}
+
+	return string(output)
+}
+
+func (this *rssFetcher) fetchHTTPFeed(f *Feed, kill <-chan struct{}) string {
+	req, err := http.NewRequest("GET", f.Url(), nil)
+	checkErrMaybePanic(err)
+	// Pretend to be wget. Some sites don't like an empty user agent.
+	// Reddit in particular will _always_ say to retry in a few seconds,
+	// even if you wait hours.
+	req.Header.Add("User-Agent", "Wget/1.19.5 (freebsd11.1)")
+
+	resp, err := this.httpClient.Do(req)
+	// Check immediately after the HTTP request
+	// If this has been killed do not write updates to the DB
+	select {
+	case <-kill:
+		return ""
+	default:
+	}
+
+	if err != nil {
+		glog.Errorf("Error calling httpClient.Get for [%s]: %v", f, err)
+		f.LastFetchFailed = true
+		checkErrMaybePanic(this.db.NonUserUpdateFeed(f))
+		panic(err)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	// Close unconditionally to avoid memory leaks
+	_ = resp.Body.Close()
+	if err != nil {
+		glog.Errorf("Error reading response body for [%s]: %v", f, err)
+		f.LastFetchFailed = true
+		checkErrMaybePanic(this.db.NonUserUpdateFeed(f))
+		panic(err)
+	}
+
+	return string(bodyBytes)
 }
 
 func (this *rssFetcher) getSleepTime(f *Feed, feed *gofeed.Feed, body string) time.Duration {
