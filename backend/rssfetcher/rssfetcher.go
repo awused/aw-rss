@@ -21,6 +21,7 @@ import (
 const dbPollPeriod = time.Duration(time.Minute * 5)
 const minPollPeriod = time.Duration(time.Minute * 10)
 const rssTimeout = 30 * time.Second
+const startupRateLimit = 500 * time.Millisecond
 
 type RssFetcher interface {
 	Run() error
@@ -39,6 +40,7 @@ type rssFetcher struct {
 	lastPolled   time.Time
 	wg           sync.WaitGroup
 	errorChan    chan int64
+	startupChan  chan struct{}
 	closed       bool
 	closeChan    chan struct{}
 	closeLock    sync.Mutex
@@ -64,8 +66,9 @@ func NewRssFetcher() (r *rssFetcher, err error) {
 	rss.feeds = make(map[int64]*Feed)
 	rss.routines = make(map[int64]chan struct{})
 	rss.retryBackoff = make(map[int64]int64)
+	rss.startupChan = make(chan struct{})
 	rss.closeChan = make(chan struct{})
-	rss.errorChan = make(chan int64, 100)
+	rss.errorChan = make(chan int64)
 
 	glog.V(5).Info("rssFetcher() completed")
 	return &rss, nil
@@ -119,6 +122,9 @@ func (this *rssFetcher) Run() (err error) {
 		}
 	}()
 
+	this.wg.Add(1)
+	go this.rateLimitRoutines()
+
 	glog.Info("rssFetcher started running")
 	for {
 		if this.lastPolled.IsZero() || time.Since(this.lastPolled) > dbPollPeriod {
@@ -126,6 +132,8 @@ func (this *rssFetcher) Run() (err error) {
 
 			newFeedsArray, err := this.db.GetFeeds(false)
 			if err != nil {
+				// Close unconditionally on DB error
+				_ = this.Close()
 				return err
 			}
 
@@ -178,6 +186,29 @@ func (this *rssFetcher) Run() (err error) {
 	}
 }
 
+func (this *rssFetcher) rateLimitRoutines() {
+LimitLoop:
+	for true {
+		glog.V(3).Info("Starting one routine")
+		select {
+		case this.startupChan <- struct{}{}:
+			glog.V(2).Info("Started one routine")
+		case <-this.closeChan:
+			break LimitLoop
+		}
+
+		select {
+		case <-time.After(startupRateLimit):
+		case <-this.closeChan:
+			break LimitLoop
+		}
+	}
+
+	glog.Info("Killed rate limit routine")
+	close(this.startupChan)
+	this.wg.Done()
+}
+
 // Main work done here for each feed
 // TODO -- clean this up and refactor it
 func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
@@ -186,11 +217,25 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 			if glog.V(1) {
 				glog.Error(r.(error))
 			}
-			this.errorChan <- f.Id()
+			select {
+			case this.errorChan <- f.Id():
+			case <-this.closeChan:
+			}
 		}
 		glog.V(3).Infof("Routine for [%s] completed", f)
 		this.wg.Done()
 	}()
+
+	glog.V(2).Infof("Routine for [%s] waiting to start", f)
+
+	<-this.startupChan
+
+	select {
+	case <-kill:
+		glog.V(1).Infof("Routine for [%s] killed by parent", f)
+		return
+	default:
+	}
 
 	glog.V(1).Infof("Routine for [%s] started", f)
 	for {
