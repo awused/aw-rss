@@ -33,6 +33,7 @@ type rssFetcher struct {
 	parser       *gofeed.Parser
 	rssParser    *gofeedRss.Parser
 	httpClient   *http.Client
+	cloudflare   *cloudflare
 	feeds        map[int64]*Feed
 	routines     map[int64]chan struct{}
 	retryBackoff map[int64]int64
@@ -69,6 +70,8 @@ func NewRssFetcher() (r *rssFetcher, err error) {
 	rss.startupChan = make(chan struct{})
 	rss.closeChan = make(chan struct{})
 	rss.errorChan = make(chan int64)
+
+	rss.cloudflare = newCloudflare(rss.closeChan)
 
 	glog.V(5).Info("rssFetcher() completed")
 	return &rss, nil
