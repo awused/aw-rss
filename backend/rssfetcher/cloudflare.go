@@ -18,6 +18,13 @@ print(c)
 print(ua)
 `
 
+// This needs to be configureable by the user
+// Don't run arbitrary JS from untrusted domains, only handle problematic sites
+// as they're identified
+var trustedHosts = map[string]bool{
+	"mangadex.org": true,
+}
+
 type cloudflare struct {
 	cookies      map[string]string
 	userAgents   map[string]string
@@ -41,6 +48,16 @@ func host(feedUrl string) (string, error) {
 	u, err := url.Parse(feedUrl)
 	if err != nil {
 		return "", err
+	}
+
+	if u.Scheme != "https" {
+		return "", errors.New("Cloudflare bypass must only be used over https")
+	}
+
+	if !trustedHosts[u.Host] {
+		return "",
+			errors.New(
+				"Will not bypass cloudflare for untrusted host [" + u.Host + "]")
 	}
 
 	return u.Host, nil
