@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/golang/glog"
 )
 
 const cookieScript = `
@@ -24,6 +26,11 @@ print(ua)
 var trustedHosts = map[string]bool{
 	"mangadex.org": true,
 }
+
+var (
+	ErrUntrustedHost     = errors.New("Host not trusted for cloudflare bypass")
+	ErrUnsecureTransport = errors.New("Cloudflare bypass requires https")
+)
 
 type cloudflare struct {
 	cookies      map[string]string
@@ -44,6 +51,11 @@ func newCloudflare(closeChan <-chan struct{}) *cloudflare {
 	}
 }
 
+func CloudflareSupported(feedUrl string) bool {
+	_, err := host(feedUrl)
+	return err == nil
+}
+
 func host(feedUrl string) (string, error) {
 	u, err := url.Parse(feedUrl)
 	if err != nil {
@@ -51,33 +63,55 @@ func host(feedUrl string) (string, error) {
 	}
 
 	if u.Scheme != "https" {
-		return "", errors.New("Cloudflare bypass must only be used over https")
+		return "", ErrUnsecureTransport
 	}
 
 	if !trustedHosts[u.Host] {
-		return "",
-			errors.New(
-				"Will not bypass cloudflare for untrusted host [" + u.Host + "]")
+		glog.V(1).Infof("Host [%s] not trusted for cloudflare bypass", u.Host)
+		return "", ErrUntrustedHost
 	}
 
 	return u.Host, nil
 }
 
-func (this *cloudflare) getExistingCookie(feedUrl string) (string, string, bool) {
+func IsCloudflareResponse(body string) bool {
+	return strings.Contains(body, "This process is automatic. Your browser "+
+		"will redirect to your requested content shortly.")
+}
+
+func (this *cloudflare) GetCookie(feedUrl string) (
+	cookie string, userAgent string, blocked bool) {
 	h, err := host(feedUrl)
 	if err != nil {
 		return "", "", false
 	}
 
+	this.fetchingLock.Lock()
+	fetchChan, blocking := this.fetching[h]
+	this.fetchingLock.Unlock()
+
+	if blocking {
+		select {
+		case <-fetchChan:
+		case <-this.closeChan:
+			return "", "", true
+		}
+	}
+
+	c, ua := this.getExistingCookie(h)
+	return c, ua, blocking
+}
+
+func (this *cloudflare) getExistingCookie(h string) (string, string) {
 	this.cookieLock.RLock()
 	defer this.cookieLock.RUnlock()
 
-	c, has := this.cookies[h]
+	c := this.cookies[h]
 	ua := this.userAgents[h]
-	return c, ua, has
+	return c, ua
 }
 
-func (this *cloudflare) getNewCookie(feedUrl string) (string, string, error) {
+func (this *cloudflare) GetNewCookie(feedUrl string) (string, string, error) {
 	select {
 	case <-this.closeChan:
 		return "", "", nil
@@ -104,8 +138,8 @@ func (this *cloudflare) getNewCookie(feedUrl string) (string, string, error) {
 		case <-this.closeChan:
 			return "", "", nil
 		}
-		c, ua, b := this.getExistingCookie(feedUrl)
-		if b {
+		c, ua := this.getExistingCookie(h)
+		if c != "" {
 			return c, ua, nil
 		} else {
 			return c, ua,
@@ -122,6 +156,7 @@ func (this *cloudflare) getNewCookie(feedUrl string) (string, string, error) {
 	default:
 	}
 
+	glog.Infof("Fetching new cloudflare cookie for [%s]", h)
 	return this.runPython(feedUrl, h)
 }
 

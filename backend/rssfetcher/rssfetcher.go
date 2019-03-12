@@ -21,7 +21,7 @@ import (
 const dbPollPeriod = time.Duration(time.Minute * 5)
 const minPollPeriod = time.Duration(time.Minute * 10)
 const rssTimeout = 30 * time.Second
-const startupRateLimit = 500 * time.Millisecond
+const startupRateLimit = 250 * time.Millisecond
 
 type RssFetcher interface {
 	Run() error
@@ -29,22 +29,20 @@ type RssFetcher interface {
 }
 
 type rssFetcher struct {
-	db           *database.Database
-	parser       *gofeed.Parser
-	rssParser    *gofeedRss.Parser
-	httpClient   *http.Client
-	cloudflare   *cloudflare
-	feeds        map[int64]*Feed
-	routines     map[int64]chan struct{}
-	retryBackoff map[int64]int64
-	mapLock      sync.RWMutex
-	lastPolled   time.Time
-	wg           sync.WaitGroup
-	errorChan    chan int64
-	startupChan  chan struct{}
-	closed       bool
-	closeChan    chan struct{}
-	closeLock    sync.Mutex
+	db            *database.Database
+	httpClient    *http.Client
+	cloudflare    *cloudflare
+	feeds         map[int64]*Feed
+	routines      map[int64]chan struct{}
+	retryBackoff  map[int64]int64
+	mapLock       sync.RWMutex
+	lastPolled    time.Time
+	wg            sync.WaitGroup
+	errorChan     chan int64
+	rateLimitChan chan struct{}
+	closed        bool
+	closeChan     chan struct{}
+	closeLock     sync.Mutex
 }
 
 func NewRssFetcher() (r *rssFetcher, err error) {
@@ -58,8 +56,6 @@ func NewRssFetcher() (r *rssFetcher, err error) {
 
 	var rss rssFetcher
 	rss.db = db
-	rss.parser = gofeed.NewParser()
-	rss.rssParser = &gofeedRss.Parser{}
 	rss.httpClient = &http.Client{
 		Timeout: rssTimeout,
 		//TODO -- probably remove entirely //Transport: filteredRoundTripper{},
@@ -67,7 +63,7 @@ func NewRssFetcher() (r *rssFetcher, err error) {
 	rss.feeds = make(map[int64]*Feed)
 	rss.routines = make(map[int64]chan struct{})
 	rss.retryBackoff = make(map[int64]int64)
-	rss.startupChan = make(chan struct{})
+	rss.rateLimitChan = make(chan struct{})
 	rss.closeChan = make(chan struct{})
 	rss.errorChan = make(chan int64)
 
@@ -192,10 +188,9 @@ func (this *rssFetcher) Run() (err error) {
 func (this *rssFetcher) rateLimitRoutines() {
 LimitLoop:
 	for true {
-		glog.V(3).Info("Starting one routine")
 		select {
-		case this.startupChan <- struct{}{}:
-			glog.V(2).Info("Started one routine")
+		case this.rateLimitChan <- struct{}{}:
+			glog.V(2).Info("Allowed one routine to proceed")
 		case <-this.closeChan:
 			break LimitLoop
 		}
@@ -208,7 +203,7 @@ LimitLoop:
 	}
 
 	glog.Info("Killed rate limit routine")
-	close(this.startupChan)
+	close(this.rateLimitChan)
 	this.wg.Done()
 }
 
@@ -229,16 +224,7 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 		this.wg.Done()
 	}()
 
-	glog.V(2).Infof("Routine for [%s] waiting to start", f)
-
-	<-this.startupChan
-
-	select {
-	case <-kill:
-		glog.V(1).Infof("Routine for [%s] killed by parent", f)
-		return
-	default:
-	}
+	parser := gofeed.NewParser()
 
 	glog.V(1).Infof("Routine for [%s] started", f)
 	for {
@@ -266,7 +252,7 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 		default:
 		}
 
-		feed, err := this.parser.ParseString(body)
+		feed, err := parser.ParseString(body)
 		if err != nil {
 			glog.Errorf("Error calling parser.ParseString for [%s]: %v", f, err)
 			f.LastFetchFailed = true
@@ -317,6 +303,13 @@ func (this *rssFetcher) routine(f *Feed, kill <-chan struct{}) {
 }
 
 func (this *rssFetcher) runExternalCommandFeed(f *Feed, kill <-chan struct{}) string {
+	<-this.rateLimitChan
+	select {
+	case <-kill:
+		return ""
+	default:
+	}
+
 	output, err := exec.Command("sh", "-c", f.Url()[1:]).Output()
 
 	// Check immediately after the command
@@ -338,12 +331,85 @@ func (this *rssFetcher) runExternalCommandFeed(f *Feed, kill <-chan struct{}) st
 }
 
 func (this *rssFetcher) fetchHTTPFeed(f *Feed, kill <-chan struct{}) string {
+	<-this.rateLimitChan
+	select {
+	case <-kill:
+		return ""
+	default:
+	}
+	// Grab the cookie after rate limiting to maximize the chance that fetching
+	// starts before the next thread is through
+	// It is possible to do this in a way that doesn't rely on chance but I don't
+	// think it's worth the complexity.
+	c, ua, blocked := this.cloudflare.GetCookie(f.Url())
+	if blocked {
+		// If we blocked there might be a large number of threads trying to proceed
+		// at once
+		<-this.rateLimitChan
+		select {
+		case <-kill:
+			return ""
+		default:
+		}
+	}
+	body := this.fetchHTTPBody(f, kill, c, ua)
+
+	if CloudflareSupported(f.Url()) && IsCloudflareResponse(body) {
+		glog.Info("Fetching new Cookie")
+		// We don't need to rate limit GetNewCookie
+		select {
+		case <-kill:
+			return ""
+		default:
+		}
+		c, ua, err := this.cloudflare.GetNewCookie(f.Url())
+		select {
+		case <-kill:
+			return ""
+		default:
+		}
+		if err == ErrUnsecureTransport || err == ErrUntrustedHost {
+			// Should never happen
+			return body
+		}
+		if err != nil {
+			glog.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
+			f.LastFetchFailed = true
+			checkErrMaybePanic(this.db.NonUserUpdateFeed(f))
+			panic(err)
+		}
+
+		<-this.rateLimitChan
+		select {
+		case <-kill:
+			return ""
+		default:
+		}
+		body = this.fetchHTTPBody(f, kill, c, ua)
+	}
+
+	return body
+}
+
+func (this *rssFetcher) fetchHTTPBody(
+	f *Feed,
+	kill <-chan struct{},
+	cookie string,
+	userAgent string) string {
 	req, err := http.NewRequest("GET", f.Url(), nil)
 	checkErrMaybePanic(err)
-	// Pretend to be wget. Some sites don't like an empty user agent.
-	// Reddit in particular will _always_ say to retry in a few seconds,
-	// even if you wait hours.
-	req.Header.Add("User-Agent", "Wget/1.19.5 (freebsd11.1)")
+
+	if cookie != "" {
+		req.Header.Add("Cookie", cookie)
+	}
+	if userAgent != "" {
+		req.Header.Add("User-Agent", userAgent)
+	} else {
+		// Pretend to be wget. Some sites don't like an empty user agent.
+		// Reddit in particular will _always_ say to retry in a few seconds,
+		// even if you wait hours.
+		req.Header.Add("User-Agent", "Wget/1.19.5 (freebsd11.1)")
+	}
 
 	resp, err := this.httpClient.Do(req)
 	// Check immediately after the HTTP request
@@ -377,7 +443,7 @@ func (this *rssFetcher) fetchHTTPFeed(f *Feed, kill <-chan struct{}) string {
 func (this *rssFetcher) getSleepTime(f *Feed, feed *gofeed.Feed, body string) time.Duration {
 	sleepTime := minPollPeriod
 	if feed.FeedType == "rss" {
-		rssFeed, err := this.rssParser.Parse(strings.NewReader(body))
+		rssFeed, err := (&gofeedRss.Parser{}).Parse(strings.NewReader(body))
 		if err != nil {
 			glog.Warningf("RSS feed could not be parsed as RSS [%s]", f)
 		} else if rssFeed.TTL != "" {
