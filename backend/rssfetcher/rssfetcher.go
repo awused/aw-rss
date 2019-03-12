@@ -355,7 +355,6 @@ func (this *rssFetcher) fetchHTTPFeed(f *Feed, kill <-chan struct{}) string {
 	body := this.fetchHTTPBody(f, kill, c, ua)
 
 	if CloudflareSupported(f.Url()) && IsCloudflareResponse(body) {
-		glog.Info("Fetching new Cookie")
 		// We don't need to rate limit GetNewCookie
 		select {
 		case <-kill:
