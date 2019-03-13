@@ -142,6 +142,7 @@ func (this *cloudflare) GetNewCookie(feedUrl string) (string, string, error) {
 		if c != "" {
 			return c, ua, nil
 		} else {
+			// Abort and retry through the normal mechamism
 			return c, ua,
 				errors.New("Another thread failed to fetch cloudflare cookies")
 		}
@@ -161,8 +162,10 @@ func (this *cloudflare) GetNewCookie(feedUrl string) (string, string, error) {
 }
 
 func (this *cloudflare) runPython(feedUrl, host string) (string, string, error) {
-	out, err := exec.Command("python3", "-c", cookieScript, feedUrl).Output()
+	out, err :=
+		exec.Command("python3", "-c", cookieScript, feedUrl).CombinedOutput()
 	if err != nil {
+		glog.Warning(string(out))
 		return "", "", err
 	}
 

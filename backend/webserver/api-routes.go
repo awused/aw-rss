@@ -2,31 +2,28 @@ package webserver
 
 import (
 	"encoding/json"
-	"github.com/golang/glog"
-	"github.com/zenazn/goji/web"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/golang/glog"
 )
 
-func (this *webserver) getApiRouter() http.Handler {
-	apiRouter := web.New()
-	apiRouter.Get("/feeds/list", this.listFeeds)
+func (this *webserver) apiRoutes(r chi.Router) {
+	r.Get("/feeds/list", this.listFeeds)
 
-	apiRouter.Get("/items/list", this.listItems)
-	apiRouter.Post("/items/:id/read", this.markItemAsRead)
-	apiRouter.Post("/items/:id/unread", this.markItemAsUnread)
+	r.Get("/items/list", this.listItems)
+	r.Post("/items/{id}/read", this.markItemAsRead)
+	r.Post("/items/{id}/unread", this.markItemAsUnread)
 
-	apiRouter.Compile()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		glog.V(3).Infof("Handling API route %s:%s", r.Method, r.URL.Path)
-		apiRouter.ServeHTTP(w, r)
-	})
+	r.Get("/updates/{timestamp}", this.updatesSince)
 }
 
 /**
  * disabled = 1 to include disabled feeds
  */
-func (this *webserver) listFeeds(c web.C, w http.ResponseWriter, r *http.Request) {
+func (this *webserver) listFeeds(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("listFeeds() started")
 	q := r.URL.Query()
 
@@ -46,7 +43,7 @@ func (this *webserver) listFeeds(c web.C, w http.ResponseWriter, r *http.Request
 /**
  * read = 1 to include read items
  */
-func (this *webserver) listItems(c web.C, w http.ResponseWriter, r *http.Request) {
+func (this *webserver) listItems(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("listItems() started")
 	q := r.URL.Query()
 
@@ -63,10 +60,10 @@ func (this *webserver) listItems(c web.C, w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (this *webserver) markItemAsRead(c web.C, w http.ResponseWriter, r *http.Request) {
+func (this *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("markItemAsRead() started")
 
-	id, err := strconv.Atoi(c.URLParams["id"])
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -82,11 +79,11 @@ func (this *webserver) markItemAsRead(c web.C, w http.ResponseWriter, r *http.Re
 
 	if it == nil {
 		glog.Infof("Tried to mark non-existent item %d as read", id)
-		if err = json.NewEncoder(w).Encode(struct{
-					Error string `json:"error"`
-				} {
-					Error: "No such item",
-				}); err != nil {
+		if err = json.NewEncoder(w).Encode(struct {
+			Error string `json:"error"`
+		}{
+			Error: "No such item",
+		}); err != nil {
 			glog.Error(err)
 		}
 		return
@@ -106,10 +103,10 @@ func (this *webserver) markItemAsRead(c web.C, w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (this *webserver) markItemAsUnread(c web.C, w http.ResponseWriter, r *http.Request) {
+func (this *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("markItemAsUnread() started")
 
-	id, err := strconv.Atoi(c.URLParams["id"])
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -125,11 +122,11 @@ func (this *webserver) markItemAsUnread(c web.C, w http.ResponseWriter, r *http.
 
 	if it == nil {
 		glog.Infof("Tried to mark non-existent item %d as unread", id)
-		if err = json.NewEncoder(w).Encode(struct{
-					Error string `json:"error"`
-				} {
-					Error: "No such item",
-				}); err != nil {
+		if err = json.NewEncoder(w).Encode(struct {
+			Error string `json:"error"`
+		}{
+			Error: "No such item",
+		}); err != nil {
 			glog.Error(err)
 		}
 		return
@@ -145,6 +142,27 @@ func (this *webserver) markItemAsUnread(c web.C, w http.ResponseWriter, r *http.
 
 	glog.V(3).Infof("markItemAsUnread() completed for item [%s]", it)
 	if err = json.NewEncoder(w).Encode(it); err != nil {
+		glog.Error(err)
+	}
+}
+
+func (this *webserver) updatesSince(w http.ResponseWriter, r *http.Request) {
+	ut, err := strconv.ParseInt(chi.URLParam(r, "timestamp"), 10, 64)
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	t := time.Unix(ut, 0).UTC()
+
+	up, err := this.db.GetUpdates(t)
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(up); err != nil {
 		glog.Error(err)
 	}
 }

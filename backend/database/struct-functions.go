@@ -1,6 +1,9 @@
 package database
 
 import (
+	"database/sql"
+	"time"
+
 	. "github.com/awused/rss-aggregator/backend/structs"
 	"github.com/golang/glog"
 )
@@ -222,4 +225,136 @@ func (this *Database) UpdateItem(it *Item) error {
 
 	glog.V(5).Info("UpdateItem() completed")
 	return nil
+}
+
+/**
+ * Updates
+ */
+type Updates struct {
+	Timestamp  int64   `json:"timestamp,omitempty"`
+	Items      []*Item `json:"items,omitempty"`
+	Feeds      []*Feed `json:"feeds,omitempty"`
+	Incomplete bool    `json:"incomplete,omitempty"`
+}
+
+// Above 1000 updates to any one type we give up
+// The frontend will have to resync from scratch
+// TODO -- move to config file
+const limit = 1000
+
+func minTime(t time.Time, o time.Time) time.Time {
+	if t.Before(o) {
+		return o
+	}
+	return t
+}
+
+func (this *Updates) finish() {
+	var t time.Time
+	if len(this.Feeds) > 0 {
+		t = this.Feeds[len(this.Feeds)-1].CommitTimestamp()
+	}
+	if len(this.Items) > 0 {
+		t = minTime(t, this.Items[len(this.Items)-1].CommitTimestamp())
+	}
+
+	if !t.Equal(time.Time{}) {
+		// Ensure we never miss an update
+		// Updates are idempotent on the frontend
+		this.Timestamp = t.Unix() - 1
+	}
+
+	if len(this.Feeds) == limit || len(this.Items) == limit {
+		this.Incomplete = true
+	}
+}
+
+func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
+	// Lock the database only once to ensure we have a consistent view of the DB
+	// and never miss updates
+	this.lock.RLock()
+	defer this.lock.RUnlock()
+
+	// Match sqlite's format
+	tstr := t.Format("2006-01-02 15:04:05")
+	up := &Updates{}
+
+	if err := this.checkClosed(); err != nil {
+		glog.Error(err)
+		return up, err
+	}
+
+	// A transaction minimizes the number of locks and prevents external modifications
+	tx, err := this.db.Begin()
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return up, err
+	}
+
+	up.Feeds, err = this.getUpdatedFeeds(tx, tstr)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return up, err
+	}
+
+	up.Items, err = this.getUpdatedItems(tx, tstr)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return up, err
+	}
+
+	err = tx.Commit()
+	up.finish()
+	return up, err
+}
+
+func (this *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*Feed, error) {
+	glog.V(5).Info("getUpdatedFeeds() started")
+
+	sql := "SELECT " + FeedSelectColumns + ` FROM feeds
+		WHERE commit_timestamp > ?
+		ORDER BY commit_timestamp ASC LIMIT ?;`
+
+	rows, err := tx.Query(sql, tstr, limit)
+	if err != nil {
+		return nil, err
+	}
+	feeds, err := ScanFeeds(rows)
+
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	} else {
+		glog.V(3).Infof("getUpdatedFeeds() retrieved %d feeds", len(feeds))
+		glog.V(5).Info("getUpdatedFeeds() completed")
+		return feeds, nil
+	}
+
+}
+
+func (this *Database) getUpdatedItems(tx *sql.Tx, tstr string) ([]*Item, error) {
+	glog.V(5).Info("getUpdatedItems() started")
+
+	sql := "SELECT " + ItemSelectColumns + ` FROM items
+		WHERE commit_timestamp > ?
+		ORDER BY commit_timestamp ASC LIMIT ?;`
+
+	rows, err := tx.Query(sql, tstr, limit)
+	if err != nil {
+		return nil, err
+	}
+	items, err := ScanItems(rows)
+
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	} else {
+		glog.V(3).Infof("getUpdatedItems() retrieved %d feeds", len(items))
+		glog.V(5).Info("getUpdatedItems() completed")
+		return items, nil
+	}
+
 }

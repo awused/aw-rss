@@ -18,32 +18,57 @@ type Item struct {
 	key, title, url, content string
 	timestamp                time.Time
 	Read                     bool
+	commitTimestamp          time.Time
 }
-
-const ItemSelectColumns string = "items.id, items.feedid, items.key, items.title, items.url, items.content, items.timestamp, items.read"
 
 // Content is excluded and must be fetched separately to cut down on data
 func (this *Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		ID        int64     `json:"id"`
-		FeedId    int64     `json:"feedId"`
-		Title     string    `json:"title"`
-		URL       string    `json:"url"`
-		Timestamp time.Time `json:"timestamp"`
-		Read      bool      `json:"read"`
+		ID              int64     `json:"id"`
+		FeedId          int64     `json:"feedId"`
+		Title           string    `json:"title"`
+		URL             string    `json:"url"`
+		Timestamp       time.Time `json:"timestamp"`
+		Read            bool      `json:"read"`
+		CommitTimestamp int64     `json:"commitTimestamp"`
 	}{
-		ID:        this.id,
-		FeedId:    this.feedId,
-		Title:     this.title,
-		URL:       this.url,
-		Timestamp: this.timestamp,
-		Read:      this.Read,
+		ID:              this.id,
+		FeedId:          this.feedId,
+		Title:           this.title,
+		URL:             this.url,
+		Timestamp:       this.timestamp,
+		Read:            this.Read,
+		CommitTimestamp: this.commitTimestamp.Unix(),
 	})
+}
+
+const ItemSelectColumns string = `
+items.id,
+items.feedid,
+items.key,
+items.title,
+items.url,
+items.content,
+items.timestamp,
+items.read,
+items.commit_timestamp`
+
+func scanItem(item *Item) []interface{} {
+	return []interface{}{
+		&item.id,
+		&item.feedId,
+		&item.key,
+		&item.title,
+		&item.url,
+		&item.content,
+		&item.timestamp,
+		&item.Read,
+		&item.commitTimestamp}
 }
 
 func ScanItem(row *sql.Row) (*Item, error) {
 	var item Item
-	err := row.Scan(&item.id, &item.feedId, &item.key, &item.title, &item.url, &item.content, &item.timestamp, &item.Read)
+	err := row.Scan(scanItem(&item)...)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -55,7 +80,7 @@ func ScanItems(rows *sql.Rows) ([]*Item, error) {
 	items := []*Item{}
 	for rows.Next() {
 		var item Item
-		err := rows.Scan(&item.id, &item.feedId, &item.key, &item.title, &item.url, &item.content, &item.timestamp, &item.Read)
+		err := rows.Scan(scanItem(&item)...)
 		if err != nil {
 			glog.Error(err)
 			return nil, err
@@ -165,8 +190,8 @@ func (this *Item) String() string {
 	return fmt.Sprintf("Item %d (feed %d): %s (%s) time: %s, read: %t", this.id, this.feedId, this.url, this.title, this.timestamp, this.Read)
 }
 
-const ItemInsertColumns string = "feedid, key, title, url, content, timestamp"
-const ItemInsertValues string = "?, ?, ?, ?, ?, ?"
+const ItemInsertColumns string = "feedid, key, title, url, content, timestamp, commit_timestamp"
+const ItemInsertValues string = "?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP"
 
 func (this *Item) InsertValues() []interface{} {
 	return []interface{}{this.feedId, this.key, this.title, this.url, this.content, this.timestamp}
@@ -178,10 +203,11 @@ func (this *Item) UpdateValues() []interface{} {
 	return []interface{}{this.Read}
 }
 
-func (this *Item) Id() int64            { return this.id }
-func (this *Item) FeedId() int64        { return this.feedId }
-func (this *Item) Key() string          { return this.key }
-func (this *Item) Title() string        { return this.title }
-func (this *Item) Url() string          { return this.url }
-func (this *Item) Content() string      { return this.content }
-func (this *Item) Timestamp() time.Time { return this.timestamp }
+func (this *Item) Id() int64                  { return this.id }
+func (this *Item) FeedId() int64              { return this.feedId }
+func (this *Item) Key() string                { return this.key }
+func (this *Item) Title() string              { return this.title }
+func (this *Item) Url() string                { return this.url }
+func (this *Item) Content() string            { return this.content }
+func (this *Item) Timestamp() time.Time       { return this.timestamp }
+func (this *Item) CommitTimestamp() time.Time { return this.commitTimestamp }

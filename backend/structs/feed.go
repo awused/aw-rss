@@ -25,9 +25,8 @@ type Feed struct {
 	LastFetchFailed bool // Whether or not the last attempt to fetch this feed failed
 	// The timestamp of the last successful fetch, helps users see if a breakage is transient
 	LastSuccessTime time.Time
+	commitTimestamp time.Time
 }
-
-const FeedSelectColumns string = "feeds.id, feeds.url, feeds.disabled, feeds.title, feeds.siteurl, feeds.lastfetchfailed, feeds.usertitle, feeds.lastsuccesstime"
 
 func (this *Feed) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
@@ -39,6 +38,7 @@ func (this *Feed) MarshalJSON() ([]byte, error) {
 		LastFetchFailed bool      `json:"lastFetchFailed"`
 		UserTitle       string    `json:"userTitle"`
 		LastSuccessTime time.Time `json:"lastSuccessTime"`
+		CommitTimestamp int64     `json:"commitTimestamp"`
 	}{
 		ID:              this.id,
 		URL:             this.url,
@@ -48,12 +48,37 @@ func (this *Feed) MarshalJSON() ([]byte, error) {
 		LastFetchFailed: this.LastFetchFailed,
 		UserTitle:       this.UserTitle,
 		LastSuccessTime: this.LastSuccessTime,
+		CommitTimestamp: this.commitTimestamp.Unix(),
 	})
+}
+
+const FeedSelectColumns string = `
+feeds.id,
+feeds.url,
+feeds.disabled,
+feeds.title,
+feeds.siteurl,
+feeds.lastfetchfailed,
+feeds.usertitle,
+feeds.lastsuccesstime,
+feeds.commit_timestamp`
+
+func scanFeed(feed *Feed) []interface{} {
+	return []interface{}{
+		&feed.id,
+		&feed.url,
+		&feed.Disabled,
+		&feed.Title,
+		&feed.SiteUrl,
+		&feed.LastFetchFailed,
+		&feed.UserTitle,
+		&feed.LastSuccessTime,
+		&feed.commitTimestamp}
 }
 
 func ScanFeed(row *sql.Row) (*Feed, error) {
 	var feed Feed
-	err := row.Scan(&feed.id, &feed.url, &feed.Disabled, &feed.Title, &feed.SiteUrl, &feed.LastFetchFailed, &feed.UserTitle, &feed.LastSuccessTime)
+	err := row.Scan(scanFeed(&feed)...)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -65,7 +90,7 @@ func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 	feeds := []*Feed{}
 	for rows.Next() {
 		var feed Feed
-		err := rows.Scan(&feed.id, &feed.url, &feed.Disabled, &feed.Title, &feed.SiteUrl, &feed.LastFetchFailed, &feed.UserTitle, &feed.LastSuccessTime)
+		err := rows.Scan(scanFeed(&feed)...)
 		if err != nil {
 			glog.Error(err)
 			return nil, err
@@ -131,18 +156,27 @@ func (this *Feed) String() string {
 }
 
 // Columns set in response to a user's action.
-const FeedUserUpdateColumns string = "disabled = ?, usertitle = ?"
+const FeedUserUpdateColumns string = `
+disabled = ?,
+usertitle = ?,
+commit_timestamp = CURRENT_TIMESTAMP`
 
 func (this *Feed) UserUpdateValues() []interface{} {
 	return []interface{}{this.Disabled, this.UserTitle}
 }
 
 // Columns set automatically by the program. Should not overlap with user set columns to avoid clobbering user data.
-const FeedNonUserUpdateColumns string = "title = ?, siteurl = ?, lastfetchfailed = ?, lastsuccesstime = ?"
+const FeedNonUserUpdateColumns string = `
+title = ?,
+siteurl = ?,
+lastfetchfailed = ?,
+lastsuccesstime = ?,
+commit_timestamp = CURRENT_TIMESTAMP`
 
 func (this *Feed) NonUserUpdateValues() []interface{} {
 	return []interface{}{this.Title, this.SiteUrl, this.LastFetchFailed, this.LastSuccessTime}
 }
 
-func (this *Feed) Id() int64   { return this.id }
-func (this *Feed) Url() string { return this.url }
+func (this *Feed) Id() int64                  { return this.id }
+func (this *Feed) Url() string                { return this.url }
+func (this *Feed) CommitTimestamp() time.Time { return this.commitTimestamp }
