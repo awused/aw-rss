@@ -17,6 +17,7 @@ func (this *webserver) apiRoutes(r chi.Router) {
 	r.Post("/items/{id}/read", this.markItemAsRead)
 	r.Post("/items/{id}/unread", this.markItemAsUnread)
 
+	r.Get("/current", this.currentState)
 	r.Get("/updates/{timestamp}", this.updatesSince)
 }
 
@@ -60,6 +61,7 @@ func (this *webserver) listItems(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO -- Rewrite these around MutateItem and atomic read->write->read again transactions
 func (this *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("markItemAsRead() started")
 
@@ -142,6 +144,19 @@ func (this *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) 
 
 	glog.V(3).Infof("markItemAsUnread() completed for item [%s]", it)
 	if err = json.NewEncoder(w).Encode(it); err != nil {
+		glog.Error(err)
+	}
+}
+
+func (this *webserver) currentState(w http.ResponseWriter, r *http.Request) {
+	cs, err := this.db.GetCurrentState()
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(cs); err != nil {
 		glog.Error(err)
 	}
 }

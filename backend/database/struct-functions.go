@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	. "github.com/awused/rss-aggregator/backend/structs"
@@ -27,6 +28,7 @@ func (this *Database) GetFeeds(includeDisabled bool) ([]*Feed, error) {
 	}
 
 	rows, err := this.db.Query(sql)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +108,7 @@ func (this *Database) GetItem(id int64) (*Item, error) {
 	sql := "SELECT " + ItemSelectColumns + " FROM items WHERE items.id = ?"
 
 	rows, err := this.db.Query(sql, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +143,7 @@ func (this *Database) GetItems(includeRead bool) ([]*Item, error) {
 	sql = sql + " ORDER BY timestamp DESC"
 
 	rows, err := this.db.Query(sql)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -227,6 +231,137 @@ func (this *Database) UpdateItem(it *Item) error {
 	return nil
 }
 
+// TODO -- All these methods are sloppy with how much work they do in the
+// critical sections
+
+/**
+ * Initial data or on full refresh.
+ */
+type CurrentState struct {
+	Timestamp int64   `json:"timestamp,omitempty"`
+	Items     []*Item `json:"items,omitempty"`
+	Feeds     []*Feed `json:"feeds,omitempty"`
+	// For now, at least, this is always all of the data at once
+	// If pagination support is added it will only be for items
+}
+
+func (this *Database) getTransactionTimestamp(tx *sql.Tx) (int64, error) {
+	var b []uint8
+	// https://github.com/mattn/go-sqlite3/issues/316
+	err := tx.QueryRow("SELECT strftime('%s','now')").Scan(&b)
+	if err != nil {
+		return 0, err
+	}
+	t, err := strconv.ParseInt(string(b), 10, 64)
+	// Ensure we never miss an update
+	// Updates are idempotent on the frontend
+	return t - 1, err
+}
+
+func (this *Database) GetCurrentState() (*CurrentState, error) {
+	// Lock the database only once to ensure we have a consistent view of the DB
+	// and never miss updates
+	this.lock.RLock()
+	defer this.lock.RUnlock()
+
+	// Match sqlite's format
+	cs := &CurrentState{}
+
+	if err := this.checkClosed(); err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	// A transaction minimizes the number of locks and prevents external modifications
+	tx, err := this.db.Begin()
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
+	cs.Timestamp, err = this.getTransactionTimestamp(tx)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
+	cs.Feeds, err = this.getCurrentFeeds(tx)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
+	cs.Items, err = this.getCurrentItems(tx)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+	return cs, err
+}
+
+func (this *Database) getCurrentFeeds(tx *sql.Tx) ([]*Feed, error) {
+	glog.V(5).Info("getCurrentFeeds() started")
+
+	sql := "SELECT " + FeedSelectColumns + `
+	    FROM
+					feeds
+			WHERE
+					feeds.disabled = 0`
+
+	rows, err := tx.Query(sql)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	feeds, err := ScanFeeds(rows)
+
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	} else {
+		glog.V(3).Infof("getCurrentFeeds() retrieved %d feeds", len(feeds))
+		glog.V(5).Info("getCurrentFeeds() completed")
+		return feeds, nil
+	}
+}
+func (this *Database) getCurrentItems(tx *sql.Tx) ([]*Item, error) {
+	glog.V(5).Info("getCurrentItems() started")
+
+	sql := "SELECT " + ItemSelectColumns + `
+	    FROM
+					items INNER JOIN feeds ON items.feedid = feeds.id
+			WHERE
+					feeds.disabled = 0 AND items.read = 0
+			ORDER BY timestamp DESC`
+
+	rows, err := tx.Query(sql)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	items, err := ScanItems(rows)
+
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	} else {
+		glog.V(3).Infof("getCurrentItems() retrieved %d items", len(items))
+		glog.V(5).Info("getCurrentItems() completed")
+		return items, nil
+	}
+}
+
 /**
  * Updates
  */
@@ -239,31 +374,10 @@ type Updates struct {
 
 // Above 1000 updates to any one type we give up
 // The frontend will have to resync from scratch
-// TODO -- move to config file
+// TODO -- move to config file, consider limited to Items
 const limit = 1000
 
-func minTime(t time.Time, o time.Time) time.Time {
-	if t.Before(o) {
-		return o
-	}
-	return t
-}
-
 func (this *Updates) finish() {
-	var t time.Time
-	if len(this.Feeds) > 0 {
-		t = this.Feeds[len(this.Feeds)-1].CommitTimestamp()
-	}
-	if len(this.Items) > 0 {
-		t = minTime(t, this.Items[len(this.Items)-1].CommitTimestamp())
-	}
-
-	if !t.Equal(time.Time{}) {
-		// Ensure we never miss an update
-		// Updates are idempotent on the frontend
-		this.Timestamp = t.Unix() - 1
-	}
-
 	if len(this.Feeds) == limit || len(this.Items) == limit {
 		this.Incomplete = true
 	}
@@ -281,7 +395,7 @@ func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
 
 	if err := this.checkClosed(); err != nil {
 		glog.Error(err)
-		return up, err
+		return nil, err
 	}
 
 	// A transaction minimizes the number of locks and prevents external modifications
@@ -289,24 +403,36 @@ func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
-		return up, err
+		return nil, err
+	}
+
+	up.Timestamp, err = this.getTransactionTimestamp(tx)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
 	}
 
 	up.Feeds, err = this.getUpdatedFeeds(tx, tstr)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
-		return up, err
+		return nil, err
 	}
 
 	up.Items, err = this.getUpdatedItems(tx, tstr)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
-		return up, err
+		return nil, err
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
 	up.finish()
 	return up, err
 }
@@ -315,10 +441,10 @@ func (this *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*Feed, error) 
 	glog.V(5).Info("getUpdatedFeeds() started")
 
 	sql := "SELECT " + FeedSelectColumns + ` FROM feeds
-		WHERE commit_timestamp > ?
-		ORDER BY commit_timestamp ASC LIMIT ?;`
+		WHERE commit_timestamp > ? LIMIT ?;`
 
 	rows, err := tx.Query(sql, tstr, limit)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -338,11 +464,13 @@ func (this *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*Feed, error) 
 func (this *Database) getUpdatedItems(tx *sql.Tx, tstr string) ([]*Item, error) {
 	glog.V(5).Info("getUpdatedItems() started")
 
+	// Order by timestamp to make it easier to merge on the client
 	sql := "SELECT " + ItemSelectColumns + ` FROM items
 		WHERE commit_timestamp > ?
-		ORDER BY commit_timestamp ASC LIMIT ?;`
+		ORDER BY timestamp DESC LIMIT ?;`
 
 	rows, err := tx.Query(sql, tstr, limit)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +480,7 @@ func (this *Database) getUpdatedItems(tx *sql.Tx, tstr string) ([]*Item, error) 
 		glog.Error(err)
 		return nil, err
 	} else {
-		glog.V(3).Infof("getUpdatedItems() retrieved %d feeds", len(items))
+		glog.V(3).Infof("getUpdatedItems() retrieved %d items", len(items))
 		glog.V(5).Info("getUpdatedItems() completed")
 		return items, nil
 	}
