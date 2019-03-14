@@ -28,10 +28,10 @@ func (this *Database) GetFeeds(includeDisabled bool) ([]*Feed, error) {
 	}
 
 	rows, err := this.db.Query(sql)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	feeds, err := ScanFeeds(rows)
 
 	if err != nil {
@@ -108,10 +108,10 @@ func (this *Database) GetItem(id int64) (*Item, error) {
 	sql := "SELECT " + ItemSelectColumns + " FROM items WHERE items.id = ?"
 
 	rows, err := this.db.Query(sql, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	items, err := ScanItems(rows)
 	if err != nil {
 		return nil, err
@@ -143,10 +143,10 @@ func (this *Database) GetItems(includeRead bool) ([]*Item, error) {
 	sql = sql + " ORDER BY timestamp DESC"
 
 	rows, err := this.db.Query(sql)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	items, err := ScanItems(rows)
 
 	if err != nil {
@@ -238,9 +238,10 @@ func (this *Database) UpdateItem(it *Item) error {
  * Initial data or on full refresh.
  */
 type CurrentState struct {
-	Timestamp int64   `json:"timestamp,omitempty"`
+	Timestamp int64   `json:"timestamp"`
 	Items     []*Item `json:"items,omitempty"`
 	Feeds     []*Feed `json:"feeds,omitempty"`
+	// Categoriess []*Category `json:"categories,omitempty"`
 	// For now, at least, this is always all of the data at once
 	// If pagination support is added it will only be for items
 }
@@ -317,13 +318,14 @@ func (this *Database) getCurrentFeeds(tx *sql.Tx) ([]*Feed, error) {
 	    FROM
 					feeds
 			WHERE
-					feeds.disabled = 0`
+					feeds.disabled = 0
+			ORDER BY feeds.id ASC`
 
 	rows, err := tx.Query(sql)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	feeds, err := ScanFeeds(rows)
 
 	if err != nil {
@@ -340,16 +342,16 @@ func (this *Database) getCurrentItems(tx *sql.Tx) ([]*Item, error) {
 
 	sql := "SELECT " + ItemSelectColumns + `
 	    FROM
-					items INNER JOIN feeds ON items.feedid = feeds.id
+					feeds CROSS JOIN items ON items.feedid = feeds.id
 			WHERE
 					feeds.disabled = 0 AND items.read = 0
-			ORDER BY timestamp DESC`
+			ORDER BY items.id ASC`
 
 	rows, err := tx.Query(sql)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	items, err := ScanItems(rows)
 
 	if err != nil {
@@ -374,7 +376,9 @@ type Updates struct {
 
 // Above 1000 updates to any one type we give up
 // The frontend will have to resync from scratch
-// TODO -- move to config file, consider limited to Items
+// TODO -- move to config file, consider limiting to Items
+// TODO -- Make it possible to catch up from Incomplete Updates
+// sort by commitTimestamp ASC first, then sort again by ID
 const limit = 1000
 
 func (this *Updates) finish() {
@@ -440,14 +444,17 @@ func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
 func (this *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*Feed, error) {
 	glog.V(5).Info("getUpdatedFeeds() started")
 
-	sql := "SELECT " + FeedSelectColumns + ` FROM feeds
-		WHERE commit_timestamp > ? LIMIT ?;`
+	sql := "SELECT " + FeedSelectColumns + `
+		FROM feeds INDEXED BY feeds_commit_index
+		WHERE commit_timestamp > ?
+		ORDER BY feeds.id ASC
+		LIMIT ?;`
 
 	rows, err := tx.Query(sql, tstr, limit)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	feeds, err := ScanFeeds(rows)
 
 	if err != nil {
@@ -464,16 +471,17 @@ func (this *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*Feed, error) 
 func (this *Database) getUpdatedItems(tx *sql.Tx, tstr string) ([]*Item, error) {
 	glog.V(5).Info("getUpdatedItems() started")
 
-	// Order by timestamp to make it easier to merge on the client
-	sql := "SELECT " + ItemSelectColumns + ` FROM items
+	sql := "SELECT " + ItemSelectColumns + `
+		FROM items INDEXED BY items_commit_index
 		WHERE commit_timestamp > ?
-		ORDER BY timestamp DESC LIMIT ?;`
+		ORDER BY items.id ASC
+		LIMIT ?;`
 
 	rows, err := tx.Query(sql, tstr, limit)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	items, err := ScanItems(rows)
 
 	if err != nil {
