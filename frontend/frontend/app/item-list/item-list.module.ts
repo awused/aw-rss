@@ -1,15 +1,22 @@
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {CommonModule} from '@angular/common';
+import {NgModule} from '@angular/core';
+import {RouterModule,
+        Routes} from '@angular/router';
 
-import { ItemListRoutingModule } from './item-list-routing.module';
-import { ItemListElementComponent } from './components/item-list-element/item-list-element.component';
-import { ItemListComponent } from './components/item-list/item-list.component';
+import {ItemListElementComponent} from './components/item-list-element/item-list-element.component';
+import {ItemListComponent} from './components/item-list/item-list.component';
+
+const routes: Routes = [
+  {path: '', component: ItemListComponent}
+];
 
 @NgModule({
   imports: [
     CommonModule,
-    ItemListRoutingModule
+    RouterModule.forChild(routes),
   ],
-  declarations: [ItemListElementComponent, ItemListComponent]
+  declarations: [ItemListElementComponent, ItemListComponent],
+  exports: [RouterModule]
 })
-export class ItemListModule { }
+export class ItemListModule {
+}

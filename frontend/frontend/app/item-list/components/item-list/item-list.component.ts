@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import {Component,
+        OnInit} from '@angular/core';
+import {DataService} from 'frontend/app/services/data.service';
 
 @Component({
   selector: 'app-item-list',
@@ -6,10 +8,9 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./item-list.component.scss']
 })
 export class ItemListComponent implements OnInit {
-
-  constructor() { }
+  constructor(private readonly dataService: DataService) {
+  }
 
   ngOnInit() {
   }
-
 }
