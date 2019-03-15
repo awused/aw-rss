@@ -28,8 +28,8 @@ var trustedHosts = map[string]bool{
 }
 
 var (
-	ErrUntrustedHost     = errors.New("Host not trusted for cloudflare bypass")
-	ErrUnsecureTransport = errors.New("Cloudflare bypass requires https")
+	errUntrustedHost     = errors.New("Host not trusted for cloudflare bypass")
+	errUnsecureTransport = errors.New("Cloudflare bypass requires https")
 )
 
 type cloudflare struct {
@@ -51,119 +51,118 @@ func newCloudflare(closeChan <-chan struct{}) *cloudflare {
 	}
 }
 
-func CloudflareSupported(feedUrl string) bool {
-	_, err := host(feedUrl)
+func cloudflareSupported(feedURL string) bool {
+	_, err := host(feedURL)
 	return err == nil
 }
 
-func host(feedUrl string) (string, error) {
-	u, err := url.Parse(feedUrl)
+func host(feedURL string) (string, error) {
+	u, err := url.Parse(feedURL)
 	if err != nil {
 		return "", err
 	}
 
 	if u.Scheme != "https" {
-		return "", ErrUnsecureTransport
+		return "", errUnsecureTransport
 	}
 
 	if !trustedHosts[u.Host] {
 		glog.V(1).Infof("Host [%s] not trusted for cloudflare bypass", u.Host)
-		return "", ErrUntrustedHost
+		return "", errUntrustedHost
 	}
 
 	return u.Host, nil
 }
 
-func IsCloudflareResponse(body string) bool {
+func isCloudflareResponse(body string) bool {
 	return strings.Contains(body, "This process is automatic. Your browser "+
 		"will redirect to your requested content shortly.")
 }
 
-func (this *cloudflare) GetCookie(feedUrl string) (
+func (cf *cloudflare) getCookie(feedURL string) (
 	cookie string, userAgent string, blocked bool) {
-	h, err := host(feedUrl)
+	h, err := host(feedURL)
 	if err != nil {
 		return "", "", false
 	}
 
-	this.fetchingLock.Lock()
-	fetchChan, blocking := this.fetching[h]
-	this.fetchingLock.Unlock()
+	cf.fetchingLock.Lock()
+	fetchChan, blocking := cf.fetching[h]
+	cf.fetchingLock.Unlock()
 
 	if blocking {
 		select {
 		case <-fetchChan:
-		case <-this.closeChan:
+		case <-cf.closeChan:
 			return "", "", true
 		}
 	}
 
-	c, ua := this.getExistingCookie(h)
+	c, ua := cf.getExistingCookie(h)
 	return c, ua, blocking
 }
 
-func (this *cloudflare) getExistingCookie(h string) (string, string) {
-	this.cookieLock.RLock()
-	defer this.cookieLock.RUnlock()
+func (cf *cloudflare) getExistingCookie(h string) (string, string) {
+	cf.cookieLock.RLock()
+	defer cf.cookieLock.RUnlock()
 
-	c := this.cookies[h]
-	ua := this.userAgents[h]
+	c := cf.cookies[h]
+	ua := cf.userAgents[h]
 	return c, ua
 }
 
-func (this *cloudflare) GetNewCookie(feedUrl string) (string, string, error) {
+func (cf *cloudflare) getNewCookie(feedURL string) (string, string, error) {
 	select {
-	case <-this.closeChan:
+	case <-cf.closeChan:
 		return "", "", nil
 	default:
 	}
 
-	h, err := host(feedUrl)
+	h, err := host(feedURL)
 	if err != nil {
 		return "", "", err
 	}
 
-	this.fetchingLock.Lock()
-	fetchChan, ok := this.fetching[h]
+	cf.fetchingLock.Lock()
+	fetchChan, ok := cf.fetching[h]
 	if !ok {
 		fetchChan = make(chan struct{})
-		this.fetching[h] = fetchChan
-		defer this.stopFetching(h)
+		cf.fetching[h] = fetchChan
+		defer cf.stopFetching(h)
 	}
-	this.fetchingLock.Unlock()
+	cf.fetchingLock.Unlock()
 
 	if ok {
 		select {
 		case <-fetchChan:
-		case <-this.closeChan:
+		case <-cf.closeChan:
 			return "", "", nil
 		}
-		c, ua := this.getExistingCookie(h)
+		c, ua := cf.getExistingCookie(h)
 		if c != "" {
 			return c, ua, nil
-		} else {
-			// Abort and retry through the normal mechamism
-			return c, ua,
-				errors.New("Another thread failed to fetch cloudflare cookies")
 		}
+		// Abort and retry through the normal mechamism
+		return c, ua,
+			errors.New("Another thread failed to fetch cloudflare cookies")
 	}
 
 	// This thread is now responsible for fetching cookies for this host
-	this.pythonLock.Lock()
-	defer this.pythonLock.Unlock()
+	cf.pythonLock.Lock()
+	defer cf.pythonLock.Unlock()
 	select {
-	case <-this.closeChan:
+	case <-cf.closeChan:
 		return "", "", nil
 	default:
 	}
 
 	glog.Infof("Fetching new cloudflare cookie for [%s]", h)
-	return this.runPython(feedUrl, h)
+	return cf.runPython(feedURL, h)
 }
 
-func (this *cloudflare) runPython(feedUrl, host string) (string, string, error) {
+func (cf *cloudflare) runPython(feedURL, host string) (string, string, error) {
 	out, err :=
-		exec.Command("python3", "-c", cookieScript, feedUrl).CombinedOutput()
+		exec.Command("python3", "-c", cookieScript, feedURL).CombinedOutput()
 	if err != nil {
 		glog.Warning(string(out))
 		return "", "", err
@@ -173,21 +172,21 @@ func (this *cloudflare) runPython(feedUrl, host string) (string, string, error) 
 
 	if len(lines) < 2 {
 		return "", "",
-			errors.New("Missing cloudflare cookie or user agent for " + feedUrl)
+			errors.New("Missing cloudflare cookie or user agent for " + feedURL)
 	}
 
-	this.cookieLock.Lock()
-	this.cookies[host] = lines[0]
-	this.userAgents[host] = lines[1]
-	this.cookieLock.Unlock()
+	cf.cookieLock.Lock()
+	cf.cookies[host] = lines[0]
+	cf.userAgents[host] = lines[1]
+	cf.cookieLock.Unlock()
 
 	return lines[0], lines[1], nil
 }
 
-func (this *cloudflare) stopFetching(h string) {
-	this.fetchingLock.Lock()
-	c := this.fetching[h]
+func (cf *cloudflare) stopFetching(h string) {
+	cf.fetchingLock.Lock()
+	c := cf.fetching[h]
 	close(c)
-	delete(this.fetching, h)
-	this.fetchingLock.Unlock()
+	delete(cf.fetching, h)
+	cf.fetchingLock.Unlock()
 }

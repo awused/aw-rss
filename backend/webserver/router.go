@@ -9,12 +9,13 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
+// TODO -- this must die
 var staticRoot = flag.String("static", "/usr/local/www/rss-aggregator", "Directory containing the static files used")
 
 const staticDir = "static"
 const nodeDir = "node_modules"
 
-func (this *webserver) getRouter() http.Handler {
+func (w *webserver) getRouter() http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)
@@ -26,7 +27,7 @@ func (this *webserver) getRouter() http.Handler {
 	})
 	// TODO -- remove entirely
 	router.Get("/node_modules/*", http.FileServer(http.Dir(*staticRoot)).ServeHTTP)
-	router.Route("/api", this.apiRoutes)
+	router.Route("/api", w.apiRoutes)
 	router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(
 			w, r, path.Join(*staticRoot, staticDir, "icons", "graphicsvibe-rss-feed.ico"))

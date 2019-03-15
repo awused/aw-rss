@@ -3,9 +3,9 @@ package webserver
 import (
 	"flag"
 
-	"github.com/awused/rss-aggregator/backend/database"
-	"github.com/awused/rss-aggregator/backend/rssfetcher"
-	//. "github.com/awused/rss-aggregator/structs"
+	"github.com/awused/aw-rss/backend/database"
+	"github.com/awused/aw-rss/backend/rssfetcher"
+
 	"net"
 	"net/http"
 	"sync"
@@ -14,19 +14,26 @@ import (
 )
 
 var protocol = flag.String("proto", "tcp", "Network protocol used, tcp, udp, or unix")
-var addr = flag.String("addr", ":8080", "The address the web server listens to for connections")
+var addr = flag.String("addr", "localhost:8080", "The address the web server listens to for connections")
+
+// WebServer A web server
+type WebServer interface {
+	Run() error
+	Close() error
+}
 
 type webserver struct {
 	db        *database.Database
 	wg        sync.WaitGroup
 	listener  net.Listener
-	errorChan chan error
 	closed    bool
 	closeLock sync.Mutex
 	rss       rssfetcher.RssFetcher
+	rssError  error
 }
 
-func WebServer() (*webserver, error) {
+// NewWebServer creates a new webserver
+func NewWebServer() (WebServer, error) {
 	glog.V(5).Info("WebServer() started")
 
 	db, err := database.GetDatabase()
@@ -37,7 +44,6 @@ func WebServer() (*webserver, error) {
 
 	var web webserver
 	web.db = db
-	web.errorChan = make(chan error)
 
 	web.rss, err = rssfetcher.NewRssFetcher()
 	if err != nil {
@@ -49,59 +55,67 @@ func WebServer() (*webserver, error) {
 	return &web, nil
 }
 
-func (this *webserver) Close() error {
-	glog.Info("Closing webserver")
+func (w *webserver) Close() error {
+	return w.close(nil)
+}
 
-	if this.closed {
+func (w *webserver) close(rssError error) error {
+	glog.Info("Closing webserver")
+	if rssError != nil {
+	}
+
+	if w.closed {
 		glog.Warning("Tried to close webserver that has already been closed")
 		return nil
 	}
-	this.closeLock.Lock()
-	defer this.closeLock.Unlock()
-	if this.closed {
+	w.closeLock.Lock()
+	defer w.closeLock.Unlock()
+	if w.closed {
 		glog.Warning("Tried to close webserver that has already been closed")
 		return nil
 	}
 
 	// Close and kill the main routine
-	this.closed = true
-	this.listener.Close()
+	w.closed = true
+	w.rssError = rssError
+	w.listener.Close()
 
 	defer glog.Info("Close() completed")
 	// rss.Close() also closes the database
-	return this.rss.Close()
+	return w.rss.Close()
 }
 
-func (this *webserver) Run() (err error) {
-	go this.runRss()
+func (w *webserver) Run() (err error) {
+	go w.runRss()
 
 	glog.Info("Webserver.Run() started")
 
-	this.listener, err = net.Listen(*protocol, *addr)
+	w.listener, err = net.Listen(*protocol, *addr)
 	if err != nil {
 		glog.Errorf("Failed to open listening socket for %s on %s: %s", *protocol, *addr, err)
 	}
 	glog.Infof("Listening for connections on %s", *addr)
 
-	err = http.Serve(this.listener, this.getRouter())
+	err = http.Serve(w.listener, w.getRouter())
 
-	if !this.closed {
+	w.closeLock.Lock()
+	defer w.closeLock.Unlock()
+	if !w.closed {
 		glog.Error(err)
 		return err
-	} else {
-		glog.Info("webserver closed, exiting")
 	}
-
-	return nil
+	glog.Info("webserver closed, exiting")
+	return w.rssError
 }
 
-func (this *webserver) runRss() {
+func (w *webserver) runRss() {
 	glog.Info("Starting rssfetcher")
 
-	err := this.rss.Run()
+	err := w.rss.Run()
 
 	if err != nil {
 		glog.Error(err)
+		w.close(err)
 	} else {
 		glog.Info("rssfetcher closed")
 	}

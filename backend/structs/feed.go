@@ -9,49 +9,56 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/mmcdole/gofeed"
 )
 
+// Feed represents a single RSS feed
 type Feed struct {
 	id             int64
 	url            string
 	Disabled       bool
-	Title, SiteUrl string
+	Title, SiteURL string
 	UserTitle      string
 
 	LastFetchFailed bool // Whether or not the last attempt to fetch this feed failed
 	// The timestamp of the last successful fetch, helps users see if a breakage is transient
 	LastSuccessTime time.Time
 	commitTimestamp time.Time
+	createTimestamp time.Time
 }
 
-func (this *Feed) MarshalJSON() ([]byte, error) {
+// MarshalJSON is used by the JSON marshaller
+func (f *Feed) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID              int64     `json:"id"`
 		URL             string    `json:"url"`
 		Disabled        bool      `json:"disabled"`
 		Title           string    `json:"title"`
-		SiteUrl         string    `json:"siteUrl"`
+		SiteURL         string    `json:"siteUrl"`
 		LastFetchFailed bool      `json:"lastFetchFailed"`
 		UserTitle       string    `json:"userTitle"`
 		LastSuccessTime time.Time `json:"lastSuccessTime"`
 		CommitTimestamp int64     `json:"commitTimestamp"`
+		CreateTimestamp int64     `json:"createTimestamp"`
 	}{
-		ID:              this.id,
-		URL:             this.url,
-		Disabled:        this.Disabled,
-		Title:           this.Title,
-		SiteUrl:         this.SiteUrl,
-		LastFetchFailed: this.LastFetchFailed,
-		UserTitle:       this.UserTitle,
-		LastSuccessTime: this.LastSuccessTime,
-		CommitTimestamp: this.commitTimestamp.Unix(),
+		ID:              f.id,
+		URL:             f.url,
+		Disabled:        f.Disabled,
+		Title:           f.Title,
+		SiteURL:         f.SiteURL,
+		LastFetchFailed: f.LastFetchFailed,
+		UserTitle:       f.UserTitle,
+		LastSuccessTime: f.LastSuccessTime,
+		CommitTimestamp: f.commitTimestamp.Unix(),
+		CreateTimestamp: f.createTimestamp.Unix(),
 	})
 }
 
+// FeedSelectColumns is used by the database
 const FeedSelectColumns string = `
 feeds.id,
 feeds.url,
@@ -61,7 +68,8 @@ feeds.siteurl,
 feeds.lastfetchfailed,
 feeds.usertitle,
 feeds.lastsuccesstime,
-feeds.commit_timestamp`
+feeds.commit_timestamp,
+feeds.create_timestamp`
 
 func scanFeed(feed *Feed) []interface{} {
 	return []interface{}{
@@ -69,13 +77,15 @@ func scanFeed(feed *Feed) []interface{} {
 		&feed.url,
 		&feed.Disabled,
 		&feed.Title,
-		&feed.SiteUrl,
+		&feed.SiteURL,
 		&feed.LastFetchFailed,
 		&feed.UserTitle,
 		&feed.LastSuccessTime,
-		&feed.commitTimestamp}
+		&feed.commitTimestamp,
+		&feed.createTimestamp}
 }
 
+// ScanFeed converts one row into a feed
 func ScanFeed(row *sql.Row) (*Feed, error) {
 	var feed Feed
 	err := row.Scan(scanFeed(&feed)...)
@@ -86,6 +96,7 @@ func ScanFeed(row *sql.Row) (*Feed, error) {
 	return &feed, nil
 }
 
+// ScanFeeds converts multiple rows into feeds
 func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 	feeds := []*Feed{}
 	for rows.Next() {
@@ -104,16 +115,17 @@ func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 	return feeds, nil
 }
 
-func (this *Feed) HandleUpdate(feed *gofeed.Feed) {
-	this.Title = getFeedTitle(this, feed)
+// HandleUpdate merges in updates from the latest fetched version of the feed
+func (f *Feed) HandleUpdate(feed *gofeed.Feed) {
+	f.Title = getFeedTitle(f, feed)
 
 	if feed.Link != "" {
-		this.SiteUrl = feed.Link
+		f.SiteURL = feed.Link
 	} else {
-		if this.SiteUrl == "" {
-			// Default to the feed URL, only log this once
-			glog.Warningf("Feed without link [%s]", this)
-			this.SiteUrl = this.url
+		if f.SiteURL == "" && !strings.HasPrefix(f.url, "!") {
+			// Default to the feed URL if it's a URL, only log f once
+			glog.Warningf("Feed without link [%s]", f)
+			f.SiteURL = f.url
 		}
 	}
 }
@@ -146,26 +158,28 @@ func getFeedTitle(f *Feed, feed *gofeed.Feed) string {
 	return groups[1]
 }
 
-func (this *Feed) String() string {
-	title := this.Title
-	if this.UserTitle != "" {
-		title = this.UserTitle
+func (f *Feed) String() string {
+	title := f.Title
+	if f.UserTitle != "" {
+		title = f.UserTitle
 	}
 	return fmt.Sprintf("Feed %d: %s (%s) disabled: %t, lastFetchFailed: %t, lastSuccessTime %s",
-		this.id, this.url, title, this.Disabled, this.LastFetchFailed, this.LastSuccessTime)
+		f.id, f.url, title, f.Disabled, f.LastFetchFailed, f.LastSuccessTime)
 }
 
-// Columns set in response to a user's action.
+// FeedUserUpdateColumns defines the set of columns that users are able to update
 const FeedUserUpdateColumns string = `
 disabled = ?,
 usertitle = ?,
 commit_timestamp = CURRENT_TIMESTAMP`
 
-func (this *Feed) UserUpdateValues() []interface{} {
-	return []interface{}{this.Disabled, this.UserTitle}
+// UserUpdateValues fills in the values used above
+func (f *Feed) UserUpdateValues() []interface{} {
+	return []interface{}{f.Disabled, f.UserTitle}
 }
 
-// Columns set automatically by the program. Should not overlap with user set columns to avoid clobbering user data.
+// FeedNonUserUpdateColumns defines the set of columns updated automatically.
+// Must not overlap with user set columns to avoid clobbering user data.
 const FeedNonUserUpdateColumns string = `
 title = ?,
 siteurl = ?,
@@ -173,10 +187,13 @@ lastfetchfailed = ?,
 lastsuccesstime = ?,
 commit_timestamp = CURRENT_TIMESTAMP`
 
-func (this *Feed) NonUserUpdateValues() []interface{} {
-	return []interface{}{this.Title, this.SiteUrl, this.LastFetchFailed, this.LastSuccessTime}
+// NonUserUpdateValues fills in the values used above
+func (f *Feed) NonUserUpdateValues() []interface{} {
+	return []interface{}{f.Title, f.SiteURL, f.LastFetchFailed, f.LastSuccessTime}
 }
 
-func (this *Feed) Id() int64                  { return this.id }
-func (this *Feed) Url() string                { return this.url }
-func (this *Feed) CommitTimestamp() time.Time { return this.commitTimestamp }
+// ID gets the ID
+func (f *Feed) ID() int64 { return f.id }
+
+// URL gets the URL
+func (f *Feed) URL() string { return f.url }

@@ -22,7 +22,7 @@ type Item struct {
 }
 
 // Content is excluded and must be fetched separately to cut down on data
-func (this *Item) MarshalJSON() ([]byte, error) {
+func (it *Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID              int64     `json:"id"`
 		FeedId          int64     `json:"feedId"`
@@ -32,13 +32,13 @@ func (this *Item) MarshalJSON() ([]byte, error) {
 		Read            bool      `json:"read"`
 		CommitTimestamp int64     `json:"commitTimestamp"`
 	}{
-		ID:              this.id,
-		FeedId:          this.feedId,
-		Title:           this.title,
-		URL:             this.url,
-		Timestamp:       this.timestamp,
-		Read:            this.Read,
-		CommitTimestamp: this.commitTimestamp.Unix(),
+		ID:              it.id,
+		FeedId:          it.feedId,
+		Title:           it.title,
+		URL:             it.url,
+		Timestamp:       it.timestamp,
+		Read:            it.Read,
+		CommitTimestamp: it.commitTimestamp.Unix(),
 	})
 }
 
@@ -106,7 +106,7 @@ func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
 
 	handleItemQuirks(items, gfItems, f)
 
-	glog.V(2).Infof("Created %d items for [Feed: %d]", len(gfItems), f.Id())
+	glog.V(2).Infof("Created %d items for [Feed: %d]", len(gfItems), f.ID())
 	return items
 }
 
@@ -119,7 +119,7 @@ func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	}()
 	var item Item
 
-	item.feedId = f.Id()
+	item.feedId = f.ID()
 	item.key = getKey(gfi)
 	item.title = gfi.Title
 	if gfi.Link != "" {
@@ -179,35 +179,34 @@ var fre = regexp.MustCompile(fictionRegexp)
 
 // Handle quirky behaviour from poorly built feed generators
 func handleItemQuirks(items []*Item, gfItems []*gofeed.Item, f *Feed) {
-	if fre.MatchString(f.Url()) {
+	if fre.MatchString(f.URL()) {
 		for _, item := range items {
 			item.key = item.key + item.timestamp.String()
 		}
 	}
 }
 
-func (this *Item) String() string {
-	return fmt.Sprintf("Item %d (feed %d): %s (%s) time: %s, read: %t", this.id, this.feedId, this.url, this.title, this.timestamp, this.Read)
+func (it *Item) String() string {
+	return fmt.Sprintf("Item %d (feed %d): %s (%s) time: %s, read: %t", it.id, it.feedId, it.url, it.title, it.timestamp, it.Read)
 }
 
 const ItemInsertColumns string = "feedid, key, title, url, content, timestamp, commit_timestamp"
 const ItemInsertValues string = "?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP"
 
-func (this *Item) InsertValues() []interface{} {
-	return []interface{}{this.feedId, this.key, this.title, this.url, this.content, this.timestamp}
+func (it *Item) InsertValues() []interface{} {
+	return []interface{}{it.feedId, it.key, it.title, it.url, it.content, it.timestamp}
 }
 
 const ItemUpdateColumns string = "read = ?"
 
-func (this *Item) UpdateValues() []interface{} {
-	return []interface{}{this.Read}
+func (it *Item) UpdateValues() []interface{} {
+	return []interface{}{it.Read}
 }
 
-func (this *Item) Id() int64                  { return this.id }
-func (this *Item) FeedId() int64              { return this.feedId }
-func (this *Item) Key() string                { return this.key }
-func (this *Item) Title() string              { return this.title }
-func (this *Item) Url() string                { return this.url }
-func (this *Item) Content() string            { return this.content }
-func (this *Item) Timestamp() time.Time       { return this.timestamp }
-func (this *Item) CommitTimestamp() time.Time { return this.commitTimestamp }
+func (it *Item) Id() int64            { return it.id }
+func (it *Item) FeedId() int64        { return it.feedId }
+func (it *Item) Key() string          { return it.key }
+func (it *Item) Title() string        { return it.title }
+func (it *Item) Url() string          { return it.url }
+func (it *Item) Content() string      { return it.content }
+func (it *Item) Timestamp() time.Time { return it.timestamp }

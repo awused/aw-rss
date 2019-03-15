@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	. "github.com/awused/rss-aggregator/backend/structs"
+	. "github.com/awused/aw-rss/backend/structs"
 	"github.com/golang/glog"
 )
 
@@ -55,7 +55,7 @@ func (this *Database) UserUpdateFeed(f *Feed) error {
 	}
 
 	sql := "UPDATE feeds SET " + FeedUserUpdateColumns + " WHERE id = ?"
-	binds := append(f.UserUpdateValues(), f.Id())
+	binds := append(f.UserUpdateValues(), f.ID())
 
 	glog.V(4).Infof("Writing user updated feed [%s]", f)
 	_, err := this.db.Exec(sql, binds...)
@@ -79,7 +79,7 @@ func (this *Database) NonUserUpdateFeed(f *Feed) error {
 	}
 
 	sql := "UPDATE feeds SET " + FeedNonUserUpdateColumns + " WHERE id = ?"
-	binds := append(f.NonUserUpdateValues(), f.Id())
+	binds := append(f.NonUserUpdateValues(), f.ID())
 
 	glog.V(4).Infof("Writing non-user updated feed [%s]", f)
 	_, err := this.db.Exec(sql, binds...)
@@ -368,24 +368,19 @@ func (this *Database) getCurrentItems(tx *sql.Tx) ([]*Item, error) {
  * Updates
  */
 type Updates struct {
-	Timestamp  int64   `json:"timestamp,omitempty"`
-	Items      []*Item `json:"items,omitempty"`
-	Feeds      []*Feed `json:"feeds,omitempty"`
-	Incomplete bool    `json:"incomplete,omitempty"`
+	Timestamp int64   `json:"timestamp,omitempty"`
+	Items     []*Item `json:"items,omitempty"`
+	Feeds     []*Feed `json:"feeds,omitempty"`
+	// Categoriess []*Category `json:"categories,omitempty"`
+	// When the client's state is too old and they should refresh instead
+	MustRefresh bool `json:"mustRefresh,omitempty"`
 }
 
-// Above 1000 updates to any one type we give up
+var maxClientStaleness = time.Duration(time.Hour * 24 * 7)
+
 // The frontend will have to resync from scratch
-// TODO -- move to config file, consider limiting to Items
 // TODO -- Make it possible to catch up from Incomplete Updates
 // sort by commitTimestamp ASC first, then sort again by ID
-const limit = 1000
-
-func (this *Updates) finish() {
-	if len(this.Feeds) == limit || len(this.Items) == limit {
-		this.Incomplete = true
-	}
-}
 
 func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
 	// Lock the database only once to ensure we have a consistent view of the DB
@@ -417,6 +412,18 @@ func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
 		return nil, err
 	}
 
+	newT := time.Unix(up.Timestamp, 0).UTC()
+	if t.Add(maxClientStaleness).Before(newT) {
+		up.MustRefresh = true
+		err = tx.Commit()
+		if err != nil {
+			glog.Error(err)
+			tx.Rollback()
+			return nil, err
+		}
+		return up, nil
+	}
+
 	up.Feeds, err = this.getUpdatedFeeds(tx, tstr)
 	if err != nil {
 		glog.Error(err)
@@ -437,7 +444,6 @@ func (this *Database) GetUpdates(t time.Time) (*Updates, error) {
 		tx.Rollback()
 		return nil, err
 	}
-	up.finish()
 	return up, err
 }
 
@@ -447,10 +453,9 @@ func (this *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*Feed, error) 
 	sql := "SELECT " + FeedSelectColumns + `
 		FROM feeds INDEXED BY feeds_commit_index
 		WHERE commit_timestamp > ?
-		ORDER BY feeds.id ASC
-		LIMIT ?;`
+		ORDER BY feeds.id ASC;`
 
-	rows, err := tx.Query(sql, tstr, limit)
+	rows, err := tx.Query(sql, tstr)
 	if err != nil {
 		return nil, err
 	}
@@ -474,10 +479,9 @@ func (this *Database) getUpdatedItems(tx *sql.Tx, tstr string) ([]*Item, error) 
 	sql := "SELECT " + ItemSelectColumns + `
 		FROM items INDEXED BY items_commit_index
 		WHERE commit_timestamp > ?
-		ORDER BY items.id ASC
-		LIMIT ?;`
+		ORDER BY items.id ASC;`
 
-	rows, err := tx.Query(sql, tstr, limit)
+	rows, err := tx.Query(sql, tstr)
 	if err != nil {
 		return nil, err
 	}

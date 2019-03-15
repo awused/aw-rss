@@ -2,18 +2,19 @@ package main
 
 import (
 	"flag"
-	"github.com/awused/rss-aggregator/backend/webserver"
-	"github.com/golang/glog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/awused/aw-rss/backend/webserver"
+	"github.com/golang/glog"
 )
 
 func main() {
 	flag.Parse()
 	defer glog.Flush()
 
-	server, err := webserver.WebServer()
+	server, err := webserver.NewWebServer()
 	if err != nil {
 		panic(err)
 	}

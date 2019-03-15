@@ -5,6 +5,8 @@
 /tmp
 /out-tsc
 
+/aw-rss
+
 # dependencies
 /node_modules
 

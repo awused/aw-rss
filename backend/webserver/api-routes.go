@@ -10,25 +10,25 @@ import (
 	"github.com/golang/glog"
 )
 
-func (this *webserver) apiRoutes(r chi.Router) {
-	r.Get("/feeds/list", this.listFeeds)
+func (w *webserver) apiRoutes(r chi.Router) {
+	r.Get("/feeds/list", w.listFeeds)
 
-	r.Get("/items/list", this.listItems)
-	r.Post("/items/{id}/read", this.markItemAsRead)
-	r.Post("/items/{id}/unread", this.markItemAsUnread)
+	r.Get("/items/list", w.listItems)
+	r.Post("/items/{id}/read", w.markItemAsRead)
+	r.Post("/items/{id}/unread", w.markItemAsUnread)
 
-	r.Get("/current", this.currentState)
-	r.Get("/updates/{timestamp}", this.updatesSince)
+	r.Get("/current", w.currentState)
+	r.Get("/updates/{timestamp}", w.updatesSince)
 }
 
 /**
  * disabled = 1 to include disabled feeds
  */
-func (this *webserver) listFeeds(w http.ResponseWriter, r *http.Request) {
+func (ws *webserver) listFeeds(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("listFeeds() started")
 	q := r.URL.Query()
 
-	feeds, err := this.db.GetFeeds(q.Get("disabled") == "1")
+	feeds, err := ws.db.GetFeeds(q.Get("disabled") == "1")
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -44,11 +44,11 @@ func (this *webserver) listFeeds(w http.ResponseWriter, r *http.Request) {
 /**
  * read = 1 to include read items
  */
-func (this *webserver) listItems(w http.ResponseWriter, r *http.Request) {
+func (ws *webserver) listItems(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("listItems() started")
 	q := r.URL.Query()
 
-	items, err := this.db.GetItems(q.Get("read") == "1")
+	items, err := ws.db.GetItems(q.Get("read") == "1")
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -62,7 +62,7 @@ func (this *webserver) listItems(w http.ResponseWriter, r *http.Request) {
 }
 
 // TODO -- Rewrite these around MutateItem and atomic read->write->read again transactions
-func (this *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
+func (ws *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("markItemAsRead() started")
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -72,7 +72,7 @@ func (this *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	it, err := this.db.GetItem(int64(id))
+	it, err := ws.db.GetItem(int64(id))
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -92,7 +92,7 @@ func (this *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	it.Read = true
-	err = this.db.UpdateItem(it)
+	err = ws.db.UpdateItem(it)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -105,7 +105,7 @@ func (this *webserver) markItemAsRead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (this *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) {
+func (ws *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("markItemAsUnread() started")
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -115,7 +115,7 @@ func (this *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	it, err := this.db.GetItem(int64(id))
+	it, err := ws.db.GetItem(int64(id))
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -135,7 +135,7 @@ func (this *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) 
 	}
 
 	it.Read = false
-	err = this.db.UpdateItem(it)
+	err = ws.db.UpdateItem(it)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -148,8 +148,8 @@ func (this *webserver) markItemAsUnread(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (this *webserver) currentState(w http.ResponseWriter, r *http.Request) {
-	cs, err := this.db.GetCurrentState()
+func (ws *webserver) currentState(w http.ResponseWriter, r *http.Request) {
+	cs, err := ws.db.GetCurrentState()
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -161,7 +161,7 @@ func (this *webserver) currentState(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (this *webserver) updatesSince(w http.ResponseWriter, r *http.Request) {
+func (ws *webserver) updatesSince(w http.ResponseWriter, r *http.Request) {
 	ut, err := strconv.ParseInt(chi.URLParam(r, "timestamp"), 10, 64)
 	if err != nil {
 		glog.Error(err)
@@ -170,7 +170,7 @@ func (this *webserver) updatesSince(w http.ResponseWriter, r *http.Request) {
 	}
 	t := time.Unix(ut, 0).UTC()
 
-	up, err := this.db.GetUpdates(t)
+	up, err := ws.db.GetUpdates(t)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

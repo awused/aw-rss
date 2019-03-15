@@ -74,10 +74,9 @@ func (this *Database) Close() error {
 		return nil
 	}
 
-	this.closed = true
-
 	this.lock.Lock()
 	defer this.lock.Unlock()
+	this.closed = true
 
 	return this.db.Close()
 }
@@ -195,8 +194,58 @@ func (this *Database) upgradeFrom(version int) {
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
 	} // version < 7
+	if version < 8 {
+		this.upgradeTo(8, `
+				ALTER TABLE feeds RENAME TO feeds_old;
+				ALTER TABLE items RENAME TO items_old;
 
-	// TODO -- Move away from TIMESTAMP to just integers instead
+				DROP INDEX items_read_feed_index;
+				DROP INDEX feeds_disabled_index;
+				DROP INDEX items_commit_index;
+				DROP INDEX feeds_commit_index;
+
+				CREATE TABLE feeds(
+						id INTEGER PRIMARY KEY,
+						url TEXT UNIQUE NOT NULL,
+						disabled INT NOT NULL DEFAULT 0,
+						title TEXT NOT NULL DEFAULT '',
+						siteurl TEXT NOT NULL DEFAULT '',
+						lastfetchfailed INT NOT NULL DEFAULT 0,
+						usertitle TEXT NOT NULL DEFAULT '',
+						lastsuccesstime TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:00+00:00',
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						create_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
+				CREATE TABLE items(
+						id INTEGER PRIMARY KEY,
+						feedid INTEGER NOT NULL,
+						key TEXT NOT NULL,
+						title TEXT NOT NULL,
+						url TEXT NOT NULL,
+						content TEXT NOT NULL,
+						timestamp TIMESTAMP NOT NULL,
+						read INT NOT NULL DEFAULT 0,
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						UNIQUE(feedid, key),
+						FOREIGN KEY(feedid) REFERENCES feeds(id));
+
+
+				INSERT INTO feeds SELECT *, CURRENT_TIMESTAMP FROM feeds_old;
+				INSERT INTO items SELECT * FROM items_old;
+
+				CREATE INDEX items_read_feed_index ON items(read, feedid);
+				CREATE INDEX feeds_disabled_index ON feeds(disabled);
+				CREATE INDEX items_commit_index ON items(commit_timestamp);
+				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
+	} // version < 8
+	if version < 9 {
+		this.upgradeTo(9, `
+				DROP TABLE items_old;
+				DROP TABLE feeds_old;`)
+		_, err := this.db.Exec("VACUUM")
+		checkErr(err)
+	} // version < 9
+	// TODO -- drop all these progressive updates before open sourcing
+
 }
 
 func (this *Database) upgradeTo(version int, sql string) {
