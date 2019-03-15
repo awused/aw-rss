@@ -1,5 +1,7 @@
 import {Injectable} from '@angular/core';
-import {MatSnackBar} from '@angular/material/snack-bar';
+import {MatSnackBar,
+        MatSnackBarDismiss} from '@angular/material/snack-bar';
+import {Observable} from 'rxjs';
 
 
 @Injectable({
@@ -9,8 +11,9 @@ export class ErrorService {
   constructor(
       private readonly snackBar: MatSnackBar) {}
 
-  public showError(message: string|Error) {
+  public showError(message: string|Error): Observable<MatSnackBarDismiss> {
     console.error(message);
-    this.snackBar.open(message.toString(), 'Close');
+    return this.snackBar.open(message.toString(), 'Close')
+        .afterDismissed();
   }
 }

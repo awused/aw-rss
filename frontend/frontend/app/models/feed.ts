@@ -1,5 +1,6 @@
 export interface Feed {
   commitTimestamp: number;
+  createTimestamp: number;
   disabled: boolean;
   id: number;
   lastFetchFailed: boolean;

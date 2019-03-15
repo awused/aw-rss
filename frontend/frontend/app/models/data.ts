@@ -103,7 +103,6 @@ export class Updates {
       // All updates of any kind get transformed into an update object.
       public readonly refresh: boolean = false,
       public readonly data: Data = new Data(),
-      public readonly timestamp: number = 0,
   ) {}
 }
 
@@ -195,14 +194,19 @@ class DataFilter {
       }
     }
 
-    // A disabled feed won't be newly included in categories
     if (this.f.validOnly && f.disabled) {
       return false;
     }
 
-    if (this.categoryIds.size != 0 && this.categoryFeedIds.has(f.id)) {
-      this.includedFeedIds.add(f.id);
-      return true;
+    if (this.categoryIds.size != 0) {
+      if (f.disabled) {
+        // A disabled feed will never be newly included in a category
+        return false;
+      }
+      if (this.categoryFeedIds.has(f.id)) {
+        this.includedFeedIds.add(f.id);
+        return true;
+      }
     }
 
     if (this.feedIds.size != 0) {
@@ -227,7 +231,6 @@ class DataFilter {
       }
     }
 
-    // A read item will never be newly included
     if (this.f.unreadOnly && i.read) {
       return false;
     }
