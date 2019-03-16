@@ -1,12 +1,14 @@
 <!--The content below is only a placeholder and can be replaced.-->
 
-<div class="app-container">
-  <mat-toolbar color="primary" class="app-toolbar" *ngIf="mobileQuery.matches">
+<div class="awrss-container">
+  <mat-toolbar color="primary" class="awrss-toolbar" *ngIf="mobileQuery.matches">
     <button mat-icon-button (click)="openNav = !openNav">
     </button>
   </mat-toolbar>
   <mat-sidenav-container fixed-in-viewport="true">
-    <mat-sidenav #snav [opened]="!mobileQuery.matches || openNav" mode="side" disableClose>Start</mat-sidenav>
+    <mat-sidenav #snav [opened]="!mobileQuery.matches || openNav" [mode]="mobileQuery.matches ? 'over' : 'side'" disableClose>
+      <awrss-nav></awrss-nav>
+    </mat-sidenav>
     <mat-sidenav-content>
       <router-outlet></router-outlet>
     </mat-sidenav-content>

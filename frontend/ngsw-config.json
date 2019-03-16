@@ -1,7 +1,7 @@
 {
   "index": "/index.html",
   "assetGroups": [{
-    "name": "app",
+    "name": "awrss",
     "installMode": "prefetch",
     "resources": {
       "files": [

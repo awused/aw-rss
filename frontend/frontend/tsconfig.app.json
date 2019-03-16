@@ -7,6 +7,7 @@
   },
   "exclude": [
     "frontend/test.ts",
+    "**/*.fake.ts",
     "**/*.spec.ts"
   ]
 }

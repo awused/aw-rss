@@ -15,7 +15,7 @@ export class RefreshService {
   private readonly started: Subject<void> = new Subject<void>();
   private readonly finished: Subject<void> = new Subject<void>();
 
-  private refreshing: boolean = false;
+  private refreshing = false;
 
   constructor() {}
 

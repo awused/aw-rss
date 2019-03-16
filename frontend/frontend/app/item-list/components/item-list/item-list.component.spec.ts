@@ -1,6 +1,10 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import {async,
+        ComponentFixture,
+        TestBed} from '@angular/core/testing';
+import {DataService} from 'frontend/app/services/data.service';
+import {FakeDataService} from 'frontend/app/services/data.service.fake';
 
-import { ItemListComponent } from './item-list.component';
+import {ItemListComponent} from './item-list.component';
 
 describe('ItemListComponent', () => {
   let component: ItemListComponent;
@@ -8,9 +12,12 @@ describe('ItemListComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ ItemListComponent ]
-    })
-    .compileComponents();
+             declarations: [ItemListComponent],
+             providers: [
+               {provide: DataService, useClass: FakeDataService}
+             ]
+           })
+        .compileComponents();
   }));
 
   beforeEach(() => {

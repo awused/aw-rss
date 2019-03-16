@@ -11,9 +11,15 @@ export class ErrorService {
   constructor(
       private readonly snackBar: MatSnackBar) {}
 
-  public showError(message: string|Error): Observable<MatSnackBarDismiss> {
-    console.error(message);
-    return this.snackBar.open(message.toString(), 'Close')
+  public showError(error: string|Error): Observable<MatSnackBarDismiss> {
+    let m: string;
+    if (error instanceof Error) {
+      m = error.message;
+    } else {
+      m = error;
+    }
+    console.error(error);
+    return this.snackBar.open(m, 'Close')
         .afterDismissed();
   }
 }

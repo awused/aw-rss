@@ -7,7 +7,7 @@
       "root": "",
       "sourceRoot": "frontend",
       "projectType": "application",
-      "prefix": "app",
+      "prefix": "awrss",
       "schematics": {
         "@schematics/angular:component": {
           "styleext": "scss"

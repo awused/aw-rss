@@ -1,6 +1,7 @@
 import {HttpClientModule} from '@angular/common/http';
 import {NgModule} from '@angular/core';
-import {BrowserModule} from '@angular/platform-browser';
+import {BrowserModule,
+        Title} from '@angular/platform-browser';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {ServiceWorkerModule} from '@angular/service-worker';
 
@@ -21,14 +22,15 @@ import {NavModule} from './nav/nav.module';
     // After BrowserModule
     HttpClientModule,
     BrowserAnimationsModule,
-    MaterialModule,
     ItemListModule,
     NavModule,
     AppRoutingModule,  // last
+    MaterialModule,
     ServiceWorkerModule.register(
         '/ngsw-worker.js', {enabled: environment.production})
   ],
-  providers: [],
+  entryComponents: [AppComponent],
+  providers: [Title],
   bootstrap: [AppComponent]
 })
 export class AppModule {
