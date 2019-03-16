@@ -18,15 +18,16 @@ import (
 
 // Feed represents a single RSS feed
 type Feed struct {
-	id             int64
-	url            string
-	Disabled       bool
-	Title, SiteURL string
-	UserTitle      string
+	id        int64
+	url       string
+	disabled  bool
+	title     string
+	siteURL   string
+	userTitle string
 
-	LastFetchFailed bool // Whether or not the last attempt to fetch this feed failed
+	lastFetchFailed bool // Whether or not the last attempt to fetch this feed failed
 	// The timestamp of the last successful fetch, helps users see if a breakage is transient
-	LastSuccessTime time.Time
+	lastSuccessTime time.Time
 	commitTimestamp time.Time
 	createTimestamp time.Time
 }
@@ -47,18 +48,18 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 	}{
 		ID:              f.id,
 		URL:             f.url,
-		Disabled:        f.Disabled,
-		Title:           f.Title,
-		SiteURL:         f.SiteURL,
-		LastFetchFailed: f.LastFetchFailed,
-		UserTitle:       f.UserTitle,
-		LastSuccessTime: f.LastSuccessTime,
+		Disabled:        f.disabled,
+		Title:           f.title,
+		SiteURL:         f.siteURL,
+		LastFetchFailed: f.lastFetchFailed,
+		UserTitle:       f.userTitle,
+		LastSuccessTime: f.lastSuccessTime,
 		CommitTimestamp: f.commitTimestamp.Unix(),
 		CreateTimestamp: f.createTimestamp.Unix(),
 	})
 }
 
-// FeedSelectColumns is used by the database
+// FeedSelectColumns is used by the database when reading feeds
 const FeedSelectColumns string = `
 feeds.id,
 feeds.url,
@@ -75,12 +76,12 @@ func scanFeed(feed *Feed) []interface{} {
 	return []interface{}{
 		&feed.id,
 		&feed.url,
-		&feed.Disabled,
-		&feed.Title,
-		&feed.SiteURL,
-		&feed.LastFetchFailed,
-		&feed.UserTitle,
-		&feed.LastSuccessTime,
+		&feed.disabled,
+		&feed.title,
+		&feed.siteURL,
+		&feed.lastFetchFailed,
+		&feed.userTitle,
+		&feed.lastSuccessTime,
 		&feed.commitTimestamp,
 		&feed.createTimestamp}
 }
@@ -115,21 +116,6 @@ func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 	return feeds, nil
 }
 
-// HandleUpdate merges in updates from the latest fetched version of the feed
-func (f *Feed) HandleUpdate(feed *gofeed.Feed) {
-	f.Title = getFeedTitle(f, feed)
-
-	if feed.Link != "" {
-		f.SiteURL = feed.Link
-	} else {
-		if f.SiteURL == "" && !strings.HasPrefix(f.url, "!") {
-			// Default to the feed URL if it's a URL, only log f once
-			glog.Warningf("Feed without link [%s]", f)
-			f.SiteURL = f.url
-		}
-	}
-}
-
 // "MangaDex RSS" is a terrible title for every per-series feed
 const mangadexItemRegexp = `^(.+) - [^-]+$`
 
@@ -139,19 +125,19 @@ const mangadexSeriesRegexp = `^https://mangadex\.org/rss/[0-9a-z]+/manga_id/[0-9
 
 var mdsre = regexp.MustCompile(mangadexSeriesRegexp)
 
-func getFeedTitle(f *Feed, feed *gofeed.Feed) string {
-	if feed.Title != "MangaDex RSS" {
-		return feed.Title
+func getFeedTitle(f *Feed, gfe *gofeed.Feed) string {
+	if gfe.Title != "MangaDex RSS" {
+		return gfe.Title
 	}
 
-	if feed.Items == nil || len(feed.Items) == 0 || !mdsre.MatchString(f.url) {
+	if gfe.Items == nil || len(gfe.Items) == 0 || !mdsre.MatchString(f.url) {
 		glog.Infof("%s", !mdsre.MatchString(f.url))
-		return feed.Title
+		return gfe.Title
 	}
 
-	groups := mdire.FindStringSubmatch(feed.Items[0].Title)
+	groups := mdire.FindStringSubmatch(gfe.Items[0].Title)
 	if groups == nil {
-		return feed.Title
+		return gfe.Title
 	}
 
 	glog.V(2).Infof("Overriding Mangadex RSS title with [%s]", groups[1])
@@ -159,37 +145,40 @@ func getFeedTitle(f *Feed, feed *gofeed.Feed) string {
 }
 
 func (f *Feed) String() string {
-	title := f.Title
-	if f.UserTitle != "" {
-		title = f.UserTitle
+	title := f.title
+	if f.userTitle != "" {
+		title = f.userTitle
 	}
 	return fmt.Sprintf("Feed %d: %s (%s) disabled: %t, lastFetchFailed: %t, lastSuccessTime %s",
-		f.id, f.url, title, f.Disabled, f.LastFetchFailed, f.LastSuccessTime)
+		f.id, f.url, title, f.disabled, f.lastFetchFailed, f.lastSuccessTime)
 }
 
-// FeedUserUpdateColumns defines the set of columns that users are able to update
-const FeedUserUpdateColumns string = `
-disabled = ?,
-usertitle = ?,
-commit_timestamp = CURRENT_TIMESTAMP`
+const feedUpdateSQL string = `
+UPDATE
+	feeds
+SET
+	disabled = ?,
+	usertitle = ?,
+	title = ?,
+	siteurl = ?,
+	lastfetchfailed = ?,
+	lastsuccesstime = ?,
+	commit_timestamp = CURRENT_TIMESTAMP
+WHERE
+	id = ?;`
 
-// UserUpdateValues fills in the values used above
-func (f *Feed) UserUpdateValues() []interface{} {
-	return []interface{}{f.Disabled, f.UserTitle}
-}
-
-// FeedNonUserUpdateColumns defines the set of columns updated automatically.
-// Must not overlap with user set columns to avoid clobbering user data.
-const FeedNonUserUpdateColumns string = `
-title = ?,
-siteurl = ?,
-lastfetchfailed = ?,
-lastsuccesstime = ?,
-commit_timestamp = CURRENT_TIMESTAMP`
-
-// NonUserUpdateValues fills in the values used above
-func (f *Feed) NonUserUpdateValues() []interface{} {
-	return []interface{}{f.Title, f.SiteURL, f.LastFetchFailed, f.LastSuccessTime}
+// UpdateSQL transforms the feed into a SQL update statement
+func (f *Feed) UpdateSQL() EntityUpdate {
+	return EntityUpdate{
+		feedUpdateSQL,
+		[]interface{}{
+			f.disabled,
+			f.userTitle,
+			f.title,
+			f.siteURL,
+			f.lastFetchFailed,
+			f.lastSuccessTime,
+			f.id}}
 }
 
 // ID gets the ID
@@ -197,3 +186,40 @@ func (f *Feed) ID() int64 { return f.id }
 
 // URL gets the URL
 func (f *Feed) URL() string { return f.url }
+
+// FeedSetLastFetchFailed is a mutation function that marks a feed as failing
+func FeedSetLastFetchFailed(f *Feed) *Feed {
+	newF := *f
+	newF.lastFetchFailed = true
+	return &newF
+}
+
+// FeedSetFetchSuccess return a mutation function that marks a feed as succeeding
+func FeedSetFetchSuccess(t time.Time) func(f *Feed) *Feed {
+	return func(f *Feed) *Feed {
+		newF := *f
+		newF.lastFetchFailed = false
+		newF.lastSuccessTime = t
+		return &newF
+	}
+}
+
+// FeedMergeGofeedOnSuccess returns a mutation function that merges in updates
+// from the latest fetched version of the feed.
+func FeedMergeGofeedOnSuccess(gfe *gofeed.Feed) func(*Feed) *Feed {
+	return func(f *Feed) *Feed {
+		newF := *f
+		newF.title = getFeedTitle(f, gfe)
+
+		if gfe.Link != "" {
+			newF.siteURL = gfe.Link
+		} else {
+			if newF.siteURL == "" && !strings.HasPrefix(newF.url, "!") {
+				// Default to the feed URL if it's a URL, only log f once
+				glog.Warningf("Feed without link [%s]", newF)
+				newF.siteURL = newF.url
+			}
+		}
+		return &newF
+	}
+}

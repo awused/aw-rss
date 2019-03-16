@@ -13,19 +13,24 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
+// Item represents a single entry in an RSS feed
 type Item struct {
-	id, feedId               int64
-	key, title, url, content string
-	timestamp                time.Time
-	Read                     bool
-	commitTimestamp          time.Time
+	id, feedID      int64
+	key             string
+	title           string
+	url             string
+	description     string
+	timestamp       time.Time
+	read            bool
+	commitTimestamp time.Time
 }
 
+// MarshalJSON is used by the JSON marshaller
 // Content is excluded and must be fetched separately to cut down on data
 func (it *Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID              int64     `json:"id"`
-		FeedId          int64     `json:"feedId"`
+		FeedID          int64     `json:"feedId"`
 		Title           string    `json:"title"`
 		URL             string    `json:"url"`
 		Timestamp       time.Time `json:"timestamp"`
@@ -33,22 +38,22 @@ func (it *Item) MarshalJSON() ([]byte, error) {
 		CommitTimestamp int64     `json:"commitTimestamp"`
 	}{
 		ID:              it.id,
-		FeedId:          it.feedId,
+		FeedID:          it.feedID,
 		Title:           it.title,
 		URL:             it.url,
 		Timestamp:       it.timestamp,
-		Read:            it.Read,
+		Read:            it.read,
 		CommitTimestamp: it.commitTimestamp.Unix(),
 	})
 }
 
+// ItemSelectColumns is used by the database when reading items
 const ItemSelectColumns string = `
 items.id,
 items.feedid,
 items.key,
 items.title,
 items.url,
-items.content,
 items.timestamp,
 items.read,
 items.commit_timestamp`
@@ -56,16 +61,16 @@ items.commit_timestamp`
 func scanItem(item *Item) []interface{} {
 	return []interface{}{
 		&item.id,
-		&item.feedId,
+		&item.feedID,
 		&item.key,
 		&item.title,
 		&item.url,
-		&item.content,
 		&item.timestamp,
-		&item.Read,
+		&item.read,
 		&item.commitTimestamp}
 }
 
+// ScanItem converts one row into an Item
 func ScanItem(row *sql.Row) (*Item, error) {
 	var item Item
 	err := row.Scan(scanItem(&item)...)
@@ -76,6 +81,7 @@ func ScanItem(row *sql.Row) (*Item, error) {
 	return &item, nil
 }
 
+// ScanItems converts multiple rows into Items
 func ScanItems(rows *sql.Rows) ([]*Item, error) {
 	items := []*Item{}
 	for rows.Next() {
@@ -94,7 +100,8 @@ func ScanItems(rows *sql.Rows) ([]*Item, error) {
 	return items, nil
 }
 
-// Create new Items without proper IDs, which may be duplicates of Items already present in the database.
+// CreateNewItems creates items without proper IDs,
+// which may be duplicates of Items already present in the database.
 // These should be inserted or ignored into the database then discarded.
 func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
 	glog.V(1).Infof("Creating %d items for [%s]", len(gfItems), f)
@@ -119,7 +126,7 @@ func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	}()
 	var item Item
 
-	item.feedId = f.ID()
+	item.feedID = f.ID()
 	item.key = getKey(gfi)
 	item.title = gfi.Title
 	if gfi.Link != "" {
@@ -127,14 +134,12 @@ func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	} else {
 		glog.Infof("No link present in gofeed.Item %+v\n", gfi)
 	}
-	item.content = gfi.Description
-	if gfi.Content != "" {
-		item.content = gfi.Content
-	}
+	// So few feeds actually populate their full Content that it is not useful
+	item.description = gfi.Description
 	item.timestamp = getTimestamp(gfi)
 
 	glog.V(3).Infof("Created [%s]", &item)
-	glog.V(7).Infof("Content for new [%s] is %s", &item, item.content)
+	glog.V(7).Infof("Content for new [%s] is %s", &item, item.description)
 	return &item
 }
 
@@ -187,26 +192,60 @@ func handleItemQuirks(items []*Item, gfItems []*gofeed.Item, f *Feed) {
 }
 
 func (it *Item) String() string {
-	return fmt.Sprintf("Item %d (feed %d): %s (%s) time: %s, read: %t", it.id, it.feedId, it.url, it.title, it.timestamp, it.Read)
+	return fmt.Sprintf(
+		"Item %d (feed %d): %s (%s) time: %s, read: %t",
+		it.id, it.feedID, it.url, it.title, it.timestamp, it.read)
 }
 
-const ItemInsertColumns string = "feedid, key, title, url, content, timestamp, commit_timestamp"
-const ItemInsertValues string = "?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP"
+// ItemInsertColumns are the columns used at insertion time
+const ItemInsertColumns string = `feedid,
+key,
+title,
+url,
+content,
+timestamp,
+commit_timestamp`
 
+// ItemInsertPlaceholders are the placeholders used at insertion time
+const ItemInsertPlaceholders string = "?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP"
+
+// InsertValues returns the values to be inserted into the database
 func (it *Item) InsertValues() []interface{} {
-	return []interface{}{it.feedId, it.key, it.title, it.url, it.content, it.timestamp}
+	return []interface{}{
+		it.feedID,
+		it.key,
+		it.title,
+		it.url,
+		it.description,
+		it.timestamp}
 }
 
-const ItemUpdateColumns string = "read = ?"
+const itemUpdateSQL string = `
+UPDATE
+	items
+SET
+	read = ?,
+	commit_timestamp = CURRENT_TIMESTAMP
+WHERE
+	id = ?;`
 
-func (it *Item) UpdateValues() []interface{} {
-	return []interface{}{it.Read}
+// UpdateSQL transforms the item into a SQL update statement
+func (it *Item) UpdateSQL() EntityUpdate {
+	return EntityUpdate{
+		itemUpdateSQL,
+		[]interface{}{
+			it.read,
+			it.id}}
 }
 
-func (it *Item) Id() int64            { return it.id }
-func (it *Item) FeedId() int64        { return it.feedId }
-func (it *Item) Key() string          { return it.key }
-func (it *Item) Title() string        { return it.title }
-func (it *Item) Url() string          { return it.url }
-func (it *Item) Content() string      { return it.content }
-func (it *Item) Timestamp() time.Time { return it.timestamp }
+// ID returns the ID
+func (it *Item) ID() int64 { return it.id }
+
+// ItemSetRead returns a mutation function that sets an item as read
+func ItemSetRead(read bool) func(*Item) *Item {
+	return func(it *Item) *Item {
+		nit := *it
+		nit.read = read
+		return &nit
+	}
+}

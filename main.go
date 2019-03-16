@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/awused/aw-rss/backend/webserver"
+	"github.com/awused/aw-rss/internal/webserver"
 	"github.com/golang/glog"
 )
 

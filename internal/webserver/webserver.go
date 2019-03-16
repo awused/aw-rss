@@ -3,8 +3,8 @@ package webserver
 import (
 	"flag"
 
-	"github.com/awused/aw-rss/backend/database"
-	"github.com/awused/aw-rss/backend/rssfetcher"
+	"github.com/awused/aw-rss/internal/database"
+	"github.com/awused/aw-rss/internal/rssfetcher"
 
 	"net"
 	"net/http"

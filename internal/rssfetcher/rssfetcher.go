@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/awused/aw-rss/backend/database"
-	"github.com/awused/aw-rss/backend/structs"
+	"github.com/awused/aw-rss/internal/database"
+	"github.com/awused/aw-rss/internal/structs"
 	"github.com/golang/glog"
 	"github.com/mmcdole/gofeed"
 	gofeedRss "github.com/mmcdole/gofeed/rss"
@@ -116,7 +116,7 @@ func (r *rssFetcher) Close() error {
 
 func (r *rssFetcher) Run() (err error) {
 	defer func() {
-		if rec := recover(); r != nil {
+		if rec := recover(); rec != nil {
 			err = rec.(error)
 		}
 	}()
@@ -181,6 +181,8 @@ func (r *rssFetcher) Run() (err error) {
 			glog.Info("rssFetcher closed, exiting")
 			return nil
 		case <-time.After(dbPollPeriod - time.Since(r.lastPolled)):
+			// This polling is the last line of defense against out of band edits
+			// TODO -- Add another routine to handle single updates
 		}
 	}
 }
@@ -211,7 +213,7 @@ LimitLoop:
 // TODO -- clean this up and refactor it
 func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 	defer func() {
-		if rec := recover(); r != nil {
+		if rec := recover(); rec != nil {
 			if glog.V(1) {
 				glog.Error(rec.(error))
 			}
@@ -222,6 +224,8 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		}
 		glog.V(3).Infof("Routine for [%s] completed", f)
 		r.wg.Done()
+		// We could attempt to send f on feedUpdateChan but
+		// Any important updates should come through the webserver
 	}()
 
 	parser := gofeed.NewParser()
@@ -233,10 +237,17 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		newF, ok := r.feeds[f.ID()]
 		oldBackoff := r.retryBackoff[f.ID()]
 		r.mapLock.RUnlock()
-		if ok {
-			// Feed may not be present if the routine is being removed
-			f = newF
+		if !ok {
+			select {
+			case <-kill:
+				glog.V(1).Infof("Routine for [%s] killed by parent", f)
+			default:
+				// Should never happen
+				glog.Warningf("Feed [%s] unexpectedly missing", f)
+			}
+			return
 		}
+		f = newF
 
 		body := ""
 		if strings.HasPrefix(f.URL(), "!") {
@@ -255,43 +266,53 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		feed, err := parser.ParseString(body)
 		if err != nil {
 			glog.Errorf("Error calling parser.ParseString for [%s]: %v", f, err)
-			f.LastFetchFailed = true
-			checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
-		// The feed may have been updated
-		r.mapLock.RLock()
-		newF, ok = r.feeds[f.ID()]
-		r.mapLock.RUnlock()
-		if ok {
-			// Feed may not be present if the routine is being removed
-			f = newF
-		}
-
-		f.LastFetchFailed = false
-		f.LastSuccessTime = time.Now().UTC()
-		if oldBackoff != 1 {
-			r.mapLock.Lock()
-			r.retryBackoff[f.ID()] = 1
-			r.mapLock.Unlock()
-		}
-		f.HandleUpdate(feed)
-		err = r.db.NonUserUpdateFeed(f)
+		f, err = r.db.MutateFeed(
+			f.ID(), structs.FeedMergeGofeedOnSuccess(feed))
 		if err != nil {
 			glog.Errorf("Error updating feed [%s]: %v", f, err)
-			f.LastFetchFailed = true
-			checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
 		err = r.db.InsertItems(structs.CreateNewItems(f, feed.Items))
 		if err != nil {
 			glog.Errorf("Error inserting items for feed [%s]: %v", f, err)
-			f.LastFetchFailed = true
-			checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
+
+		if oldBackoff != 1 {
+			r.mapLock.Lock()
+			if _, ok := r.retryBackoff[f.ID()]; ok {
+				r.retryBackoff[f.ID()] = 1
+			}
+			r.mapLock.Unlock()
+		}
+
+		f, err = r.db.MutateFeed(
+			f.ID(), structs.FeedSetFetchSuccess(time.Now().UTC()))
+		if err != nil {
+			glog.Errorf("Error updating feed [%s]: %v", f, err)
+			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			checkErrMaybePanic(dbErr)
+			panic(err)
+		}
+
+		/*
+			TODO -- Do this
+			select {
+			case r.feedUpdateChan <- f:
+			case <-kill:
+				glog.V(1).Infof("Routine for [%s] killed by parent", f)
+				return
+			}*/
 
 		select {
 		case <-kill:
@@ -322,8 +343,8 @@ func (r *rssFetcher) runExternalCommandFeed(f *structs.Feed, kill <-chan struct{
 
 	if err != nil {
 		glog.Errorf("Error running external command for [%s]: %v", f, err)
-		f.LastFetchFailed = true
-		checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+		_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
 
@@ -373,8 +394,8 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 		}
 		if err != nil {
 			glog.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
-			f.LastFetchFailed = true
-			checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
@@ -421,8 +442,8 @@ func (r *rssFetcher) fetchHTTPBody(
 
 	if err != nil {
 		glog.Errorf("Error calling httpClient.Get for [%s]: %v", f, err)
-		f.LastFetchFailed = true
-		checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+		_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
 
@@ -431,8 +452,8 @@ func (r *rssFetcher) fetchHTTPBody(
 	_ = resp.Body.Close()
 	if err != nil {
 		glog.Errorf("Error reading response body for [%s]: %v", f, err)
-		f.LastFetchFailed = true
-		checkErrMaybePanic(r.db.NonUserUpdateFeed(f))
+		_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
 

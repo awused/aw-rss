@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	// Imported for side effects
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -18,6 +19,13 @@ var (
 	singleton *Database
 )
 
+type dbOrTx interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+}
+
+// Database is the database for storing all persistent data for aw-rss
 type Database struct {
 	db        *sql.DB
 	lock      sync.RWMutex // sqlite3 should be generally threadsafe but don't take chances
@@ -25,6 +33,7 @@ type Database struct {
 	closeLock sync.Mutex
 }
 
+// GetDatabase gets an existing DB instance, if any, or creates a new one
 func GetDatabase() (d *Database, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -60,38 +69,41 @@ func GetDatabase() (d *Database, err error) {
 	return singleton, nil
 }
 
-func (this *Database) Close() error {
+// Close closes the database, freeing all resources
+// Requests in flight are allowed to complete but those that haven't started
+// are cancelled
+func (d *Database) Close() error {
 	glog.Info("Closing database")
 
-	if this.closed {
+	if d.closed {
 		glog.Warning("Tried to close database that has already been closed")
 		return nil
 	}
-	this.closeLock.Lock()
-	defer this.closeLock.Unlock()
-	if this.closed {
+	d.closeLock.Lock()
+	defer d.closeLock.Unlock()
+	if d.closed {
 		glog.Warning("Tried to close database that has already been closed")
 		return nil
 	}
 
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	this.closed = true
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	d.closed = true
 
-	return this.db.Close()
+	return d.db.Close()
 }
 
-func (this *Database) readVersion() int {
+func (d *Database) readVersion() int {
 	var version string
-	err := this.db.QueryRow("SELECT value FROM metadata WHERE key = ?", "dbversion").Scan(&version)
+	err := d.db.QueryRow("SELECT value FROM metadata WHERE key = ?", "dbversion").Scan(&version)
 	checkErr(err)
 	i, err := strconv.Atoi(version)
 	checkErr(err)
 	return i
 }
 
-func (this *Database) getVersion() int {
-	rows, err := this.db.Query("SELECT name FROM sqlite_master WHERE type = 'table';")
+func (d *Database) getVersion() int {
+	rows, err := d.db.Query("SELECT name FROM sqlite_master WHERE type = 'table';")
 	checkErr(err)
 
 	for rows.Next() {
@@ -103,16 +115,16 @@ func (this *Database) getVersion() int {
 			err = rows.Close()
 			checkErr(err)
 
-			return this.readVersion()
+			return d.readVersion()
 		}
 	}
 
 	return 0
 }
 
-func (this *Database) upgradeFrom(version int) {
+func (d *Database) upgradeFrom(version int) {
 	if version < 1 {
-		this.upgradeTo(1, `
+		d.upgradeTo(1, `
 				CREATE TABLE metadata(key TEXT, value TEXT, PRIMARY KEY(key));
 				CREATE TABLE feeds(
 						id INTEGER PRIMARY KEY,
@@ -134,22 +146,22 @@ func (this *Database) upgradeFrom(version int) {
 						FOREIGN KEY(feedid) REFERENCES feeds(id));`)
 	} // version < 1
 	if version < 2 {
-		this.upgradeTo(2, `
+		d.upgradeTo(2, `
 				ALTER TABLE feeds ADD COLUMN usertitle TEXT NOT NULL DEFAULT '';`)
 	} // version < 2
 	if version < 3 {
-		this.upgradeTo(3, `
+		d.upgradeTo(3, `
 				ALTER TABLE feeds ADD COLUMN
 						lastsuccesstime TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:00+00:00';`)
 	} // version < 3
 	if version < 4 {
-		this.upgradeTo(4, `CREATE INDEX items_read_feed_index ON items(read, feedid);`)
+		d.upgradeTo(4, `CREATE INDEX items_read_feed_index ON items(read, feedid);`)
 	} // version < 4
 	if version < 5 {
-		this.upgradeTo(5, `CREATE INDEX feeds_disabled_index ON feeds(disabled);`)
+		d.upgradeTo(5, `CREATE INDEX feeds_disabled_index ON feeds(disabled);`)
 	} // version < 5
 	if version < 6 {
-		this.upgradeTo(6, `
+		d.upgradeTo(6, `
 				ALTER TABLE feeds RENAME TO feeds_old;
 				ALTER TABLE items RENAME TO items_old;
 
@@ -190,12 +202,12 @@ func (this *Database) upgradeFrom(version int) {
 				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
 	} // version < 6
 	if version < 7 {
-		this.upgradeTo(7, `
+		d.upgradeTo(7, `
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
 	} // version < 7
 	if version < 8 {
-		this.upgradeTo(8, `
+		d.upgradeTo(8, `
 				ALTER TABLE feeds RENAME TO feeds_old;
 				ALTER TABLE items RENAME TO items_old;
 
@@ -238,20 +250,20 @@ func (this *Database) upgradeFrom(version int) {
 				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
 	} // version < 8
 	if version < 9 {
-		this.upgradeTo(9, `
+		d.upgradeTo(9, `
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
-		_, err := this.db.Exec("VACUUM")
+		_, err := d.db.Exec("VACUUM")
 		checkErr(err)
 	} // version < 9
 	// TODO -- drop all these progressive updates before open sourcing
 
 }
 
-func (this *Database) upgradeTo(version int, sql string) {
+func (d *Database) upgradeTo(version int, sql string) {
 	glog.Infof("Upgrading database to version %d", version)
 
-	tx, err := this.db.Begin()
+	tx, err := d.db.Begin()
 	checkErr(err)
 
 	_, err = tx.Exec(sql)
@@ -272,24 +284,24 @@ func (this *Database) upgradeTo(version int, sql string) {
 	checkErr(tx.Commit())
 }
 
-func (this *Database) init() {
+func (d *Database) init() {
 	glog.V(5).Info("init() started")
 
-	version := this.getVersion()
+	version := d.getVersion()
 
 	glog.Infof("Database is version %d", version)
 
-	_, err := this.db.Exec(`
+	_, err := d.db.Exec(`
 			PRAGMA foreign_keys = ON;`)
 	checkErr(err)
 
-	this.upgradeFrom(version)
+	d.upgradeFrom(version)
 
 	glog.V(5).Info("init() completed")
 }
 
-func (this *Database) checkClosed() error {
-	if this.closed {
+func (d *Database) checkClosed() error {
+	if d.closed {
 		err := fmt.Errorf("Database already closed")
 		glog.ErrorDepth(1, err)
 		return err
