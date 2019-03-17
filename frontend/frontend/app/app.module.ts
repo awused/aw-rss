@@ -9,7 +9,7 @@ import {environment} from '../environments/environment';
 
 import {AppRoutingModule} from './app-routing.module';
 import {AppComponent} from './app.component';
-import {ItemListModule} from './item-list/item-list.module';
+import {ItemListModule} from './item-lis./item-list.module';
 import {MaterialModule} from './material/material.module';
 import {NavModule} from './nav/nav.module';
 

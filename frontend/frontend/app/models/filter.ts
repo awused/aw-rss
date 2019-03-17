@@ -1,11 +1,11 @@
-import {Category} from './category';
-import {Feed} from './feed';
-import {Item} from './item';
+import {Category} from './entities';
+import {Feed} from './entities';
+import {Item} from './entities';
 
 // Filters for applying updates or filtering data
 // By default everything is kept unconditionally
 export interface Filters {
-  // Discard all invalid (disabled, read, etc) feeds/items/categories
+  // Discard all invalid (disabled, read, etc) feed./entitiess/categories
   // unread items for discarded feeds are also "invalid"
   readonly validOnly?: boolean;
   // Exclude items that have been read.

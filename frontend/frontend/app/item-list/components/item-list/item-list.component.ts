@@ -6,10 +6,10 @@ import {ActivatedRoute,
 import {Data,
         Entity,
         FilteredData} from 'frontend/app/models/data';
-import {Feed} from 'frontend/app/models/feed';
+import {Feed} from 'frontend/app/models/entities';
 import {EmptyFilters,
         Filters} from 'frontend/app/models/filter';
-import {Item} from 'frontend/app/models/item';
+import {Item} from 'frontend/app/models/entities';
 import {Updates} from 'frontend/app/models/updates';
 import {DataService} from 'frontend/app/services/data.service';
 import {Subject} from 'rxjs';
@@ -67,10 +67,6 @@ export class ItemListComponent implements OnInit, OnDestroy {
       keepExistingUnlessRefresh: true,
       excludeCategories: true,
     };
-  }
-
-  public idFn(e: Entity): number {
-    return e.id;
   }
 
   private sortItems() {

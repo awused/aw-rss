@@ -12,15 +12,16 @@ import {
   take
 } from 'rxjs/operators';
 
-import {Category} from '../models/category';
+import {Category} from '../models/entities';
 import {Data,
         FilteredData} from '../models/data';
-import {Feed} from '../models/feed';
+import {Feed} from '../models/entities';
 import {Filters} from '../models/filter';
-import {Item} from '../models/item';
+import {Item} from '../models/entities';
 import {Updates} from '../models/updates';
 
 import {ErrorService} from './error.service';
+import {LoadingService} from './loading.service';
 import {RefreshService} from './refresh.service';
 
 interface CurrentState {
@@ -69,8 +70,8 @@ class CategoryMetadata {
 export class DataService {
   private timestamp = -1;
   private data: Data = new Data();
-  private readonly dataSubject: ReplaySubject<Data> = new ReplaySubject<Data>(1);
-  private readonly updateSubject: Subject<Updates> = new Subject<Updates>();
+  private readonly data$: ReplaySubject<Data> = new ReplaySubject<Data>(1);
+  private readonly updates$: Subject<Updates> = new Subject<Updates>();
   // All enabled feeds have read items back _at least_ this far
   // This only applies to read items that have been deliberately fetched
   private oldestReadItemId: number|undefined = undefined;
@@ -82,7 +83,8 @@ export class DataService {
   constructor(
       private readonly http: HttpClient,
       private readonly errorService: ErrorService,
-      private readonly refreshService: RefreshService) {
+      private readonly refreshService: RefreshService,
+      private readonly loadingService: LoadingService) {
     this.getInitialState();
     // The data service will never be destroyed, so never unsubscribe
     this.refreshService.startedObservable()
@@ -90,7 +92,7 @@ export class DataService {
   }
 
   public dataForFilters(f: Filters): Observable<FilteredData> {
-    return this.dataSubject
+    return this.data$
         .pipe(
             take(1),
             // TODO -- Handle interesting cases here
@@ -101,7 +103,7 @@ export class DataService {
   }
 
   public updates(): Observable<Updates> {
-    return this.updateSubject;
+    return this.updates$;
   }
 
   // This should never be called for a feed that doesn't exist in data
@@ -109,16 +111,25 @@ export class DataService {
     return this.feedMetadata.get(id).feed;
   }
 
+  public pushUpdates(u: Updates) {
+    this.handleUpdates(u);
+  }
+
   private refreshState(): void {
     if (this.timestamp === -1) {
       return;
     }
+    this.loadingService.startLoading();
     this.http.get<ServerUpdates>(`/api/updates/${this.timestamp}`)
         .subscribe(
             (su: ServerUpdates) => this.handleRefresh(su),
             (error: Error) => this.errorService.showError(error),
-            () => this.refreshService.finishRefresh());
+            () => {
+              this.refreshService.finishRefresh();
+              this.loadingService.finishLoading();
+            });
   }
+
 
   private handleRefresh(su: ServerUpdates): void {
     if (su.mustRefresh) {
@@ -138,7 +149,7 @@ export class DataService {
 
   private handleUpdates(u: Updates) {
     // TODO-- Remove LIMIT / incomplete
-    // Handle cases where feeds/items need to be fetched or replayed
+    // Handle cases where feed./entitiess need to be fetched or replayed
     // TODO -- ADD create_timestamp to feed
 
     // Cases where unread items need to be fetched:
@@ -159,20 +170,25 @@ export class DataService {
 
     // A category going from disabled to enabled never causes a replay
     this.data = this.data.merge(u)[0];
-    this.updateSubject.next(u);
-    this.dataSubject.next(this.data);
+    this.updates$.next(u);
+    this.data$.next(this.data);
   }
 
   private getInitialState() {
+    this.loadingService.startLoading();
     this.http.get<CurrentState>('/api/current')
-        .subscribe((state: CurrentState) => {
-          this.timestamp = state.timestamp;
-          this.data = new Data(
-              state.categories,
-              state.feeds,
-              state.items);
+        .subscribe(
+            (state: CurrentState) => {
+              this.timestamp = state.timestamp;
+              this.data = new Data(
+                  state.categories,
+                  state.feeds,
+                  state.items);
 
-          this.dataSubject.next(this.data);
-        }, (error: Error) => this.errorService.showError(error));
+              this.data$.next(this.data);
+            },
+            (error: Error) => this.errorService.showError(error),
+            () => this.loadingService.finishLoading(),
+        );
   }
 }

@@ -1,8 +1,8 @@
-import {Category} from './category';
-import {Feed} from './feed';
+import {Category} from './entities';
+import {Feed} from './entities';
 import {DataFilter,
         Filters} from './filter';
-import {Item} from './item';
+import {Item} from './entities';
 
 export type Entity = Category|Feed|Item;
 
@@ -113,6 +113,9 @@ export class Data {
           df);
       changed = changed || c;
     }
+    if (!changed) {
+      return [this, changed];
+    }
     return [new Data(cats, feeds, items), changed];
   }
 }
@@ -136,6 +139,9 @@ export class FilteredData {
       u: {refresh: boolean, data: Data}): [FilteredData, boolean] {
     let newData, changed;
     [newData, changed] = this.data.merge(u, this.filters);
-    return [new FilteredData(newData, this.filters), changed]
-  };
+    if (!changed) {
+      return [this, changed];
+    }
+    return [new FilteredData(newData, this.filters), changed];
+  }
 }

@@ -1,5 +1,2 @@
-<div *ngFor="let item of sortedItems; trackBy: idFn">
-  {{item.title}}
-</div>
-<!--<awrss-item-list-element *ngFor="let item of data.items.slice().reverse(); trackBy: idFn">
-</awrss-item-list-element> -->
+<awrss-item-list-element *ngFor="let item of sortedItems" [item]="item">
+</awrss-item-list-element>

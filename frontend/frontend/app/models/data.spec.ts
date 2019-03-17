@@ -6,7 +6,7 @@ describe('Data', () => {
   beforeEach(() => {});
 
   it('should merge in trivial changes', () => {
-    let d = new Data();
+    const d = new Data();
     expect(d.categories.length).toBe(0);
   });
 });

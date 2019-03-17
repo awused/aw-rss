@@ -1,8 +1,11 @@
 import {async,
         ComponentFixture,
         TestBed} from '@angular/core/testing';
+import {RouterTestingModule} from '@angular/router/testing';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
+
+import {ItemListElementComponent} from '../item-list-element/item-list-element.component';
 
 import {ItemListComponent} from './item-list.component';
 
@@ -12,7 +15,11 @@ describe('ItemListComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-             declarations: [ItemListComponent],
+             imports: [RouterTestingModule],
+             declarations: [
+               ItemListComponent,
+               ItemListElementComponent
+             ],
              providers: [
                {provide: DataService, useClass: FakeDataService}
              ]

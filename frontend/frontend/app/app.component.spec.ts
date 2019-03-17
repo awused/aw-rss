@@ -4,12 +4,14 @@ import {Title} from '@angular/platform-browser';
 import {RouterTestingModule} from '@angular/router/testing';
 
 import {AppComponent} from './app.component';
+import {NavModule} from './nav/nav.module';
 
 describe('AppComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
              imports: [
-               RouterTestingModule
+               RouterTestingModule,
+               NavModule,
              ],
              declarations: [
                AppComponent
