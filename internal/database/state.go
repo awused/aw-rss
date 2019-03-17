@@ -15,6 +15,8 @@ type CurrentState struct {
 	Items     []*structs.Item `json:"items,omitempty"`
 	Feeds     []*structs.Feed `json:"feeds,omitempty"`
 	// Categoriess []*Category `json:"categories,omitempty"`
+	// Timestamps of the newest items in each feed
+	NewestTimestamps map[int64]time.Time `json:"newestTimestamps,omitempty"`
 	// For now, at least, this is always all of the data at once
 	// If pagination support is added it will only be for items
 }
@@ -70,6 +72,13 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 	}
 
 	cs.Items, err = d.getCurrentItems(tx)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
+	cs.NewestTimestamps, err = d.getNewestTimestamps(tx)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
@@ -135,6 +144,42 @@ func (d *Database) getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
 	glog.V(3).Infof("getCurrentItems() retrieved %d items", len(items))
 	glog.V(5).Info("getCurrentItems() completed")
 	return items, nil
+}
+
+func (d *Database) getNewestTimestamps(tx *sql.Tx) (
+	map[int64]time.Time, error) {
+	sql := `
+SELECT
+	A.feedid, items.timestamp
+FROM (
+	SELECT feedid, MAX(items.id) AS id
+	FROM feeds
+	CROSS JOIN items
+	ON items.feedid = feeds.id
+	WHERE feeds.disabled = 0
+	GROUP BY feedid) AS A
+INNER JOIN items ON A.id = items.id`
+
+	rows, err := tx.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[int64]time.Time)
+
+	for rows.Next() {
+		var fid int64
+		var t time.Time
+		err = rows.Scan(&fid, &t)
+		if err != nil {
+			glog.Error(err)
+			return nil, err
+		}
+		out[fid] = t
+	}
+
+	return out, nil
 }
 
 // Updates contains all the entities that have changed after a given time

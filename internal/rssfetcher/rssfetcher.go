@@ -28,6 +28,11 @@ type RssFetcher interface {
 	Close() error
 }
 
+type feedError struct {
+	id  int64
+	err error
+}
+
 type rssFetcher struct {
 	db            *database.Database
 	httpClient    *http.Client
@@ -38,7 +43,7 @@ type rssFetcher struct {
 	mapLock       sync.RWMutex
 	lastPolled    time.Time
 	wg            sync.WaitGroup
-	errorChan     chan int64
+	errorChan     chan feedError
 	rateLimitChan chan struct{}
 	closed        bool
 	closeChan     chan struct{}
@@ -65,7 +70,7 @@ func NewRssFetcher() (RssFetcher, error) {
 	rss.retryBackoff = make(map[int64]int64)
 	rss.rateLimitChan = make(chan struct{})
 	rss.closeChan = make(chan struct{})
-	rss.errorChan = make(chan int64)
+	rss.errorChan = make(chan feedError)
 
 	rss.cloudflare = newCloudflare(rss.closeChan)
 
@@ -164,19 +169,8 @@ func (r *rssFetcher) Run() (err error) {
 		}
 
 		select {
-		case id := <-r.errorChan:
-			r.mapLock.RLock()
-			feed, ok := r.feeds[id]
-			backoff := r.retryBackoff[feed.ID()]
-			r.mapLock.RUnlock()
-			if ok {
-				glog.Warningf(
-					"Error in routine for [Feed: %d], attempting to restart in %d minutes",
-					feed.ID(), backoff)
-				r.restartFailedRoutine(id)
-			} else {
-				glog.Warningf("Error in routine for feed %d", id)
-			}
+		case fe := <-r.errorChan:
+			r.restartFailedRoutine(fe)
 		case <-r.closeChan:
 			glog.Info("rssFetcher closed, exiting")
 			return nil
@@ -214,11 +208,15 @@ LimitLoop:
 func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 	defer func() {
 		if rec := recover(); rec != nil {
+			err := rec.(error)
 			if glog.V(1) {
-				glog.Error(rec.(error))
+				glog.Error(err)
 			}
+			r.db.MutateFeed(
+				f.ID(),
+				structs.FeedSetFetchFailed(time.Now().UTC()))
 			select {
-			case r.errorChan <- f.ID():
+			case r.errorChan <- feedError{f.ID(), err}:
 			case <-r.closeChan:
 			}
 		}
@@ -266,10 +264,6 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		feed, err := parser.ParseString(body)
 		if err != nil {
 			glog.Errorf("Error calling parser.ParseString for [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(
-				f.ID(),
-				structs.FeedSetFetchFailed(time.Now().UTC()))
-			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
@@ -277,20 +271,12 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 			f.ID(), structs.FeedMergeGofeed(feed))
 		if err != nil {
 			glog.Errorf("Error updating feed [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(
-				f.ID(),
-				structs.FeedSetFetchFailed(time.Now().UTC()))
-			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
 		err = r.db.InsertItems(structs.CreateNewItems(f, feed.Items))
 		if err != nil {
 			glog.Errorf("Error inserting items for feed [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(
-				f.ID(),
-				structs.FeedSetFetchFailed(time.Now().UTC()))
-			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
@@ -306,10 +292,6 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 			f.ID(), structs.FeedSetFetchSuccess)
 		if err != nil {
 			glog.Errorf("Error updating feed [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(
-				f.ID(),
-				structs.FeedSetFetchFailed(time.Now().UTC()))
-			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
@@ -351,10 +333,6 @@ func (r *rssFetcher) runExternalCommandFeed(f *structs.Feed, kill <-chan struct{
 
 	if err != nil {
 		glog.Errorf("Error running external command for [%s]: %v", f, err)
-		_, dbErr := r.db.MutateFeed(
-			f.ID(),
-			structs.FeedSetFetchFailed(time.Now().UTC()))
-		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
 
@@ -372,7 +350,11 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 	// starts before the next thread is through
 	// It is possible to do this in a way that doesn't rely on chance but I don't
 	// think it's worth the complexity.
-	c, ua, blocked := r.cloudflare.getCookie(f.URL())
+	c, ua, blocked, err := r.cloudflare.getCookie(f.URL())
+	if err != nil {
+		glog.Errorf("Error calling cloudflare.getCookie() for [%s]: %v", f, err)
+		panic(err)
+	}
 	if blocked {
 		// If we blocked there might be a large number of threads trying to proceed
 		// at once
@@ -385,7 +367,12 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 	}
 	body := r.fetchHTTPBody(f, kill, c, ua)
 
-	if cloudflareSupported(f.URL()) && isCloudflareResponse(body) {
+	cf, err := r.cloudflare.isCloudflareResponse(f.URL(), body)
+	if err != nil {
+		glog.Errorf("Error calling isCloudflareResponse() for [%s]: %v", f, err)
+		panic(err)
+	}
+	if cf {
 		// We don't need to rate limit GetNewCookie
 		select {
 		case <-kill:
@@ -398,16 +385,8 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 			return ""
 		default:
 		}
-		if err == errUnsecureTransport || err == errUntrustedHost {
-			// Should never happen
-			return body
-		}
 		if err != nil {
 			glog.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(
-				f.ID(),
-				structs.FeedSetFetchFailed(time.Now().UTC()))
-			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
@@ -454,10 +433,6 @@ func (r *rssFetcher) fetchHTTPBody(
 
 	if err != nil {
 		glog.Errorf("Error calling httpClient.Get for [%s]: %v", f, err)
-		_, dbErr := r.db.MutateFeed(
-			f.ID(),
-			structs.FeedSetFetchFailed(time.Now().UTC()))
-		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
 
@@ -466,10 +441,6 @@ func (r *rssFetcher) fetchHTTPBody(
 	_ = resp.Body.Close()
 	if err != nil {
 		glog.Errorf("Error reading response body for [%s]: %v", f, err)
-		_, dbErr := r.db.MutateFeed(
-			f.ID(),
-			structs.FeedSetFetchFailed(time.Now().UTC()))
-		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
 
@@ -555,7 +526,9 @@ func (r *rssFetcher) startNewRoutines(newFeeds []*structs.Feed) {
 	glog.V(5).Info("startNewRoutines() completed")
 }
 
-func (r *rssFetcher) restartFailedRoutine(id int64) {
+func (r *rssFetcher) restartFailedRoutine(fe feedError) {
+	id := fe.id
+
 	r.mapLock.Lock()
 	defer r.mapLock.Unlock()
 
@@ -565,6 +538,9 @@ func (r *rssFetcher) restartFailedRoutine(id int64) {
 		return
 	}
 	backoffMinutes := r.retryBackoff[id]
+	if isCloudflareError(fe.err) {
+		backoffMinutes = 6 * 60
+	}
 	r.killRoutine(feed)
 	r.routines[id] = make(chan struct{})
 	r.retryBackoff[id] = backoffMinutes * 2
@@ -572,6 +548,9 @@ func (r *rssFetcher) restartFailedRoutine(id int64) {
 		r.retryBackoff[id] = 6 * 60 // Check at least once every six hours
 	}
 
+	glog.Warningf(
+		"Error in routine for [Feed: %d], attempting to restart in %d minutes",
+		fe.id, backoffMinutes)
 	r.wg.Add(1)
 	go r.restartRoutine(feed, r.routines[id], backoffMinutes)
 }
