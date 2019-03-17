@@ -257,6 +257,65 @@ func (d *Database) upgradeFrom(version int) {
 		checkErr(err)
 	} // version < 9
 	// TODO -- drop all these progressive updates before open sourcing
+	if version < 10 {
+		d.upgradeTo(10, `
+				ALTER TABLE feeds RENAME TO feeds_old;
+				ALTER TABLE items RENAME TO items_old;
+
+				DROP INDEX items_read_feed_index;
+				DROP INDEX feeds_disabled_index;
+				DROP INDEX items_commit_index;
+				DROP INDEX feeds_commit_index;
+
+				CREATE TABLE feeds(
+						id INTEGER PRIMARY KEY,
+						url TEXT UNIQUE NOT NULL,
+						disabled INT NOT NULL DEFAULT 0,
+						title TEXT NOT NULL DEFAULT '',
+						siteurl TEXT NOT NULL DEFAULT '',
+						usertitle TEXT NOT NULL DEFAULT '',
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						create_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						failing_since TIMESTAMP);
+				CREATE TABLE items(
+						id INTEGER PRIMARY KEY,
+						feedid INTEGER NOT NULL,
+						key TEXT NOT NULL,
+						title TEXT NOT NULL,
+						url TEXT NOT NULL,
+						content TEXT NOT NULL,
+						timestamp TIMESTAMP NOT NULL,
+						read INT NOT NULL DEFAULT 0,
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						UNIQUE(feedid, key),
+						FOREIGN KEY(feedid) REFERENCES feeds(id));
+
+
+				INSERT INTO feeds
+					SELECT
+						id,url,
+						disabled,
+						title,
+						siteurl,
+						usertitle,
+						commit_timestamp,
+						create_timestamp,
+						NULL
+					FROM feeds_old;
+				INSERT INTO items SELECT * FROM items_old;
+
+				CREATE INDEX items_read_feed_index ON items(read, feedid);
+				CREATE INDEX feeds_disabled_index ON feeds(disabled);
+				CREATE INDEX items_commit_index ON items(commit_timestamp);
+				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
+	} // version < 10
+	if version < 11 {
+		d.upgradeTo(11, `
+				DROP TABLE items_old;
+				DROP TABLE feeds_old;`)
+		_, err := d.db.Exec("VACUUM")
+		checkErr(err)
+	} // version < 11
 
 }
 

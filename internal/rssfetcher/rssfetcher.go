@@ -266,16 +266,20 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		feed, err := parser.ParseString(body)
 		if err != nil {
 			glog.Errorf("Error calling parser.ParseString for [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			_, dbErr := r.db.MutateFeed(
+				f.ID(),
+				structs.FeedSetFetchFailed(time.Now().UTC()))
 			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
 
 		f, err = r.db.MutateFeed(
-			f.ID(), structs.FeedMergeGofeedOnSuccess(feed))
+			f.ID(), structs.FeedMergeGofeed(feed))
 		if err != nil {
 			glog.Errorf("Error updating feed [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			_, dbErr := r.db.MutateFeed(
+				f.ID(),
+				structs.FeedSetFetchFailed(time.Now().UTC()))
 			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
@@ -283,7 +287,9 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		err = r.db.InsertItems(structs.CreateNewItems(f, feed.Items))
 		if err != nil {
 			glog.Errorf("Error inserting items for feed [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			_, dbErr := r.db.MutateFeed(
+				f.ID(),
+				structs.FeedSetFetchFailed(time.Now().UTC()))
 			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
@@ -297,10 +303,12 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		}
 
 		f, err = r.db.MutateFeed(
-			f.ID(), structs.FeedSetFetchSuccess(time.Now().UTC()))
+			f.ID(), structs.FeedSetFetchSuccess)
 		if err != nil {
 			glog.Errorf("Error updating feed [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			_, dbErr := r.db.MutateFeed(
+				f.ID(),
+				structs.FeedSetFetchFailed(time.Now().UTC()))
 			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
@@ -343,7 +351,9 @@ func (r *rssFetcher) runExternalCommandFeed(f *structs.Feed, kill <-chan struct{
 
 	if err != nil {
 		glog.Errorf("Error running external command for [%s]: %v", f, err)
-		_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+		_, dbErr := r.db.MutateFeed(
+			f.ID(),
+			structs.FeedSetFetchFailed(time.Now().UTC()))
 		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
@@ -394,7 +404,9 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 		}
 		if err != nil {
 			glog.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
-			_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+			_, dbErr := r.db.MutateFeed(
+				f.ID(),
+				structs.FeedSetFetchFailed(time.Now().UTC()))
 			checkErrMaybePanic(dbErr)
 			panic(err)
 		}
@@ -442,7 +454,9 @@ func (r *rssFetcher) fetchHTTPBody(
 
 	if err != nil {
 		glog.Errorf("Error calling httpClient.Get for [%s]: %v", f, err)
-		_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+		_, dbErr := r.db.MutateFeed(
+			f.ID(),
+			structs.FeedSetFetchFailed(time.Now().UTC()))
 		checkErrMaybePanic(dbErr)
 		panic(err)
 	}
@@ -452,7 +466,9 @@ func (r *rssFetcher) fetchHTTPBody(
 	_ = resp.Body.Close()
 	if err != nil {
 		glog.Errorf("Error reading response body for [%s]: %v", f, err)
-		_, dbErr := r.db.MutateFeed(f.ID(), structs.FeedSetLastFetchFailed)
+		_, dbErr := r.db.MutateFeed(
+			f.ID(),
+			structs.FeedSetFetchFailed(time.Now().UTC()))
 		checkErrMaybePanic(dbErr)
 		panic(err)
 	}

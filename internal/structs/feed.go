@@ -25,9 +25,9 @@ type Feed struct {
 	siteURL   string
 	userTitle string
 
-	lastFetchFailed bool // Whether or not the last attempt to fetch this feed failed
-	// The timestamp of the last successful fetch, helps users see if a breakage is transient
-	lastSuccessTime time.Time
+	// The timestamp of the most recent failed fetch
+	// helps users see if a breakage is transient
+	failingSince    *time.Time
 	commitTimestamp time.Time
 	createTimestamp time.Time
 }
@@ -35,25 +35,23 @@ type Feed struct {
 // MarshalJSON is used by the JSON marshaller
 func (f *Feed) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		ID              int64     `json:"id"`
-		URL             string    `json:"url"`
-		Disabled        bool      `json:"disabled"`
-		Title           string    `json:"title"`
-		SiteURL         string    `json:"siteUrl"`
-		LastFetchFailed bool      `json:"lastFetchFailed"`
-		UserTitle       string    `json:"userTitle"`
-		LastSuccessTime time.Time `json:"lastSuccessTime"`
-		CommitTimestamp int64     `json:"commitTimestamp"`
-		CreateTimestamp int64     `json:"createTimestamp"`
+		ID              int64      `json:"id"`
+		URL             string     `json:"url"`
+		Disabled        bool       `json:"disabled"`
+		Title           string     `json:"title"`
+		SiteURL         string     `json:"siteUrl"`
+		UserTitle       string     `json:"userTitle"`
+		FailingSince    *time.Time `json:"failingSince,omitempty"`
+		CommitTimestamp int64      `json:"commitTimestamp"`
+		CreateTimestamp int64      `json:"createTimestamp"`
 	}{
 		ID:              f.id,
 		URL:             f.url,
 		Disabled:        f.disabled,
 		Title:           f.title,
 		SiteURL:         f.siteURL,
-		LastFetchFailed: f.lastFetchFailed,
 		UserTitle:       f.userTitle,
-		LastSuccessTime: f.lastSuccessTime,
+		FailingSince:    f.failingSince,
 		CommitTimestamp: f.commitTimestamp.Unix(),
 		CreateTimestamp: f.createTimestamp.Unix(),
 	})
@@ -66,9 +64,8 @@ feeds.url,
 feeds.disabled,
 feeds.title,
 feeds.siteurl,
-feeds.lastfetchfailed,
 feeds.usertitle,
-feeds.lastsuccesstime,
+feeds.failing_since,
 feeds.commit_timestamp,
 feeds.create_timestamp`
 
@@ -79,9 +76,8 @@ func scanFeed(feed *Feed) []interface{} {
 		&feed.disabled,
 		&feed.title,
 		&feed.siteURL,
-		&feed.lastFetchFailed,
 		&feed.userTitle,
-		&feed.lastSuccessTime,
+		&feed.failingSince,
 		&feed.commitTimestamp,
 		&feed.createTimestamp}
 }
@@ -149,8 +145,8 @@ func (f *Feed) String() string {
 	if f.userTitle != "" {
 		title = f.userTitle
 	}
-	return fmt.Sprintf("Feed %d: %s (%s) disabled: %t, lastFetchFailed: %t, lastSuccessTime %s",
-		f.id, f.url, title, f.disabled, f.lastFetchFailed, f.lastSuccessTime)
+	return fmt.Sprintf("Feed %d: %s (%s) disabled: %t, failingSince: %s",
+		f.id, f.url, title, f.disabled, f.failingSince)
 }
 
 const feedUpdateSQL string = `
@@ -161,23 +157,22 @@ SET
 	usertitle = ?,
 	title = ?,
 	siteurl = ?,
-	lastfetchfailed = ?,
-	lastsuccesstime = ?,
+	failing_since = ?,
 	commit_timestamp = CURRENT_TIMESTAMP
 WHERE
 	id = ?;`
 
-// UpdateSQL transforms the feed into a SQL update statement
-func (f *Feed) UpdateSQL() EntityUpdate {
+func (f *Feed) update() EntityUpdate {
 	return EntityUpdate{
+		f,
+		false,
 		feedUpdateSQL,
 		[]interface{}{
 			f.disabled,
 			f.userTitle,
 			f.title,
 			f.siteURL,
-			f.lastFetchFailed,
-			f.lastSuccessTime,
+			f.failingSince,
 			f.id}}
 }
 
@@ -187,27 +182,33 @@ func (f *Feed) ID() int64 { return f.id }
 // URL gets the URL
 func (f *Feed) URL() string { return f.url }
 
-// FeedSetLastFetchFailed is a mutation function that marks a feed as failing
-func FeedSetLastFetchFailed(f *Feed) *Feed {
-	newF := *f
-	newF.lastFetchFailed = true
-	return &newF
-}
+// FeedSetFetchFailed is a mutation function that marks a feed as failing
+func FeedSetFetchFailed(t time.Time) func(f *Feed) EntityUpdate {
+	return func(f *Feed) EntityUpdate {
+		if f.failingSince != nil {
+			return noopEntityUpdate(f)
+		}
 
-// FeedSetFetchSuccess return a mutation function that marks a feed as succeeding
-func FeedSetFetchSuccess(t time.Time) func(f *Feed) *Feed {
-	return func(f *Feed) *Feed {
 		newF := *f
-		newF.lastFetchFailed = false
-		newF.lastSuccessTime = t
-		return &newF
+		newF.failingSince = &t
+		return newF.update()
 	}
 }
 
-// FeedMergeGofeedOnSuccess returns a mutation function that merges in updates
+// FeedSetFetchSuccess return a mutation function that marks a feed as succeeding
+func FeedSetFetchSuccess(f *Feed) EntityUpdate {
+	if f.failingSince == nil {
+		return noopEntityUpdate(f)
+	}
+	newF := *f
+	newF.failingSince = nil
+	return newF.update()
+}
+
+// FeedMergeGofeed returns a mutation function that merges in updates
 // from the latest fetched version of the feed.
-func FeedMergeGofeedOnSuccess(gfe *gofeed.Feed) func(*Feed) *Feed {
-	return func(f *Feed) *Feed {
+func FeedMergeGofeed(gfe *gofeed.Feed) func(*Feed) EntityUpdate {
+	return func(f *Feed) EntityUpdate {
 		newF := *f
 		newF.title = getFeedTitle(f, gfe)
 
@@ -220,6 +221,9 @@ func FeedMergeGofeedOnSuccess(gfe *gofeed.Feed) func(*Feed) *Feed {
 				newF.siteURL = newF.url
 			}
 		}
-		return &newF
+		if newF.title == f.title && newF.siteURL == f.siteURL {
+			return noopEntityUpdate(&newF)
+		}
+		return newF.update()
 	}
 }

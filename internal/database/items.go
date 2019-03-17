@@ -10,7 +10,7 @@ import (
 // MutateItem applies `fn` to one item from the DB and returns it
 func (d *Database) MutateItem(
 	id int64,
-	fn func(*structs.Item) *structs.Item) (*structs.Item, error) {
+	fn func(*structs.Item) structs.EntityUpdate) (*structs.Item, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -32,8 +32,13 @@ func (d *Database) MutateItem(
 		return nil, err
 	}
 
-	updated := fn(it)
-	err = updateEntity(tx, updated)
+	update := fn(it)
+	if update.Noop() {
+		err = tx.Commit()
+		return it, err
+	}
+
+	err = updateEntity(tx, update)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()

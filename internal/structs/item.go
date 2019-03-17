@@ -229,9 +229,10 @@ SET
 WHERE
 	id = ?;`
 
-// UpdateSQL transforms the item into a SQL update statement
-func (it *Item) UpdateSQL() EntityUpdate {
+func (it *Item) update() EntityUpdate {
 	return EntityUpdate{
+		it,
+		false,
 		itemUpdateSQL,
 		[]interface{}{
 			it.read,
@@ -242,10 +243,13 @@ func (it *Item) UpdateSQL() EntityUpdate {
 func (it *Item) ID() int64 { return it.id }
 
 // ItemSetRead returns a mutation function that sets an item as read
-func ItemSetRead(read bool) func(*Item) *Item {
-	return func(it *Item) *Item {
+func ItemSetRead(read bool) func(*Item) EntityUpdate {
+	return func(it *Item) EntityUpdate {
+		if it.read == read {
+			return noopEntityUpdate(it)
+		}
 		nit := *it
 		nit.read = read
-		return &nit
+		return nit.update()
 	}
 }

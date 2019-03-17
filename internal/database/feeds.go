@@ -8,7 +8,7 @@ import (
 // MutateFeed applies `fn` to one feed in the DB and returns it
 func (d *Database) MutateFeed(
 	id int64,
-	fn func(*structs.Feed) *structs.Feed) (*structs.Feed, error) {
+	fn func(*structs.Feed) structs.EntityUpdate) (*structs.Feed, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -30,8 +30,13 @@ func (d *Database) MutateFeed(
 		return nil, err
 	}
 
-	updated := fn(f)
-	err = updateEntity(tx, updated)
+	update := fn(f)
+	if update.Noop() {
+		err = tx.Commit()
+		return f, err
+	}
+
+	err = updateEntity(tx, update)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()

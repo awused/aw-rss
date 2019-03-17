@@ -1,6 +1,8 @@
 package database
 
 import (
+	"errors"
+
 	"github.com/awused/aw-rss/internal/structs"
 	"github.com/golang/glog"
 )
@@ -82,10 +84,13 @@ func insertSQL(table string, columns string, placeholders string) string {
 // Generic Get and Mutate methods
 // TODO -- these can eventually become real generic  methods
 
-func updateEntity(dot dbOrTx, ent structs.Entity) error {
-	glog.V(2).Infof("Writing updated entity [%s]", ent)
+func updateEntity(dot dbOrTx, eu structs.EntityUpdate) error {
+	glog.V(2).Infof("Writing updated entity [%s]", eu)
+	if eu.Noop() {
+		return errors.New("Tried to update using noop entity update")
+	}
 
-	sql, binds := ent.UpdateSQL().Get()
+	sql, binds := eu.Get()
 	_, err := dot.Exec(sql, binds...)
 	return err
 }
