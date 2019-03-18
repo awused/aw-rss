@@ -31,7 +31,7 @@ export class MutateService {
 
 
   public markItemRead(it: Item, read: boolean): Observable<void> {
-    const url = `/ap./entitiess/${it.id}/${read ? 'read' : 'unread'}`;
+    const url = `/api/items/${it.id}/${read ? 'read' : 'unread'}`;
 
     this.loadingService.startLoading();
     const obs =
@@ -49,8 +49,10 @@ export class MutateService {
 
   private subscribe(obs: Observable<any>) {
     obs.subscribe(
-        () => {},
-        (err: Error) => this.errorService.showError(err),
-        () => this.loadingService.finishLoading());
+        () => this.loadingService.finishLoading(),
+        (err: Error) => {
+          this.errorService.showError(err);
+          this.loadingService.finishLoading();
+        });
   }
 }

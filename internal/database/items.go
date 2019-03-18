@@ -1,7 +1,9 @@
 package database
 
 import (
+	"errors"
 	"strings"
+	"time"
 
 	"github.com/awused/aw-rss/internal/structs"
 	"github.com/golang/glog"
@@ -121,26 +123,38 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 	return nil
 }
 
-// GetItemsRequest is a request for items for a single Feed
+// GetItemsRequest is a request for items for a category or multiple feeds
 type GetItemsRequest struct {
-	FeedID int64
+	// ID of the category.
+	CategoryID *int64
+	// This will never be set at the same time as the CategoryID
+	FeedIDs []int64
+	// If true fetch all unread items
 	Unread bool
-	// LastRead is the ID after which all read items will be included
-	LastRead *int64
+	// Fetch all read items after this timestamp (with generally larger IDs)
+	ReadAfter *time.Time
+	// Fetch ReadBeforeCount items before this timestamp (generally smaller IDs)
+	ReadBefore *time.Time
+	// Limit how many items are fetched at one time
+	ReadBeforeCount *int64
 }
 
-// GetBatchItemsRequest is a request for items for one or more feeds
-type GetBatchItemsRequest struct {
-	GetItemsRequests []GetItemsRequest
+// GetItemsResponse is used to fulfill the GetItemsRequest
+type GetItemsResponse struct {
+	Items []*structs.Item `json:"items"`
 }
 
-// GetBatchItems returns the Items needed to fulfill the GetBatchItemsRequest
-func (d *Database) GetBatchItems(
-	batchRequest GetBatchItemsRequest) ([][]*structs.Item, error) {
+// GetItems returns the Items needed to fulfill the GetItemsRequest
+func (d *Database) GetItems(
+	req GetItemsRequest) (*GetItemsResponse, error) {
 	glog.V(5).Info("GetBatchItems() started")
-	if len(batchRequest.GetItemsRequests) == 0 {
-		glog.V(2).Info("GetBatchItems() called with empty list")
+	if len(req.FeedIDs) == 0 && req.CategoryID == nil {
+		glog.V(2).Info("GetBatchItems() called with empty request")
 		return nil, nil
+	}
+
+	if len(req.FeedIDs) != 0 && req.CategoryID != nil {
+		return nil, errors.New("Can't call BatchItems for both feeds and a category")
 	}
 
 	d.lock.RLock()

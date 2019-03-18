@@ -78,6 +78,8 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 		return nil, err
 	}
 
+	// This is actually the slowest query but latency is dominated by reading
+	// Item content
 	cs.NewestTimestamps, err = d.getNewestTimestamps(tx)
 	if err != nil {
 		glog.Error(err)
@@ -150,16 +152,13 @@ func (d *Database) getNewestTimestamps(tx *sql.Tx) (
 	map[int64]time.Time, error) {
 	sql := `
 SELECT
-		A.feedid, items.timestamp
-FROM (
-		SELECT
-				feedid, MAX(items.id) AS id
-		FROM items
-		GROUP BY feedid) A
-INNER JOIN
-		feeds ON feeds.id = A.feedid AND feeds.disabled = 0
-INNER JOIN
-	items ON items.id = A.id;`
+		feedid,
+		MAX(items.timestamp)
+FROM items
+INNER JOIN feeds
+		ON feeds.id = items.feedid
+WHERE feeds.disabled = 0
+GROUP BY feedid;`
 
 	rows, err := tx.Query(sql)
 	if err != nil {
@@ -171,13 +170,16 @@ INNER JOIN
 
 	for rows.Next() {
 		var fid int64
-		var t time.Time
+		var t []uint8
 		err = rows.Scan(&fid, &t)
 		if err != nil {
 			glog.Error(err)
 			return nil, err
 		}
-		out[fid] = t
+		out[fid], err = time.Parse("2006-01-02 15:04:05Z07:00", string(t))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return out, nil

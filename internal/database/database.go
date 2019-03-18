@@ -291,6 +291,8 @@ func (d *Database) upgradeFrom(version int) {
 	d.upgradeTo(11, version, `
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
+	d.upgradeTo(12, version, `
+				CREATE INDEX items_feed_timestamp_index ON items(feedid, timestamp);`)
 	if version < 11 {
 		_, err := d.db.Exec("VACUUM")
 		checkErr(err)

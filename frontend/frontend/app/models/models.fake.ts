@@ -1,5 +1,5 @@
-import {Feed} from './entities';
-import {Item} from './entities';
+import {Feed,
+        Item} from './entities';
 
 export const FeedFixtures: {[x: string]: Feed} = {
   emptyFeed: {

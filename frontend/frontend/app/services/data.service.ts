@@ -12,12 +12,12 @@ import {
   take
 } from 'rxjs/operators';
 
-import {Category} from '../models/entities';
 import {Data,
         FilteredData} from '../models/data';
-import {Feed} from '../models/entities';
+import {Category,
+        Feed,
+        Item} from '../models/entities';
 import {Filters} from '../models/filter';
-import {Item} from '../models/entities';
 import {Updates} from '../models/updates';
 
 import {ErrorService} from './error.service';
@@ -29,6 +29,7 @@ interface CurrentState {
   feeds?: Feed[];
   items?: Item[];
   categories?: Category[];
+  newestTimestamps?: {[x: number]: string};
 }
 
 interface ServerUpdates {
@@ -115,22 +116,6 @@ export class DataService {
     this.handleUpdates(u);
   }
 
-  private refreshState(): void {
-    if (this.timestamp === -1) {
-      return;
-    }
-    this.loadingService.startLoading();
-    this.http.get<ServerUpdates>(`/api/updates/${this.timestamp}`)
-        .subscribe(
-            (su: ServerUpdates) => this.handleRefresh(su),
-            (error: Error) => this.errorService.showError(error),
-            () => {
-              this.refreshService.finishRefresh();
-              this.loadingService.finishLoading();
-            });
-  }
-
-
   private handleRefresh(su: ServerUpdates): void {
     if (su.mustRefresh) {
       this.errorService.showError('Client state is too old, refreshing')
@@ -148,9 +133,7 @@ export class DataService {
   }
 
   private handleUpdates(u: Updates) {
-    // TODO-- Remove LIMIT / incomplete
-    // Handle cases where feed./entitiess need to be fetched or replayed
-    // TODO -- ADD create_timestamp to feed
+    // Handle cases where feed/entities need to be fetched or replayed
 
     // Cases where unread items need to be fetched:
     // An "existing" (create_timestamp < timestamp) feed goes from disabled to
@@ -168,7 +151,12 @@ export class DataService {
     // -- part of a category or we had the read items
     // A feed that wasn't previously disabled is added to a category
 
-    // A category going from disabled to enabled never causes a replay
+    // A category going from enabled to disabled is kept but doesn't cause
+    // fetches or replays. Users are kicked off of those category pages to the
+    // root.
+    // A disabled category getting enabled just recalculates the metadata.
+
+    // Handle feeds, then items, then categories
     this.data = this.data.merge(u)[0];
     this.updates$.next(u);
     this.data$.next(this.data);
@@ -185,10 +173,33 @@ export class DataService {
                   state.feeds,
                   state.items);
 
+              // TODO -- Construct metadata
               this.data$.next(this.data);
             },
-            (error: Error) => this.errorService.showError(error),
+            (error: Error) => {
+              this.errorService.showError(error);
+              this.loadingService.finishLoading();
+            },
             () => this.loadingService.finishLoading(),
         );
+  }
+
+  private refreshState(): void {
+    if (this.timestamp === -1) {
+      return;
+    }
+    this.loadingService.startLoading();
+    this.http.get<ServerUpdates>(`/api/updates/${this.timestamp}`)
+        .subscribe(
+            (su: ServerUpdates) => this.handleRefresh(su),
+            (error: Error) => {
+              this.errorService.showError(error);
+              this.refreshService.finishRefresh();
+              this.loadingService.finishLoading();
+            },
+            () => {
+              this.refreshService.finishRefresh();
+              this.loadingService.finishLoading();
+            });
   }
 }

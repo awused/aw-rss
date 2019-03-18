@@ -1,7 +1,8 @@
 export interface Category {
-  readonly id: number;
-  readonly disabled: boolean;
   readonly commitTimestamp: number;
+  readonly disabled: boolean;
+  readonly hidden: boolean;
+  readonly id: number;
 }
 
 export interface Feed {

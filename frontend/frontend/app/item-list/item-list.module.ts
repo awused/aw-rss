@@ -6,6 +6,7 @@ import {ItemListElementComponent} from './components/item-list-element/item-list
 import {ItemListComponent} from './components/item-list/item-list.component';
 
 
+// TODO -- trying to load a disabled category dumps the user back to the root
 const routes: Routes = [
   {path: '', pathMatch: 'full', component: ItemListComponent}
 ];

@@ -39,8 +39,8 @@ func (d *Database) GetFeeds(includeDisabled bool) ([]*structs.Feed, error) {
 	return feeds, nil
 }
 
-// GetItems is a legacy method, to be removed
-func (d *Database) GetItems(includeRead bool) ([]*structs.Item, error) {
+// GetItemsLegacy is a legacy method, to be removed
+func (d *Database) GetItemsLegacy(includeRead bool) ([]*structs.Item, error) {
 	glog.V(5).Info("GetItems() started")
 	d.lock.RLock()
 	defer d.lock.RUnlock()

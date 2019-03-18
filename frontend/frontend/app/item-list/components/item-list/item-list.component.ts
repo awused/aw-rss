@@ -4,19 +4,21 @@ import {Component,
 import {ActivatedRoute,
         ParamMap} from '@angular/router';
 import {Data,
+        EmptyFilteredData,
         Entity,
         FilteredData} from 'frontend/app/models/data';
-import {Feed} from 'frontend/app/models/entities';
+import {Feed,
+        Item} from 'frontend/app/models/entities';
 import {EmptyFilters,
         Filters} from 'frontend/app/models/filter';
-import {Item} from 'frontend/app/models/entities';
 import {Updates} from 'frontend/app/models/updates';
 import {DataService} from 'frontend/app/services/data.service';
 import {Subject} from 'rxjs';
 import {
   map,
   switchMap,
-  takeUntil
+  takeUntil,
+  tap
 } from 'rxjs/operators';
 
 @Component({
@@ -34,6 +36,7 @@ export class ItemListComponent implements OnInit, OnDestroy {
       private readonly dataService: DataService) {}
 
   ngOnInit() {
+    console.log('init');
     this.dataService.updates()
         .pipe(takeUntil(this.onDestroy$))
         .subscribe((u: Updates) => {
@@ -48,6 +51,7 @@ export class ItemListComponent implements OnInit, OnDestroy {
         .pipe(
             takeUntil(this.onDestroy$),
             map((p: ParamMap) => this.paramsToFilters(p)),
+            tap(() => this.filteredData = EmptyFilteredData),
             switchMap((f: Filters) => this.dataService.dataForFilters(f)))
         .subscribe((fd: FilteredData) => {
           this.filteredData = fd;

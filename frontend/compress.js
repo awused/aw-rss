@@ -17,14 +17,14 @@ const walk = (dir) => fs.readdirSync(dir).forEach(file => {
 
   const stat = fs.statSync(fp);
   if (stat.isDirectory()) {
-    walk(fp);
+    if (fp != 'dist/assets') {
+      walk(fp);
+    }
     return;
   }
 
-  if (file.endsWith('.js') || file.endsWith('.css') || file.endsWith('.html')) {
-    const result = brotli.compress(fs.readFileSync(fp), brotliSettings)
-    fs.writeFileSync(fp + '.br', result)
-  }
+  const result = brotli.compress(fs.readFileSync(fp), brotliSettings)
+  fs.writeFileSync(fp + '.br', result)
 });
 
 walk('dist');

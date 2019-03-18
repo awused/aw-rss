@@ -50,7 +50,7 @@ func (ws *webserver) listItems(w http.ResponseWriter, r *http.Request) {
 	glog.V(5).Infof("listItems() started")
 	q := r.URL.Query()
 
-	items, err := ws.db.GetItems(q.Get("read") == "1")
+	items, err := ws.db.GetItemsLegacy(q.Get("read") == "1")
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

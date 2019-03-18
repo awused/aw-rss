@@ -107,7 +107,10 @@ func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
 	glog.V(1).Infof("Creating %d items for [%s]", len(gfItems), f)
 	var items []*Item
 
-	for _, gfi := range gfItems {
+	for i := range gfItems {
+		// Reverse order; if we need to fill in publication timestamps
+		// with time.Now() they'll be in the appropriate order
+		gfi := gfItems[len(gfItems)-i-1]
 		items = append(items, createNewItem(gfi, f))
 	}
 
@@ -160,12 +163,13 @@ func getKey(gfi *gofeed.Item) string {
 }
 
 func getTimestamp(gfi *gofeed.Item) time.Time {
-	if gfi.UpdatedParsed != nil {
-		return gfi.UpdatedParsed.UTC()
-	}
-
 	if gfi.PublishedParsed != nil {
 		return gfi.PublishedParsed.UTC()
+	}
+
+	// Use the updated timestamp in place of published iff there is no published
+	if gfi.UpdatedParsed != nil {
+		return gfi.UpdatedParsed.UTC()
 	}
 
 	glog.V(2).Infof("No parseable date for item \"%s\"", gfi.Link)

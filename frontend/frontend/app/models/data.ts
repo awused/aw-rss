@@ -1,8 +1,9 @@
-import {Category} from './entities';
-import {Feed} from './entities';
+import {Category,
+        Feed,
+        Item} from './entities';
 import {DataFilter,
+        EmptyFilters,
         Filters} from './filter';
-import {Item} from './entities';
 
 export type Entity = Category|Feed|Item;
 
@@ -145,3 +146,5 @@ export class FilteredData {
     return [new FilteredData(newData, this.filters), changed];
   }
 }
+
+export const EmptyFilteredData = new FilteredData(new Data(), EmptyFilters);

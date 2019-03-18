@@ -35,7 +35,6 @@ export class RefreshService {
     if (!this.refreshing) {
       return;
     }
-
     this.refreshing = false;
     this.finished.next();
   }

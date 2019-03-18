@@ -65,3 +65,11 @@ func getFeed(dot dbOrTx, id int64) (*structs.Feed, error) {
 
 	return structs.ScanFeed(dot.QueryRow(sql, id))
 }
+
+// GetFeed gets a single (disabled) feed when requested by the frontend
+// func (d *Database) GetFeed
+
+// GetDisabledFeeds returns all disabled feeds from the database for the admin
+// page. There's no support for pagination as it's assumed the number of feeds
+// will never be that excessively large.
+// func (d *Database) GetDisabledFeeds
