@@ -132,11 +132,6 @@ func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	item.feedID = f.ID()
 	item.key = getKey(gfi)
 	item.title = gfi.Title
-
-	if item.feedID == 129 {
-		fmt.Println(item.title)
-	}
-
 	if gfi.Link != "" {
 		item.url = gfi.Link
 	} else {
