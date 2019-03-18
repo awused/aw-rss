@@ -29,7 +29,7 @@ type RssFetcher interface {
 }
 
 type feedError struct {
-	id  int64
+	f   *structs.Feed
 	err error
 }
 
@@ -39,7 +39,7 @@ type rssFetcher struct {
 	cloudflare    *cloudflare
 	feeds         map[int64]*structs.Feed
 	routines      map[int64]chan struct{}
-	retryBackoff  map[int64]int64
+	retryBackoff  map[int64]time.Duration
 	mapLock       sync.RWMutex
 	lastPolled    time.Time
 	wg            sync.WaitGroup
@@ -67,7 +67,7 @@ func NewRssFetcher() (RssFetcher, error) {
 	}
 	rss.feeds = make(map[int64]*structs.Feed)
 	rss.routines = make(map[int64]chan struct{})
-	rss.retryBackoff = make(map[int64]int64)
+	rss.retryBackoff = make(map[int64]time.Duration)
 	rss.rateLimitChan = make(chan struct{})
 	rss.closeChan = make(chan struct{})
 	rss.errorChan = make(chan feedError)
@@ -171,6 +171,7 @@ func (r *rssFetcher) Run() (err error) {
 		select {
 		case fe := <-r.errorChan:
 			r.restartFailedRoutine(fe)
+			// TODO -- handle an update from fe.f
 		case <-r.closeChan:
 			glog.Info("rssFetcher closed, exiting")
 			return nil
@@ -212,11 +213,14 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 			if glog.V(1) {
 				glog.Error(err)
 			}
-			r.db.MutateFeed(
+			newF, nerr := r.db.MutateFeed(
 				f.ID(),
 				structs.FeedSetFetchFailed(time.Now().UTC()))
+			if nerr == nil {
+				f = newF
+			}
 			select {
-			case r.errorChan <- feedError{f.ID(), err}:
+			case r.errorChan <- feedError{f, err}:
 			case <-r.closeChan:
 			}
 		}
@@ -233,7 +237,6 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		// The feed may have been updated
 		r.mapLock.RLock()
 		newF, ok := r.feeds[f.ID()]
-		oldBackoff := r.retryBackoff[f.ID()]
 		r.mapLock.RUnlock()
 		if !ok {
 			select {
@@ -280,14 +283,6 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 			panic(err)
 		}
 
-		if oldBackoff != 1 {
-			r.mapLock.Lock()
-			if _, ok := r.retryBackoff[f.ID()]; ok {
-				r.retryBackoff[f.ID()] = 1
-			}
-			r.mapLock.Unlock()
-		}
-
 		f, err = r.db.MutateFeed(
 			f.ID(), structs.FeedSetFetchSuccess)
 		if err != nil {
@@ -303,6 +298,12 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 				glog.V(1).Infof("Routine for [%s] killed by parent", f)
 				return
 			}*/
+
+		r.mapLock.Lock()
+		if _, ok := r.retryBackoff[f.ID()]; ok {
+			r.retryBackoff[f.ID()] = time.Minute
+		}
+		r.mapLock.Unlock()
 
 		select {
 		case <-kill:
@@ -483,17 +484,20 @@ func (r *rssFetcher) killRoutine(f *structs.Feed) {
 	delete(r.retryBackoff, f.ID())
 }
 
-func (r *rssFetcher) restartRoutine(f *structs.Feed, c <-chan struct{}, minutes int64) {
-	glog.V(1).Infof("Restarting routine for [%s] in %d minutes", f, minutes)
+func (r *rssFetcher) restartRoutine(
+	f *structs.Feed, kill <-chan struct{}, delay time.Duration) {
+	glog.V(1).Infof(
+		"Restarting routine for [%s] in %s", f, delay)
 
 	select {
-	case <-c:
-		glog.V(1).Infof("Routine for [%s] killed by parent before it could restart", f)
+	case <-kill:
+		glog.V(1).Infof(
+			"Routine for [%s] killed by parent before it could restart", f)
 		r.wg.Done()
 		return
-	case <-time.After(time.Minute * time.Duration(minutes)):
+	case <-time.After(delay):
 		glog.V(2).Infof("Restarting routine for [%s] now", f)
-		r.routine(f, c)
+		r.routine(f, kill)
 	}
 }
 
@@ -517,7 +521,7 @@ func (r *rssFetcher) startNewRoutines(newFeeds []*structs.Feed) {
 			glog.V(2).Infof("Starting new routine for [%s]", feed)
 
 			r.routines[feed.ID()] = make(chan struct{})
-			r.retryBackoff[feed.ID()] = 1
+			r.retryBackoff[feed.ID()] = time.Minute
 
 			r.wg.Add(1)
 			go r.routine(feed, r.routines[feed.ID()])
@@ -527,32 +531,33 @@ func (r *rssFetcher) startNewRoutines(newFeeds []*structs.Feed) {
 }
 
 func (r *rssFetcher) restartFailedRoutine(fe feedError) {
-	id := fe.id
+	feed := fe.f
+	id := feed.ID()
 
 	r.mapLock.Lock()
 	defer r.mapLock.Unlock()
 
-	feed, ok := r.feeds[id]
+	_, ok := r.feeds[id]
 	if !ok {
 		glog.Warningf("Tried to restart routine for non-existent feed %d", feed)
 		return
 	}
-	backoffMinutes := r.retryBackoff[id]
+	backoff := r.retryBackoff[id]
 	if isCloudflareError(fe.err) {
-		backoffMinutes = 6 * 60
+		backoff = time.Hour * 6
 	}
 	r.killRoutine(feed)
 	r.routines[id] = make(chan struct{})
-	r.retryBackoff[id] = backoffMinutes * 2
-	if r.retryBackoff[id] > 6*60 {
-		r.retryBackoff[id] = 6 * 60 // Check at least once every six hours
+	r.retryBackoff[id] = backoff * 2
+	if r.retryBackoff[id] > time.Hour*6 {
+		r.retryBackoff[id] = time.Hour * 6 // Check at least once every six hours
 	}
 
 	glog.Warningf(
-		"Error in routine for [Feed: %d], attempting to restart in %d minutes",
-		fe.id, backoffMinutes)
+		"Error in routine for [Feed: %d], attempting to restart in %s",
+		id, backoff)
 	r.wg.Add(1)
-	go r.restartRoutine(feed, r.routines[id], backoffMinutes)
+	go r.restartRoutine(feed, r.routines[id], backoff)
 }
 
 /*func charsetReader(charset string, r io.Reader) (io.Reader, error) {

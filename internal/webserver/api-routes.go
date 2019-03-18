@@ -15,6 +15,7 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 	r.Get("/feeds/list", ws.listFeeds)
 
 	r.Get("/items/list", ws.listItems)
+	//r.Post("/items/batch", ws.getBatchItems)
 	r.Post("/items/{id}/read", ws.setItemRead(true))
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 

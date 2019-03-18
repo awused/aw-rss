@@ -150,15 +150,16 @@ func (d *Database) getNewestTimestamps(tx *sql.Tx) (
 	map[int64]time.Time, error) {
 	sql := `
 SELECT
-	A.feedid, items.timestamp
+		A.feedid, items.timestamp
 FROM (
-	SELECT feedid, MAX(items.id) AS id
-	FROM feeds
-	CROSS JOIN items
-	ON items.feedid = feeds.id
-	WHERE feeds.disabled = 0
-	GROUP BY feedid) AS A
-INNER JOIN items ON A.id = items.id`
+		SELECT
+				feedid, MAX(items.id) AS id
+		FROM items
+		GROUP BY feedid) A
+INNER JOIN
+		feeds ON feeds.id = A.feedid AND feeds.disabled = 0
+INNER JOIN
+	items ON items.id = A.id;`
 
 	rows, err := tx.Query(sql)
 	if err != nil {

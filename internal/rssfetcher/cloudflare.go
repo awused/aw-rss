@@ -48,7 +48,8 @@ func isCloudflareError(err error) bool {
 		err == errNoCookies
 }
 
-const cloudflareSentinel = "<title>Attention Required! | Cloudflare</title>"
+const cloudflareSentinelOne = "<title>Attention Required! | Cloudflare</title>"
+const cloudflareSentinelTwo = "<title>Just a moment...</title>"
 const cloudflareNormal = "This process is automatic. Your browser " +
 	"will redirect to your requested content shortly."
 const cloudflareMissing = "ModuleNotFoundError: No module named 'cfscrape'"
@@ -89,25 +90,21 @@ func host(feedURL string) (string, string, error) {
 	return u.Host, u.Scheme, nil
 }
 
-func (cf *cloudflare) isCloudflareResponse(feedUrl string, body string) (bool, error) {
+func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, error) {
 	if len(body) < 500 {
 		return false, nil
 	}
-	if !strings.Contains(body[0:499], cloudflareSentinel) {
+	if !strings.Contains(body[0:499], cloudflareSentinelOne) &&
+		!strings.Contains(body[0:499], cloudflareSentinelTwo) {
 		return false, nil
 	}
 	if strings.Contains(body, cloudflareNormal) {
 		return true, nil
 	}
 
-	h, _, err := host(feedUrl)
+	h, _, err := host(feedURL)
 	if err == nil {
-		cf.failureLock.Lock()
-		// Any new fetches in the next hour will be aborted
-		// The retry mechanism in rssfetcher will then wait six hours for them
-		// This keeps the maximum time between fetches to 7 hours
-		cf.invalidUntil[h] = time.Now().Add(time.Hour)
-		cf.failureLock.Unlock()
+		cf.setInvalid(h)
 	}
 	return true, errCloudflareCaptcha
 }
@@ -206,13 +203,7 @@ func (cf *cloudflare) getNewCookie(
 	}
 
 	if scheme != "https" || !trustedHosts[h] {
-		cf.failureLock.Lock()
-		// Any new fetches in the next hour will be aborted
-		// The retry mechanism in rssfetcher will then wait six hours for them
-		// This keeps the maximum time between fetches to 7 hours
-		cf.invalidUntil[h] = time.Now().Add(time.Hour)
-		cf.failureLock.Unlock()
-
+		cf.setInvalid(h)
 		if scheme != "https" {
 			return "", "", errUnsecureTransport
 		}
@@ -224,7 +215,7 @@ func (cf *cloudflare) getNewCookie(
 	if !ok {
 		fetchChan = make(chan struct{})
 		cf.fetching[h] = fetchChan
-		defer cf.stopFetching(h)
+		defer cf.finishFetching(h)
 	}
 	cf.fetchingLock.Unlock()
 
@@ -255,24 +246,20 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 		exec.Command("python3", "-c", cookieScript, feedURL).CombinedOutput()
 	str := string(out)
 	if err != nil {
-		cf.failureLock.Lock()
-		defer cf.failureLock.Unlock()
-		// Any new fetches in the next hour will be aborted
-		// The retry mechanism in rssfetcher will then wait six hours for them
-		// This keeps the maximum time between fetches to 7 hours
-		cf.invalidUntil[h] = time.Now().Add(time.Hour)
+		cf.setInvalid(h)
 
 		if strings.Contains(str, cloudflareBroken) ||
 			strings.Contains(str, cloudflareMissing) {
 			// There are probably more errors we can put here
 			// But brokenCfscrape is permanent so we want to avoid setting it on
 			// transient errors
+			cf.failureLock.Lock()
 			cf.brokenCfscrape = true
+			cf.failureLock.Unlock()
 			return "", "", errCloudflareBroken
-		} else {
-			glog.Error(str)
 		}
 
+		glog.Error(str)
 		return "", "", errCloudflareCaptcha
 	}
 
@@ -280,13 +267,7 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 
 	if len(lines) < 2 {
 		glog.Errorf("Missing cloudflare cookie or user agent for " + feedURL)
-		cf.failureLock.Lock()
-		// Any new fetches in the next hour will be aborted
-		// The retry mechanism in rssfetcher will then wait six hours for them
-		// This keeps the maximum time between fetches to 7 hours
-		cf.invalidUntil[h] = time.Now().Add(time.Hour)
-		cf.failureLock.Unlock()
-
+		cf.setInvalid(h)
 		return "", "", errCloudflareBroken
 	}
 
@@ -298,7 +279,16 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 	return lines[0], lines[1], nil
 }
 
-func (cf *cloudflare) stopFetching(h string) {
+func (cf *cloudflare) setInvalid(h string) {
+	cf.failureLock.Lock()
+	// Any new fetches in the next hour will be aborted
+	// The retry mechanism in rssfetcher will then wait six hours for them
+	// This keeps the maximum time between fetches to 7 hours
+	cf.invalidUntil[h] = time.Now().Add(time.Hour)
+	cf.failureLock.Unlock()
+}
+
+func (cf *cloudflare) finishFetching(h string) {
 	cf.fetchingLock.Lock()
 	c := cf.fetching[h]
 	close(c)

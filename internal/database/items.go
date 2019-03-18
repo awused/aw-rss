@@ -120,3 +120,37 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 	glog.V(5).Info("InsertItem() completed")
 	return nil
 }
+
+// GetItemsRequest is a request for items for a single Feed
+type GetItemsRequest struct {
+	FeedID int64
+	Unread bool
+	// LastRead is the ID after which all read items will be included
+	LastRead *int64
+}
+
+// GetBatchItemsRequest is a request for items for one or more feeds
+type GetBatchItemsRequest struct {
+	GetItemsRequests []GetItemsRequest
+}
+
+// GetBatchItems returns the Items needed to fulfill the GetBatchItemsRequest
+func (d *Database) GetBatchItems(
+	batchRequest GetBatchItemsRequest) ([][]*structs.Item, error) {
+	glog.V(5).Info("GetBatchItems() started")
+	if len(batchRequest.GetItemsRequests) == 0 {
+		glog.V(2).Info("GetBatchItems() called with empty list")
+		return nil, nil
+	}
+
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
+	if err := d.checkClosed(); err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	// TODO
+	return nil, nil
+}

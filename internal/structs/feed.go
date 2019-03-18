@@ -145,8 +145,15 @@ func (f *Feed) String() string {
 	if f.userTitle != "" {
 		title = f.userTitle
 	}
-	return fmt.Sprintf("Feed %d: %s (%s) disabled: %t, failingSince: %s",
-		f.id, f.url, title, f.disabled, f.failingSince)
+	str := fmt.Sprintf("Feed %d: %s (%s)", f.id, f.url, title)
+	if f.disabled {
+		str += " disabled"
+	}
+	if f.failingSince != nil {
+		str += ", failingSince: " +
+			f.failingSince.Local().Format("2006-01-02 15:04:05")
+	}
+	return str
 }
 
 const feedUpdateSQL string = `

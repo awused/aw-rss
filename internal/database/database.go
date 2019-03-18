@@ -123,8 +123,7 @@ func (d *Database) getVersion() int {
 }
 
 func (d *Database) upgradeFrom(version int) {
-	if version < 1 {
-		d.upgradeTo(1, `
+	d.upgradeTo(1, version, `
 				CREATE TABLE metadata(key TEXT, value TEXT, PRIMARY KEY(key));
 				CREATE TABLE feeds(
 						id INTEGER PRIMARY KEY,
@@ -144,24 +143,16 @@ func (d *Database) upgradeFrom(version int) {
 						read INT NOT NULL DEFAULT 0,
 						UNIQUE(feedid, key),
 						FOREIGN KEY(feedid) REFERENCES feeds(id));`)
-	} // version < 1
-	if version < 2 {
-		d.upgradeTo(2, `
+	d.upgradeTo(2, version, `
 				ALTER TABLE feeds ADD COLUMN usertitle TEXT NOT NULL DEFAULT '';`)
-	} // version < 2
-	if version < 3 {
-		d.upgradeTo(3, `
+	d.upgradeTo(3, version, `
 				ALTER TABLE feeds ADD COLUMN
 						lastsuccesstime TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:00+00:00';`)
-	} // version < 3
-	if version < 4 {
-		d.upgradeTo(4, `CREATE INDEX items_read_feed_index ON items(read, feedid);`)
-	} // version < 4
-	if version < 5 {
-		d.upgradeTo(5, `CREATE INDEX feeds_disabled_index ON feeds(disabled);`)
-	} // version < 5
-	if version < 6 {
-		d.upgradeTo(6, `
+	d.upgradeTo(4, version,
+		`CREATE INDEX items_read_feed_index ON items(read, feedid);`)
+	d.upgradeTo(5, version,
+		`CREATE INDEX feeds_disabled_index ON feeds(disabled);`)
+	d.upgradeTo(6, version, `
 				ALTER TABLE feeds RENAME TO feeds_old;
 				ALTER TABLE items RENAME TO items_old;
 
@@ -200,14 +191,10 @@ func (d *Database) upgradeFrom(version int) {
 				CREATE INDEX feeds_disabled_index ON feeds(disabled);
 				CREATE INDEX items_commit_index ON items(commit_timestamp);
 				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
-	} // version < 6
-	if version < 7 {
-		d.upgradeTo(7, `
+	d.upgradeTo(7, version, `
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
-	} // version < 7
-	if version < 8 {
-		d.upgradeTo(8, `
+	d.upgradeTo(8, version, `
 				ALTER TABLE feeds RENAME TO feeds_old;
 				ALTER TABLE items RENAME TO items_old;
 
@@ -248,17 +235,10 @@ func (d *Database) upgradeFrom(version int) {
 				CREATE INDEX feeds_disabled_index ON feeds(disabled);
 				CREATE INDEX items_commit_index ON items(commit_timestamp);
 				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
-	} // version < 8
-	if version < 9 {
-		d.upgradeTo(9, `
+	d.upgradeTo(9, version, `
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
-		_, err := d.db.Exec("VACUUM")
-		checkErr(err)
-	} // version < 9
-	// TODO -- drop all these progressive updates before open sourcing
-	if version < 10 {
-		d.upgradeTo(10, `
+	d.upgradeTo(10, version, `
 				ALTER TABLE feeds RENAME TO feeds_old;
 				ALTER TABLE items RENAME TO items_old;
 
@@ -308,18 +288,20 @@ func (d *Database) upgradeFrom(version int) {
 				CREATE INDEX feeds_disabled_index ON feeds(disabled);
 				CREATE INDEX items_commit_index ON items(commit_timestamp);
 				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);`)
-	} // version < 10
-	if version < 11 {
-		d.upgradeTo(11, `
+	d.upgradeTo(11, version, `
 				DROP TABLE items_old;
 				DROP TABLE feeds_old;`)
+	if version < 11 {
 		_, err := d.db.Exec("VACUUM")
 		checkErr(err)
-	} // version < 11
+	}
 
 }
 
-func (d *Database) upgradeTo(version int, sql string) {
+func (d *Database) upgradeTo(version int, oldVersion int, sql string) {
+	if version <= oldVersion {
+		return
+	}
 	glog.Infof("Upgrading database to version %d", version)
 
 	tx, err := d.db.Begin()
