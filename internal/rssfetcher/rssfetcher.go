@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/awused/aw-rss/internal/database"
+	"github.com/awused/aw-rss/internal/quirks"
 	"github.com/awused/aw-rss/internal/structs"
 	"github.com/golang/glog"
 	"github.com/mmcdole/gofeed"
@@ -400,7 +401,7 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 		body = r.fetchHTTPBody(f, kill, c, ua)
 	}
 
-	return body
+	return quirks.HandleBodyQuirks(f, body)
 }
 
 func (r *rssFetcher) fetchHTTPBody(

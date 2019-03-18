@@ -1,14 +1,13 @@
 {
-  "name": "DesuRSS",
-  "short_name": "DesuRSS",
-  "description": "Desuwa's RSS aggregator",
+  "name": "Aw-Rss",
+  "short_name": "Aw-Rss",
+  "description": "Desuwa's RSS reader/aggregator",
   "theme_color": "#1976d2",
   "background_color": "#fafafa",
   "display": "standalone",
   "scope": "/",
   "start_url": "/",
-  "icons": [
-    {
+  "icons": [{
       "src": "assets/icons/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png"

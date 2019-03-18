@@ -36,7 +36,6 @@ export class ItemListComponent implements OnInit, OnDestroy {
       private readonly dataService: DataService) {}
 
   ngOnInit() {
-    console.log('init');
     this.dataService.updates()
         .pipe(takeUntil(this.onDestroy$))
         .subscribe((u: Updates) => {
