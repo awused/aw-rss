@@ -2,6 +2,14 @@ import {Category,
         Feed,
         Item} from './entities';
 
+export interface TimeRange {
+  // Matches items in the range (stard, end]
+  // Dates are UTC
+  // This seems backwards, but items are displayed in reverse order
+  readonly end: Date;
+  readonly start: Date;
+}
+
 // Filters for applying updates or filtering data
 // By default everything is kept unconditionally
 export interface Filters {
@@ -29,6 +37,7 @@ export interface Filters {
   readonly excludeCategories?: boolean;
   readonly excludeFeeds?: boolean;
   readonly excludeItems?: boolean;
+  readonly timeRange?: TimeRange;
 }
 
 export const EmptyFilters: Filters = {
@@ -45,6 +54,8 @@ export class DataFilter {
   readonly itemIds: ReadonlySet<number>;
   readonly categoryFeedIds: Set<number> = new Set<number>();
   readonly includedFeedIds: Set<number> = new Set<number>();
+  readonly end?: string;
+  readonly start?: string;
 
   constructor(
       refresh: boolean,
@@ -53,6 +64,11 @@ export class DataFilter {
     this.feedIds = new Set(f.feedIds || []);
     this.itemIds = new Set(f.itemIds || []);
     this.keepExisting = !refresh && !!f.keepExistingUnlessRefresh;
+    if (f.timeRange) {
+      this.end = f.timeRange.end.toISOString();
+      this.start = f.timeRange.start.toISOString();
+      // TODO -- handle time range
+    }
   }
 
   keepExistingCategory = (c: Category): boolean => {

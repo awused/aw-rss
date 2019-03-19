@@ -21,7 +21,7 @@ type CurrentState struct {
 	// If pagination support is added it will only be for items
 }
 
-func (d *Database) getTransactionTimestamp(tx *sql.Tx) (int64, error) {
+func getTransactionTimestamp(tx *sql.Tx) (int64, error) {
 	var b []uint8
 	// https://github.com/mattn/go-sqlite3/issues/316
 	err := tx.QueryRow("SELECT strftime('%s','now')").Scan(&b)
@@ -57,21 +57,21 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 		return nil, err
 	}
 
-	cs.Timestamp, err = d.getTransactionTimestamp(tx)
+	cs.Timestamp, err = getTransactionTimestamp(tx)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
-	cs.Feeds, err = d.getCurrentFeeds(tx)
+	cs.Feeds, err = getCurrentFeeds(tx)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
-	cs.Items, err = d.getCurrentItems(tx)
+	cs.Items, err = getCurrentItems(tx)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
@@ -80,7 +80,7 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 
 	// This is actually the slowest query but latency is dominated by reading
 	// Item content
-	cs.NewestTimestamps, err = d.getNewestTimestamps(tx)
+	cs.NewestTimestamps, err = getNewestTimestamps(tx)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
@@ -96,33 +96,7 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 	return cs, err
 }
 
-func (d *Database) getCurrentFeeds(tx *sql.Tx) ([]*structs.Feed, error) {
-	glog.V(5).Info("getCurrentFeeds() started")
-
-	sql := "SELECT " + structs.FeedSelectColumns + `
-	    FROM
-					feeds
-			WHERE
-					feeds.disabled = 0
-			ORDER BY feeds.id ASC`
-
-	rows, err := tx.Query(sql)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	feeds, err := structs.ScanFeeds(rows)
-
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	glog.V(3).Infof("getCurrentFeeds() retrieved %d feeds", len(feeds))
-	glog.V(5).Info("getCurrentFeeds() completed")
-	return feeds, nil
-}
-
-func (d *Database) getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
+func getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
 	glog.V(5).Info("getCurrentItems() started")
 
 	sql := "SELECT " + structs.ItemSelectColumns + `
@@ -148,7 +122,7 @@ func (d *Database) getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
 	return items, nil
 }
 
-func (d *Database) getNewestTimestamps(tx *sql.Tx) (
+func getNewestTimestamps(tx *sql.Tx) (
 	map[int64]time.Time, error) {
 	sql := `
 SELECT
@@ -221,7 +195,7 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 		return nil, err
 	}
 
-	up.Timestamp, err = d.getTransactionTimestamp(tx)
+	up.Timestamp, err = getTransactionTimestamp(tx)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
@@ -240,14 +214,14 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 		return up, nil
 	}
 
-	up.Feeds, err = d.getUpdatedFeeds(tx, tstr)
+	up.Feeds, err = getUpdatedFeeds(tx, tstr)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
-	up.Items, err = d.getUpdatedItems(tx, tstr)
+	up.Items, err = getUpdatedItems(tx, tstr)
 	if err != nil {
 		glog.Error(err)
 		tx.Rollback()
@@ -263,7 +237,7 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 	return up, err
 }
 
-func (d *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*structs.Feed, error) {
+func getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*structs.Feed, error) {
 	glog.V(5).Info("getUpdatedFeeds() started")
 
 	sql := "SELECT " + structs.FeedSelectColumns + `
@@ -287,7 +261,7 @@ func (d *Database) getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*structs.Feed, er
 	return feeds, nil
 }
 
-func (d *Database) getUpdatedItems(tx *sql.Tx, tstr string) ([]*structs.Item, error) {
+func getUpdatedItems(tx *sql.Tx, tstr string) ([]*structs.Item, error) {
 	glog.V(5).Info("getUpdatedItems() started")
 
 	sql := "SELECT " + structs.ItemSelectColumns + `

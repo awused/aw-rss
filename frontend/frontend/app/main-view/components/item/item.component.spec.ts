@@ -3,31 +3,36 @@ import {async,
         ComponentFixture,
         TestBed} from '@angular/core/testing';
 import {ItemFixtures} from 'frontend/app/models/models.fake';
+import {PipesModule} from 'frontend/app/pipes/pipes.module';
+import {DataService} from 'frontend/app/services/data.service';
+import {FakeDataService} from 'frontend/app/services/data.service.fake';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
 
-import {ItemListElementComponent} from './item-list-element.component';
+import {ItemComponent} from './item.component';
 
 @Component({
   selector: 'awrss-test-wrapper',
-  template: '<awrss-item-list-element [item]="item"></awrss-item-list-element>'
+  template: '<awrss-item [item]="item"></awrss-item>'
 })
 class TestWrapperComponent {
   item = ItemFixtures.emptyItem;
 }
 
-describe('ItemListElementComponent', () => {
-  let component: ItemListElementComponent;
+describe('ItemComponent', () => {
+  let component: ItemComponent;
   let fixture: ComponentFixture<TestWrapperComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+             imports: [PipesModule],
              declarations: [
-               ItemListElementComponent,
+               ItemComponent,
                TestWrapperComponent
              ],
              providers: [
-               {provide: MutateService, useClass: FakeMutateService}
+               {provide: MutateService, useClass: FakeMutateService},
+               {provide: DataService, useClass: FakeDataService}
              ]
            })
         .compileComponents();

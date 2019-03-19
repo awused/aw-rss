@@ -2,23 +2,27 @@ import {async,
         ComponentFixture,
         TestBed} from '@angular/core/testing';
 import {RouterTestingModule} from '@angular/router/testing';
+import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
 
-import {ItemListElementComponent} from '../item-list-element/item-list-element.component';
+import {ItemComponent} from '../item/item.component';
 
-import {ItemListComponent} from './item-list.component';
+import {MainViewComponent} from './main-view.component';
 
-describe('ItemListComponent', () => {
-  let component: ItemListComponent;
-  let fixture: ComponentFixture<ItemListComponent>;
+describe('MainViewComponent', () => {
+  let component: MainViewComponent;
+  let fixture: ComponentFixture<MainViewComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-             imports: [RouterTestingModule],
+             imports: [
+               RouterTestingModule,
+               PipesModule
+             ],
              declarations: [
-               ItemListComponent,
-               ItemListElementComponent
+               MainViewComponent,
+               ItemComponent
              ],
              providers: [
                {provide: DataService, useClass: FakeDataService}
@@ -28,7 +32,7 @@ describe('ItemListComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(ItemListComponent);
+    fixture = TestBed.createComponent(MainViewComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

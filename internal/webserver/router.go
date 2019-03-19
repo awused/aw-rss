@@ -4,7 +4,6 @@ import (
 	"flag"
 	"net/http"
 	"os"
-	"path"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -12,9 +11,6 @@ import (
 
 // TODO -- this must die
 var staticRoot = flag.String("static", "/usr/local/www/rss-aggregator", "Directory containing the static files used")
-
-const staticDir = "static"
-const nodeDir = "node_modules"
 
 // redirectingFileSystem is an implementation of http.FileSystem that
 // redirects all 404s to an index, which is useful for client side routing
@@ -40,20 +36,11 @@ func (w *webserver) getRouter() http.Handler {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 
-	// TODO -- remove these two routes
-	router.Get("/sw.js", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, path.Join(*staticRoot, staticDir, "compiled", "sw.js"))
-	})
-	router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(
-			w, r, path.Join(*staticRoot, staticDir, "icons", "graphicsvibe-rss-feed.ico"))
-	})
-
 	router.Route("/api", w.apiRoutes)
 	router.Get("/*", http.FileServer(
 		redirectingFileSystem{
 			http.Dir(*staticRoot),
-			path.Join(staticDir, "index.html")}).ServeHTTP)
+			"index.html"}).ServeHTTP)
 
 	return router
 }

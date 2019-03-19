@@ -9,7 +9,7 @@ import {environment} from '../environments/environment';
 
 import {AppRoutingModule} from './app-routing.module';
 import {AppComponent} from './app.component';
-import {ItemListModule} from './item-list/item-list.module';
+import {MainViewModule} from './main-view/main-view.module';
 import {MaterialModule} from './material/material.module';
 import {NavModule} from './nav/nav.module';
 
@@ -22,7 +22,7 @@ import {NavModule} from './nav/nav.module';
     // After BrowserModule
     HttpClientModule,
     BrowserAnimationsModule,
-    ItemListModule,
+    MainViewModule,
     NavModule,
     AppRoutingModule,  // last
     MaterialModule,

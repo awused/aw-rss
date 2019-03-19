@@ -123,38 +123,44 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 	return nil
 }
 
-// GetItemsRequest is a request for items for a category or multiple feeds
+// GetItemsRequest is a request for items matching some constraints
+// Items from disabled feeds will not be fetched unless they're specified in
+// FeedIDs
+// If both FeedIDs and CategoryID are absent, items from every enabled feed
+// will be fetched
 type GetItemsRequest struct {
-	// ID of the category.
+	// ID of the category, if any
 	CategoryID *int64
-	// This will never be set at the same time as the CategoryID
-	FeedIDs []int64
+	// IDs of the Feed, if any
+	FeedIDs []*int64
+	// Include feeds specified by FeedIDs in the response
+	IncludeFeed bool
+
 	// If true fetch all unread items
 	Unread bool
-	// Fetch all read items after this timestamp (with generally larger IDs)
+	// Fetch all read items after this timestamp (exclusive)
 	ReadAfter *time.Time
-	// Fetch ReadBeforeCount items before this timestamp (generally smaller IDs)
+	// Fetch ReadBeforeCount items before this timestamp (inclusive)
 	ReadBefore *time.Time
-	// Limit how many items are fetched at one time
-	ReadBeforeCount *int64
 }
 
 // GetItemsResponse is used to fulfill the GetItemsRequest
 type GetItemsResponse struct {
 	Items []*structs.Item `json:"items"`
+	Feeds []*structs.Feed `json:"feeds,omitempty"`
 }
 
 // GetItems returns the Items needed to fulfill the GetItemsRequest
 func (d *Database) GetItems(
 	req GetItemsRequest) (*GetItemsResponse, error) {
-	glog.V(5).Info("GetBatchItems() started")
-	if len(req.FeedIDs) == 0 && req.CategoryID == nil {
-		glog.V(2).Info("GetBatchItems() called with empty request")
+	glog.V(5).Info("GetItems() started")
+	if !req.Unread && req.ReadAfter == nil && req.ReadBefore == nil {
+		glog.V(2).Info("GetItems() called with empty request")
 		return nil, nil
 	}
 
 	if len(req.FeedIDs) != 0 && req.CategoryID != nil {
-		return nil, errors.New("Can't call BatchItems for both feeds and a category")
+		return nil, errors.New("Can't call GetItems for both feeds and a category")
 	}
 
 	d.lock.RLock()

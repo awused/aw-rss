@@ -12,55 +12,12 @@ import (
 )
 
 func (ws *webserver) apiRoutes(r chi.Router) {
-	r.Get("/feeds/list", ws.listFeeds)
-
-	r.Get("/items/list", ws.listItems)
-	//r.Post("/items/batch", ws.getBatchItems)
+	//r.Post("/items", ws.getItems)
 	r.Post("/items/{id}/read", ws.setItemRead(true))
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 
 	r.Get("/current", ws.currentState)
 	r.Get("/updates/{timestamp}", ws.updatesSince)
-}
-
-/**
- * disabled = 1 to include disabled feeds
- */
-func (ws *webserver) listFeeds(w http.ResponseWriter, r *http.Request) {
-	glog.V(5).Infof("listFeeds() started")
-	q := r.URL.Query()
-
-	feeds, err := ws.db.GetFeeds(q.Get("disabled") == "1")
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	glog.V(3).Infof("Writing %d feeds to response; disabled = %t", len(feeds), q.Get("disabled") == "1")
-	if err = json.NewEncoder(w).Encode(feeds); err != nil {
-		glog.Error(err)
-	}
-}
-
-/**
- * read = 1 to include read items
- */
-func (ws *webserver) listItems(w http.ResponseWriter, r *http.Request) {
-	glog.V(5).Infof("listItems() started")
-	q := r.URL.Query()
-
-	items, err := ws.db.GetItemsLegacy(q.Get("read") == "1")
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	glog.V(3).Infof("Writing %d items to response; read = %t", len(items), q.Get("read") == "1")
-	if err = json.NewEncoder(w).Encode(items); err != nil {
-		glog.Error(err)
-	}
 }
 
 func (ws *webserver) setItemRead(readState bool) http.HandlerFunc {

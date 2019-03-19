@@ -7,9 +7,11 @@ import {
   Subject
 } from 'rxjs';
 import {
+  filter,
   map,
   share,
-  take
+  take,
+  tap
 } from 'rxjs/operators';
 
 import {Data,
@@ -17,7 +19,8 @@ import {Data,
 import {Category,
         Feed,
         Item} from '../models/entities';
-import {Filters} from '../models/filter';
+import {Filters,
+        TimeRange} from '../models/filter';
 import {Updates} from '../models/updates';
 
 import {ErrorService} from './error.service';
@@ -45,10 +48,11 @@ interface ServerUpdates {
 class FeedMetadata {
   constructor(
       public feed: Feed,
-      public hasUnreadItems: boolean = true,
-      // 0 -> we have all items
-      // This only applies to read items that have been deliberately fetched
-      public oldestReadItemId?: number) {}
+      // True if we have all unread items up to DataService.timestamp
+      public hasUnread: boolean = true,
+      // The time ranges of fetches read items, in order
+      // Overlapping time ranges are merged
+      public readTimeRanges: TimeRange[] = []) {}
 }
 
 // Data about what is present in the cache for this feed
@@ -65,6 +69,16 @@ class CategoryMetadata {
     // this.feedIds = new Set(this.category.feedIds);
   }
 }
+
+// A component that cares about read items in a category will need to subscribe
+// so that category mutations result in appropriate replays/fetches
+export interface CategorySubscription {
+  readonly category: number;
+  readonly readTimeRange?: TimeRange;
+}
+
+
+
 @Injectable({
   providedIn: 'root'
 })
@@ -96,7 +110,7 @@ export class DataService {
     return this.data$
         .pipe(
             take(1),
-            // TODO -- Handle interesting cases here
+            // TODO -- Handle interesting missing data cases here synchronously
             map((data: Data): FilteredData => {
               return new FilteredData(
                   data.filter(f), f);
@@ -109,6 +123,9 @@ export class DataService {
 
   // This should never be called for a feed that doesn't exist in data
   public getFeed(id: number): Feed {
+    if (!this.feedMetadata.has(id)) {
+      console.log(id);
+    }
     return this.feedMetadata.get(id).feed;
   }
 
@@ -123,13 +140,13 @@ export class DataService {
           .then(() => window.location.reload());
       return;
     }
-    if (su.timestamp > this.timestamp) {
-      this.timestamp = su.timestamp;
-    }
     const d = new Data(su.categories, su.feeds, su.items);
     const up = new Updates(true, d);
 
     this.handleUpdates(up);
+    if (su.timestamp > this.timestamp) {
+      this.timestamp = su.timestamp;
+    }
   }
 
   private handleUpdates(u: Updates) {
@@ -157,9 +174,37 @@ export class DataService {
     // A disabled category getting enabled just recalculates the metadata.
 
     // Handle feeds, then items, then categories
-    this.data = this.data.merge(u)[0];
-    this.updates$.next(u);
-    this.data$.next(this.data);
+    let changed;
+    let d;
+    [d, changed] = this.data.merge(u);
+    if (changed) {
+      // Push to data first, so that subscribers of data can take the unchanged
+      // fast-path
+      this.data = d;
+      this.updateMetadata(u);
+      this.data$.next(this.data);
+      this.updates$.next(u);
+    } else if (u.refresh) {
+      this.updates$.next(new Updates(true, new Data()));
+    }
+  }
+
+  private updateMetadata(u: Updates) {
+    u.data.feeds.forEach((f) => {
+      if (this.feedMetadata.has(f.id)) {
+        const m = this.feedMetadata.get(f.id);
+        if (m.feed.commitTimestamp <= f.commitTimestamp) {
+          m.feed = f;
+        }
+        return;
+      }
+
+      this.feedMetadata.set(
+          f.id,
+          new FeedMetadata(f, f.createTimestamp > this.timestamp));
+    });
+
+    u.data.categories.forEach((c) => {});
   }
 
   private getInitialState() {
@@ -173,7 +218,10 @@ export class DataService {
                   state.feeds,
                   state.items);
 
-              // TODO -- Construct metadata
+              this.data.feeds.forEach(
+                  (f) => this.feedMetadata.set(f.id, new FeedMetadata(f)));
+              this.data.categories.forEach(
+                  (c) => this.categoryMetadata.set(c.id, new CategoryMetadata(c)));
               this.data$.next(this.data);
             },
             (error: Error) => {

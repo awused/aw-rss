@@ -1,0 +1,22 @@
+<div class="feed-title">
+  {{feed.userTitle || feed.title}}
+</div>
+<a [href]="item.url | urlSanitize"
+   (mouseup)="handleItemMouseup($event)"
+   class="item-title"
+   rel="noopener"
+   target="_blank">
+  {{item.title}}
+</a>
+<button *ngIf="!item.read"
+        (click)="markItemRead(true)"
+        [disabled]="item.disabled"
+        mat-button>
+  Read
+</button>
+<button *ngIf="item.read"
+        (click)="markItemRead(false)"
+        [disabled]="item.disabled"
+        mat-button>
+  Unread
+</button>

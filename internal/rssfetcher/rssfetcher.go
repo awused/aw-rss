@@ -135,7 +135,7 @@ func (r *rssFetcher) Run() (err error) {
 		if r.lastPolled.IsZero() || time.Since(r.lastPolled) > dbPollPeriod {
 			glog.V(3).Info("Checking database for new feeds")
 
-			newFeedsArray, err := r.db.GetFeeds(false)
+			newFeedsArray, err := r.db.GetCurrentFeeds()
 			if err != nil {
 				// Close unconditionally on DB error
 				_ = r.Close()
@@ -268,6 +268,11 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		feed, err := parser.ParseString(body)
 		if err != nil {
 			glog.Errorf("Error calling parser.ParseString for [%s]: %v", f, err)
+			glog.Info("TEMPORARY DEBUGGING")
+			glog.Info(body)
+			if strings.Contains(f.URL(), "mangadex.org") {
+				r.cloudflare.setInvalid("mangadex.org")
+			}
 			panic(err)
 		}
 

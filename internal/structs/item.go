@@ -15,7 +15,10 @@ import (
 
 // Item represents a single entry in an RSS feed
 type Item struct {
-	id, feedID      int64
+	id     int64
+	feedID int64
+	// Key is the unique identifier for the item
+	// Used only to deduplicate items on insertion
 	key             string
 	title           string
 	url             string
@@ -51,7 +54,6 @@ func (it *Item) MarshalJSON() ([]byte, error) {
 const ItemSelectColumns string = `
 items.id,
 items.feedid,
-items.key,
 items.title,
 items.url,
 items.timestamp,
@@ -62,7 +64,6 @@ func scanItem(item *Item) []interface{} {
 	return []interface{}{
 		&item.id,
 		&item.feedID,
-		&item.key,
 		&item.title,
 		&item.url,
 		&item.timestamp,

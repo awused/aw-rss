@@ -22,13 +22,13 @@ import {
 } from 'rxjs/operators';
 
 @Component({
-  selector: 'awrss-item-list',
-  templateUrl: './item-list.component.html',
-  styleUrls: ['./item-list.component.scss']
+  selector: 'awrss-main-view',
+  templateUrl: './main-view.component.html',
+  styleUrls: ['./main-view.component.scss']
 })
-export class ItemListComponent implements OnInit, OnDestroy {
+export class MainViewComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
-  private filteredData: FilteredData = new FilteredData(new Data(), EmptyFilters);
+  private filteredData: FilteredData = EmptyFilteredData;
   public sortedItems: Item[] = [];
 
   constructor(
@@ -40,9 +40,17 @@ export class ItemListComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.onDestroy$))
         .subscribe((u: Updates) => {
           let changed;
+          const oldItemLength = this.filteredData.items.length;
           [this.filteredData, changed] = this.filteredData.merge(u);
           if (changed) {
-            this.sortItems();
+            // Fast path
+            if (!u.refresh &&
+                oldItemLength === this.filteredData.items.length &&
+                u.data.items.length < this.sortedItems.length) {
+              this.mergeItems(u.data.items);
+            } else {
+              this.sortedItems = this.sortItems(this.filteredData.items);
+            }
           }
         });
 
@@ -53,8 +61,10 @@ export class ItemListComponent implements OnInit, OnDestroy {
             tap(() => this.filteredData = EmptyFilteredData),
             switchMap((f: Filters) => this.dataService.dataForFilters(f)))
         .subscribe((fd: FilteredData) => {
+          // TODO -- if the category is disabed kick the user to /, here
+          // TODO -- subscribe to the category in DataService, if it does exist
           this.filteredData = fd;
-          this.sortItems();
+          this.sortedItems = this.sortItems(this.filteredData.items);
         });
   }
 
@@ -72,15 +82,41 @@ export class ItemListComponent implements OnInit, OnDestroy {
     };
   }
 
-  private sortItems() {
-    this.sortedItems =
-        this.filteredData.items.slice()
-            .sort((a, b) => {
-              if (a.timestamp === b.timestamp) {
-                return 0;
-              }
-              return a.timestamp > b.timestamp ? -1 : 1;
-            });
+  // A faster merge method when the set of items hasn't changed and the update
+  // contains a smaller list of items.
+  private mergeItems(items: ReadonlyArray<Item>): void {
+    let i = 0;
+    const sorted = this.sortItems(items);
+
+    sorted.forEach((nit: Item) => {
+      for (; i < this.sortedItems.length; i++) {
+        const sit = this.sortedItems[i];
+        const cmp = this.compareItems(nit, sit);
+        if (cmp < 0) {
+          return;
+        } else if (cmp > 0) {
+          continue;
+        }
+
+        if (nit.commitTimestamp >= sit.commitTimestamp) {
+          this.sortedItems[i] = nit;
+        }
+      }
+    });
+  }
+
+  private sortItems(items: ReadonlyArray<Item>): Item[] {
+    return items.slice().sort(this.compareItems);
+  }
+
+  private compareItems(a: Item, b: Item): number {
+    if (a.timestamp === b.timestamp) {
+      if (a.id === b.id) {
+        return 0
+      }
+      return a.id > b.id ? -1 : 1;
+    }
+    return a.timestamp > b.timestamp ? -1 : 1;
   }
 
   ngOnDestroy() {
