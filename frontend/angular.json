@@ -25,7 +25,8 @@
             "assets": [
               "frontend/favicon.ico",
               "frontend/assets",
-              "frontend/manifest.json"
+              "frontend/manifest.json",
+              "frontend/robots.txt"
             ],
             "styles": [
               "node_modules/normalize.css/normalize.css",

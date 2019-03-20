@@ -12,7 +12,7 @@ const brotliSettings = {
 };
 
 // Could be done async
-const walk = (dir) => fs.readdirSync(dir).forEach(file => {
+const walk = async (dir) => fs.readdirSync(dir).forEach(file => {
   const fp = path.join(dir, file)
 
   const stat = fs.statSync(fp);
@@ -23,8 +23,14 @@ const walk = (dir) => fs.readdirSync(dir).forEach(file => {
     return;
   }
 
+  if (file.endsWith('.br')) {
+    return;
+  }
+
   const result = brotli.compress(fs.readFileSync(fp), brotliSettings)
-  fs.writeFileSync(fp + '.br', result)
+  if (result != null) {
+    fs.writeFileSync(fp + '.br', result)
+  }
 });
 
 walk('dist');
