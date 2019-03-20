@@ -1,4 +1,5 @@
 import {Component,
+        HostBinding,
         Input,
         OnChanges,
         OnDestroy,
@@ -6,12 +7,13 @@ import {Component,
         SimpleChanges} from '@angular/core';
 import {Feed,
         Item} from 'frontend/app/models/entities';
-import {Updates} from 'frontend/app/models/updates';
 import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {Subject} from 'rxjs';
 import {filter,
         takeUntil} from 'rxjs/operators';
+
+import {Updates} from '../../../models/data';
 
 @Component({
   selector: 'awrss-item',
@@ -21,9 +23,16 @@ import {filter,
 export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   @Input()
   public item: Item;
+  @Input()
+  public showFeed: boolean;
+
+  @HostBinding('class.read')
+  get read() {
+    return this.item.read;
+  }
 
   public feed: Feed;
-  public disabled: boolean = false;
+  public disabled = false;
 
   private readonly onDestroy$: Subject<void> = new Subject();
 
@@ -32,20 +41,20 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
       private readonly dataService: DataService) {}
 
 
-  markItemRead(read: boolean) {
+  toggleItemRead() {
     if (this.disabled) {
       return;
     }
     this.disabled = true;
-    this.mutateService.markItemRead(this.item, read)
+    this.mutateService.markItemRead(this.item, !this.item.read)
         .subscribe(
             () => this.disabled = false,
             () => this.disabled = false);
   }
 
   handleItemMouseup(event: MouseEvent) {
-    if (event.button == 1 && !this.item.read) {
-      this.markItemRead(true);
+    if (event.button === 1 && !this.item.read) {
+      this.toggleItemRead();
     }
   }
 
@@ -57,10 +66,8 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnInit() {
     this.dataService
-        .updates()
-        .pipe(
-            takeUntil(this.onDestroy$),
-            filter((u: Updates) => u.data.feeds.length > 0))
+        .feedUpdates()
+        .pipe(takeUntil(this.onDestroy$))
         .subscribe(() => this.handleChange());
     this.handleChange();
   }

@@ -40,6 +40,12 @@ export class AppComponent implements OnDestroy {
     }
   }
 
+  // TODO -- Close nav on route change
+
+  refresh() {
+    this.refreshService.startRefresh();
+  }
+
   ngOnDestroy(): void {
     // This should never actually run
     this.mobileQuery.removeEventListener('change', this.mobileQueryListener);

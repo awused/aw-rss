@@ -7,6 +7,17 @@ import {DataFilter,
 
 export type Entity = Category|Feed|Item;
 
+export class Updates {
+  constructor(
+      // If this came from a user-triggered refresh or not
+      // All updates of any kind get transformed into an update object.
+      public readonly refresh: boolean = false,
+      public readonly categories: ReadonlyArray<Category> = [],
+      public readonly feeds: ReadonlyArray<Feed> = [],
+      public readonly items: ReadonlyArray<Item> = [],
+  ) {}
+}
+
 // A collection of categories, items, and feeds
 // All arrays are sorted by IDs in ascending order
 export class Data {
@@ -22,6 +33,10 @@ export class Data {
       keepExisting: (T) => boolean,
       addNew: (T) => boolean,
       df: DataFilter): [ReadonlyArray<T>, boolean] {
+    // Most merges are a relatively small number of updates into a larger list,
+    // and tend to be newer items rather than older ones.
+    // Optimize by using splice when changes are found rather than always
+    // creating a new array.
     const merged = [];
     let changed = false;
 
@@ -73,12 +88,12 @@ export class Data {
   // Returns the result of the filter and if it was changed
   public filter(filters: Filters = {}): Data {
     // Merging with an empty Updates is a no-op
-    return this.merge({refresh: false, data: new Data()}, filters)[0];
+    return this.merge(new Updates(), filters)[0];
   }
 
   // Returns the result of the merge and if anything changed
   public merge(
-      u: {refresh: boolean, data: Data},
+      u: Updates,
       f: Filters = {}): [Data, boolean] {
     const df = new DataFilter(u.refresh, f);
     let cats: ReadonlyArray<Category> = [];
@@ -90,7 +105,7 @@ export class Data {
     if (!f.excludeCategories) {
       [cats, c] = Data.mergeEntities(
           this.categories,
-          u.data.categories,
+          u.categories,
           df.keepExistingCategory,
           df.addNewCategory,
           df);
@@ -99,7 +114,7 @@ export class Data {
     if (!f.excludeFeeds) {
       [feeds, c] = Data.mergeEntities(
           this.feeds,
-          u.data.feeds,
+          u.feeds,
           df.keepExistingFeed,
           df.addNewFeed,
           df);
@@ -108,7 +123,7 @@ export class Data {
     if (!f.excludeItems) {
       [items, c] = Data.mergeEntities(
           this.items,
-          u.data.items,
+          u.items,
           df.keepExistingItem,
           df.addNewItem,
           df);
@@ -128,7 +143,7 @@ export class FilteredData {
 
   constructor(
       private readonly data: Data,
-      private readonly filters: Filters) {
+      public readonly filters: Filters) {
     // Convenience
     this.categories = data.categories;
     this.feeds = data.feeds;
@@ -136,8 +151,7 @@ export class FilteredData {
   }
 
 
-  public merge(
-      u: {refresh: boolean, data: Data}): [FilteredData, boolean] {
+  public merge(u: Updates): [FilteredData, boolean] {
     let newData, changed;
     [newData, changed] = this.data.merge(u, this.filters);
     if (!changed) {

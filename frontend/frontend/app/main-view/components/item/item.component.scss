@@ -1,0 +1,38 @@
+:host {
+  display: grid;
+  padding: 4px;
+  grid-template-columns: auto 90px;
+  grid-template-rows: 2;
+  grid-auto-flow: column;
+
+  &.read {
+    opacity: .5;
+  }
+}
+
+.item-title,
+.feed-title {
+  margin: 0;
+}
+
+.feed-title {
+  grid-column: 1/1;
+  grid-row: 1/1;
+}
+
+.item-title-container {
+  grid-column: 1/1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.span {
+    grid-row: 1/ span 2;
+    margin-top: 8px;
+  }
+}
+
+
+.read-button {
+  grid-row: span 2;
+}

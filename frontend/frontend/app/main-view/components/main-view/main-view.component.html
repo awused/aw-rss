@@ -1,2 +1,10 @@
-<awrss-item *ngFor="let item of sortedItems" [item]="item">
-</awrss-item>
+<!-- TODO: title bar (when appropriate) and date/read filer bar -->
+
+<div class="item-list">
+  <awrss-item *ngFor="let item of sortedItems; let even = even; let odd = odd"
+              [item]="item"
+              [showFeed]="showFeedOnItems"
+              [class.primary-bg]="odd"
+              [class.secondary-bg]="even">
+  </awrss-item>
+</div>

@@ -6,12 +6,12 @@ import {ActivatedRoute,
 import {Data,
         EmptyFilteredData,
         Entity,
-        FilteredData} from 'frontend/app/models/data';
+        FilteredData,
+        Updates} from 'frontend/app/models/data';
 import {Feed,
         Item} from 'frontend/app/models/entities';
 import {EmptyFilters,
         Filters} from 'frontend/app/models/filter';
-import {Updates} from 'frontend/app/models/updates';
 import {DataService} from 'frontend/app/services/data.service';
 import {Subject} from 'rxjs';
 import {
@@ -30,6 +30,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
   private filteredData: FilteredData = EmptyFilteredData;
   public sortedItems: Item[] = [];
+  public showFeedOnItems = true;
 
   constructor(
       private readonly route: ActivatedRoute,
@@ -46,8 +47,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
             // Fast path
             if (!u.refresh &&
                 oldItemLength === this.filteredData.items.length &&
-                u.data.items.length < this.sortedItems.length) {
-              this.mergeItems(u.data.items);
+                u.items.length < this.sortedItems.length) {
+              this.mergeItems(u.items);
             } else {
               this.sortedItems = this.sortItems(this.filteredData.items);
             }
@@ -61,6 +62,9 @@ export class MainViewComponent implements OnInit, OnDestroy {
             tap(() => this.filteredData = EmptyFilteredData),
             switchMap((f: Filters) => this.dataService.dataForFilters(f)))
         .subscribe((fd: FilteredData) => {
+          this.showFeedOnItems =
+              !fd.filters.feedIds || fd.filters.feedIds.length === 1;
+
           // TODO -- if the category is disabed kick the user to /, here
           // TODO -- subscribe to the category in DataService, if it does exist
           this.filteredData = fd;
@@ -112,7 +116,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
   private compareItems(a: Item, b: Item): number {
     if (a.timestamp === b.timestamp) {
       if (a.id === b.id) {
-        return 0
+        return 0;
       }
       return a.id > b.id ? -1 : 1;
     }

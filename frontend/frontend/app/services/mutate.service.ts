@@ -5,9 +5,9 @@ import {map,
         share,
         tap} from 'rxjs/operators';
 
-import {Data} from '../models/data';
+import {Data,
+        Updates} from '../models/data';
 import {Item} from '../models/entities';
-import {Updates} from '../models/updates';
 
 import {DataService} from './data.service';
 import {ErrorService} from './error.service';
@@ -40,7 +40,7 @@ export class MutateService {
             .pipe(
                 tap((nit: Item) =>
                         this.dataService.pushUpdates(
-                            new Updates(false, new Data([], [], [nit])))),
+                            new Updates(false, [], [], [nit]))),
                 share());
 
     this.subscribe(obs);

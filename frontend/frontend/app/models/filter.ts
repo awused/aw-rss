@@ -29,9 +29,9 @@ export interface Filters {
   // category or directly by ID will be excluded.
   // Setting multiple at the same time is treated as a union.
   // An empty array is the same as not specifying it.
-  readonly categoryIds?: number[];
-  readonly feedIds?: number[];
-  readonly itemIds?: number[];
+  readonly categoryIds?: ReadonlyArray<number>;
+  readonly feedIds?: ReadonlyArray<number>;
+  readonly itemIds?: ReadonlyArray<number>;
   // Exclude these types, mostly to improve performance.
   // These get applied first and will break some other filters.
   readonly excludeCategories?: boolean;

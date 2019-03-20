@@ -1,3 +1,18 @@
-<button (click)="refresh()" mat-button>
-  Refresh
-</button>
+<div class="header primary-dark-bg"
+     *ngIf="showHeader">
+  <button (click)="refresh()"
+          aria-label="Refresh"
+          mat-icon-button>
+    <mat-icon>refresh</mat-icon>
+  </button>
+</div>
+<!-- <div class="routes" -->
+<!--      [class.has&#45;header]="showHeader"> -->
+<!--   <p *ngFor="let x of [].constructor(100)"> -->
+<!--     something pretty long that should wrap around -->
+<!--     something pretty long that should wrap around -->
+<!--     something pretty long that should wrap around -->
+<!--     something pretty long that should wrap around -->
+<!--     something pretty long that should wrap around -->
+<!--   </p> -->
+<!-- </div> -->

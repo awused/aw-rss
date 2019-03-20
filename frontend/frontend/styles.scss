@@ -1,2 +1,15 @@
-@import '~@angular/material/prebuilt-themes/deeppurple-amber.css';
+[mat-button] {
+  text-transform: uppercase;
+}
 
+// These must be globall scoped
+// https://github.com/angular/material2/issues/13983
+mat-sidenav>.mat-drawer-inner-container {
+  // Firefox
+  scrollbar-width: none;
+
+  // Chrome
+  &::-webkit-scrollbar {
+    width: 0;
+  }
+}

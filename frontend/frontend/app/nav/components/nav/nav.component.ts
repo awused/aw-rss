@@ -1,4 +1,5 @@
 import {Component,
+        Input,
         OnInit} from '@angular/core';
 import {RefreshService} from 'frontend/app/services/refresh.service';
 
@@ -8,6 +9,9 @@ import {RefreshService} from 'frontend/app/services/refresh.service';
   styleUrls: ['./nav.component.scss']
 })
 export class NavComponent implements OnInit {
+  @Input()
+  public showHeader: boolean;
+
   constructor(
       private readonly refreshService: RefreshService) {}
 

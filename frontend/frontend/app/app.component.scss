@@ -1,0 +1,24 @@
+mat-sidenav-container {
+  margin-top: 56px;
+}
+
+mat-sidenav>* {
+  scrollbar-width: none;
+}
+
+mat-toolbar {
+  position: fixed;
+  top: 0;
+  height: 56px;
+  z-index: 2;
+}
+
+.fixed-layout {
+  mat-sidenav {
+    width: 200px;
+  }
+
+  mat-sidenav-container {
+    margin-top: 0;
+  }
+}

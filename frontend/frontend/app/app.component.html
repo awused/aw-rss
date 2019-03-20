@@ -1,13 +1,26 @@
-<!--The content below is only a placeholder and can be replaced.-->
-
-<div class="awrss-container">
-  <mat-toolbar color="primary" class="awrss-toolbar" *ngIf="mobileQuery.matches">
-    <button mat-icon-button (click)="openNav = !openNav">
+<div class="mat-typography"
+     [class.fixed-layout]="!mobileQuery.matches">
+  <mat-toolbar class="awrss-toolbar"
+               *ngIf="mobileQuery.matches">
+    <button (click)="openNav = !openNav"
+            aria-label="Toggle menu"
+            mat-icon-button>
+      <mat-icon>menu</mat-icon>
+    </button>
+    <button (click)="refresh()"
+            aria-label="Refresh"
+            mat-icon-button>
+      <mat-icon>refresh</mat-icon>
     </button>
   </mat-toolbar>
-  <mat-sidenav-container fixed-in-viewport="true">
-    <mat-sidenav #snav [opened]="!mobileQuery.matches || openNav" [mode]="mobileQuery.matches ? 'over' : 'side'" disableClose>
-      <awrss-nav></awrss-nav>
+  <mat-sidenav-container (backdropClick)="openNav = false">
+    <mat-sidenav #snav
+                 [opened]="!mobileQuery.matches || openNav"
+                 [mode]="mobileQuery.matches ? 'over' : 'side'"
+                 [fixedTopGap]="mobileQuery.matches ? 56 : 0"
+                 fixedInViewport
+                 disableClose>
+      <awrss-nav [showHeader]="!mobileQuery.matches"></awrss-nav>
     </mat-sidenav>
     <mat-sidenav-content>
       <router-outlet></router-outlet>

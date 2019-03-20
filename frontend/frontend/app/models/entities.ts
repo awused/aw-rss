@@ -15,7 +15,8 @@ export interface Feed {
   readonly title: string;
   // "url" might not be a URL. If it starts with ! it's a shell command.
   readonly url: string;
-  readonly userTitle: string;
+  // If the user has overridden the title with their own setting
+  readonly userTitle?: string;
 }
 
 export interface Item {
