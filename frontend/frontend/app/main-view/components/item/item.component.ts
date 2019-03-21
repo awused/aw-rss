@@ -31,6 +31,12 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
     return this.item.read;
   }
 
+  @HostBinding('class.item-hover')
+  get hover() {
+    return this.itemHover;
+  }
+
+  public itemHover = true;
   public feed: Feed;
   public disabled = false;
 

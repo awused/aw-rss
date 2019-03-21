@@ -1,20 +1,30 @@
 <div *ngIf="showFeed"
-     class="feed-title mat-body-strong">
-  {{feed.userTitle || feed.title}}
-</div>
-<div class="item-title-container"
-     [class.span]="!showFeed">
-  <a [href]="item.url | urlSanitize"
-     (mouseup)="handleItemMouseup($event)"
-     class="item-title primary-text"
-     rel="noopener"
-     target="_blank">
-    {{item.title}}
+     class="item-header primary-text"
+     (mouseenter)="itemHover = false"
+     (mouseleave)="itemHover = true">
+  <a *ngIf="showFeed"
+     class="feed-link mat-body-strong"
+     routerLink="/feed/{{feed.id}}">
+    {{feed.userTitle || feed.title}}
   </a>
 </div>
+<a class="item-link"
+   [class.item-hover]="itemHover"
+   [href]="item.url | urlSanitize"
+   (mouseup)="handleItemMouseup($event)"
+   rel="noopener"
+   target="_blank">
+  <div class="item-spacer"
+       [class.thin]="!showFeed"></div>
+  <div class="item-title primary-text">
+    {{item.title}}
+  </div>
+</a>
 <button (click)="toggleItemRead()"
         [disabled]="disabled"
         class="read-button"
+        (mouseenter)="itemHover = false"
+        (mouseleave)="itemHover = true"
         mat-button>
   {{item.read ? 'Unread' : 'Read'}}
 </button>

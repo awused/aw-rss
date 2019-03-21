@@ -1,3 +1,4 @@
+import {ScrollDispatchModule} from '@angular/cdk/scrolling';
 import {NgModule} from '@angular/core';
 import {MatButtonModule,
         MatIconModule,
@@ -15,6 +16,7 @@ import {MatButtonModule,
   MatSnackBarModule,
   MatSidenavModule,
   MatToolbarModule,
+  ScrollDispatchModule,
 ]})
 export class MaterialModule {
 }

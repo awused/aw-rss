@@ -8,9 +8,6 @@
   "scope": "/",
   "start_url": "/",
   "icons": [{
-    "src": "/favicon.ico",
-    "sizes": "16x16 24x24 32x32 48x48 64x64 72x72 96x96 128x128 256x256"
-  }, {
     "src": "/assets/icons/graphicsvibe-rss-feed-128.png",
     "sizes": "128x128",
     "type": "image/png"

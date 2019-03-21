@@ -33,6 +33,11 @@
               "frontend/styles.scss",
               "frontend/theme.scss"
             ],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "frontend"
+              ]
+            },
             "scripts": []
           },
           "configurations": {
@@ -84,6 +89,11 @@
               "frontend/styles.scss",
               "frontend/theme.scss"
             ],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "frontend"
+              ]
+            },
             "scripts": [],
             "assets": [
               "frontend/favicon.ico",

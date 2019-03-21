@@ -40,7 +40,7 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 		Disabled        bool       `json:"disabled"`
 		Title           string     `json:"title"`
 		SiteURL         string     `json:"siteUrl"`
-		UserTitle       string     `json:"userTitle"`
+		UserTitle       string     `json:"userTitle,omitempty"`
 		FailingSince    *time.Time `json:"failingSince,omitempty"`
 		CommitTimestamp int64      `json:"commitTimestamp"`
 		CreateTimestamp int64      `json:"createTimestamp"`

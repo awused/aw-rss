@@ -1,10 +1,22 @@
 <!-- TODO: title bar (when appropriate) and date/read filer bar -->
 
-<div class="item-list">
-  <awrss-item *ngFor="let item of sortedItems; let even = even; let odd = odd"
+<cdk-virtual-scroll-viewport itemSize="52"
+                             class="item-list">
+  <awrss-item *cdkVirtualFor="let item of sortedItems; let even = even; let odd = odd"
               [item]="item"
-              [showFeed]="showFeedOnItems"
+              [showFeed]="!feed"
               [class.primary-bg]="odd"
               [class.secondary-bg]="even">
   </awrss-item>
-</div>
+</cdk-virtual-scroll-viewport>
+
+
+<!-- real scrolling is slow, but it allows for browser searching. Use with date ranges -->
+<!-- <div class="item&#45;list"> -->
+<!--   <awrss&#45;item *ngFor="let item of sortedItems; let even = even; let odd = odd" -->
+<!--               [item]="item" -->
+<!--               [showFeed]="!feed" -->
+<!--               [class.primary&#45;bg]="odd" -->
+<!--               [class.secondary&#45;bg]="even"> -->
+<!--   </awrss&#45;item> -->
+<!-- </div> -->

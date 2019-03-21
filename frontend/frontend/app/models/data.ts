@@ -87,8 +87,7 @@ export class Data {
 
   // Returns the result of the filter and if it was changed
   public filter(filters: Filters = {}): Data {
-    // Merging with an empty Updates is a no-op
-    return this.merge(new Updates(), filters)[0];
+    return this.merge(new Updates(true), filters)[0];
   }
 
   // Returns the result of the merge and if anything changed

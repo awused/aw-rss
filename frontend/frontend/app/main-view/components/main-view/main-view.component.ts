@@ -1,20 +1,30 @@
-import {Component,
-        OnDestroy,
-        OnInit} from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  OnDestroy,
+  OnInit
+} from '@angular/core';
 import {ActivatedRoute,
-        ParamMap} from '@angular/router';
+        ParamMap,
+        Router} from '@angular/router';
 import {Data,
         EmptyFilteredData,
         Entity,
         FilteredData,
         Updates} from 'frontend/app/models/data';
-import {Feed,
-        Item} from 'frontend/app/models/entities';
+import {
+  Category,
+  Feed,
+  Item
+} from 'frontend/app/models/entities';
 import {EmptyFilters,
-        Filters} from 'frontend/app/models/filter';
+        Filters,
+        PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
+import {ErrorService} from 'frontend/app/services/error.service';
 import {Subject} from 'rxjs';
 import {
+  filter,
   map,
   switchMap,
   takeUntil,
@@ -29,12 +39,15 @@ import {
 export class MainViewComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
   private filteredData: FilteredData = EmptyFilteredData;
+  public category?: Category;
+  public feed?: Feed;
   public sortedItems: Item[] = [];
-  public showFeedOnItems = true;
 
   constructor(
       private readonly route: ActivatedRoute,
-      private readonly dataService: DataService) {}
+      private readonly router: Router,
+      private readonly dataService: DataService,
+      private readonly errorService: ErrorService) {}
 
   ngOnInit() {
     this.dataService.updates()
@@ -49,6 +62,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
                 oldItemLength === this.filteredData.items.length &&
                 u.items.length < this.sortedItems.length) {
               this.mergeItems(u.items);
+              // TODO -- remove https://github.com/angular/material2/pull/14639
+              this.sortedItems = this.sortedItems.slice();
             } else {
               this.sortedItems = this.sortItems(this.filteredData.items);
             }
@@ -59,31 +74,54 @@ export class MainViewComponent implements OnInit, OnDestroy {
         .pipe(
             takeUntil(this.onDestroy$),
             map((p: ParamMap) => this.paramsToFilters(p)),
+            filter((f?: Filters) => !!f),
             tap(() => this.filteredData = EmptyFilteredData),
             switchMap((f: Filters) => this.dataService.dataForFilters(f)))
-        .subscribe((fd: FilteredData) => {
-          this.showFeedOnItems =
-              !fd.filters.feedIds || fd.filters.feedIds.length === 1;
-
-          // TODO -- if the category is disabed kick the user to /, here
-          // TODO -- subscribe to the category in DataService, if it does exist
-          this.filteredData = fd;
-          this.sortedItems = this.sortItems(this.filteredData.items);
-        });
+        .subscribe((fd: FilteredData) => this.handleNewFilteredData(fd));
   }
 
   public getFeed(id: number): Feed {
     return this.dataService.getFeed(id);
   }
 
-  private paramsToFilters(p: ParamMap): Filters {
-    // TODO -- translate route params into filters
-    return {
+  private handleNewFilteredData(fd: FilteredData) {
+    this.category = undefined;
+    this.feed = undefined;
+
+    if (fd.filters.feedId !== undefined) {
+      if (fd.feeds.length !== 1) {
+        this.router.navigate(['/'], {replaceUrl: true});
+        return;
+      }
+
+      this.feed = fd.feeds[0];
+    }
+
+    // TODO -- if the category is disabed kick the user to /, here
+    // TODO -- subscribe to the category in DataService, if it does exist
+    this.filteredData = fd;
+    this.sortedItems = this.sortItems(this.filteredData.items);
+  }
+
+  private paramsToFilters(p: ParamMap): Filters|undefined {
+    const f: PartialFilters = {
       validOnly: true,
       unreadOnly: true,
-      keepExistingUnlessRefresh: true,
-      excludeCategories: true,
+      excludeHidden: true,
+      keepUnlessRefresh: true,
     };
+
+    if (p.has('feedid')) {
+      const fid = p.get('feedid');
+      if (!/^\d+$/.test(fid)) {
+        this.errorService.showError('Invalid feed ID: ' + fid);
+        this.router.navigate(['/'], {replaceUrl: true});
+        return;
+      }
+      f.feedId = parseInt(fid);
+    }
+    // TODO -- translate route params into filters
+    return <Filters>f;
   }
 
   // A faster merge method when the set of items hasn't changed and the update

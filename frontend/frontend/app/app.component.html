@@ -13,7 +13,8 @@
       <mat-icon>refresh</mat-icon>
     </button>
   </mat-toolbar>
-  <mat-sidenav-container (backdropClick)="openNav = false">
+  <mat-sidenav-container (backdropClick)="openNav = false"
+                         fullscreen>
     <mat-sidenav #snav
                  [opened]="!mobileQuery.matches || openNav"
                  [mode]="mobileQuery.matches ? 'over' : 'side'"

@@ -1,38 +1,64 @@
+@import 'variables';
+
 :host {
+  color: white;
   display: grid;
+  grid-template-columns: auto 86px;
+  height: 44px;
   padding: 4px;
-  grid-template-columns: auto 90px;
-  grid-template-rows: 2;
-  grid-auto-flow: column;
 
   &.read {
-    opacity: .5;
+    opacity: 0.5;
+  }
+
+  &.item-hover:hover {
+    background-color: mat-color($primary, 500);
   }
 }
 
+.item-header {
+  position: absolute;
+  width: fit-content;
+}
+
+.item-spacer {
+  display: block;
+  height: 24px;
+
+  &.thin {
+    height: 12px;
+  }
+}
+
+.feed-link {
+  color: white;
+  text-decoration: unset;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.item-link,
 .item-title,
 .feed-title {
+  display: block;
   margin: 0;
-}
-
-.feed-title {
-  grid-column: 1/1;
-  grid-row: 1/1;
-}
-
-.item-title-container {
-  grid-column: 1/1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
 
-  &.span {
-    grid-row: 1/ span 2;
-    margin-top: 8px;
+.feed-title {
+  &:hover {
+    text-decoration: underline;
   }
 }
 
+.item-title {
+  text-decoration: underline;
+}
 
 .read-button {
-  grid-row: span 2;
+  height: 44px;
 }

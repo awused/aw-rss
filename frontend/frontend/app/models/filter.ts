@@ -10,6 +10,8 @@ export interface TimeRange {
   readonly start: Date;
 }
 
+// TODO -- Simplify: we'll never care about multiple categories or feeds at once
+
 // Filters for applying updates or filtering data
 // By default everything is kept unconditionally
 export interface Filters {
@@ -18,19 +20,18 @@ export interface Filters {
   readonly validOnly?: boolean;
   // Exclude items that have been read.
   readonly unreadOnly?: boolean;
-  // Whether to keep existing disabled feeds/categories or read items
+  readonly excludeHidden?: boolean;
+  // Whether to keep existing entities unconditionally
   // on non-refresh updates. When it's not a refresh existing objects will be
   // kept and updated, but new objects won't be added.
   // The purpose of this filter is to avoid unexpected UI shuffling.
   // Only affects updates, meaningless without validOnly or unreadOnly.
-  readonly keepExistingUnlessRefresh?: boolean;
+  readonly keepUnlessRefresh?: boolean;
   // If feed or category IDs are supplied those will be considered valid even
   // if they would be excluded by validOnly. Feeds not included in either a
   // category or directly by ID will be excluded.
-  // Setting multiple at the same time is treated as a union.
-  // An empty array is the same as not specifying it.
   readonly categoryIds?: ReadonlyArray<number>;
-  readonly feedIds?: ReadonlyArray<number>;
+  readonly feedId?: number;
   readonly itemIds?: ReadonlyArray<number>;
   // Exclude these types, mostly to improve performance.
   // These get applied first and will break some other filters.
@@ -38,6 +39,20 @@ export interface Filters {
   readonly excludeFeeds?: boolean;
   readonly excludeItems?: boolean;
   readonly timeRange?: TimeRange;
+}
+
+export interface PartialFilters extends Filters {
+  validOnly?: boolean;
+  unreadOnly?: boolean;
+  excludeHidden?: boolean;
+  keepUnlessRefresh?: boolean;
+  categoryIds?: ReadonlyArray<number>;
+  feedId?: number;
+  itemIds?: ReadonlyArray<number>;
+  excludeCategories?: boolean;
+  excludeFeeds?: boolean;
+  excludeItems?: boolean;
+  timeRange?: TimeRange;
 }
 
 export const EmptyFilters: Filters = {
@@ -50,7 +65,6 @@ export const EmptyFilters: Filters = {
 export class DataFilter {
   readonly keepExisting: boolean;
   readonly categoryIds: ReadonlySet<number>;
-  readonly feedIds: ReadonlySet<number>;
   readonly itemIds: ReadonlySet<number>;
   readonly categoryFeedIds: Set<number> = new Set<number>();
   readonly includedFeedIds: Set<number> = new Set<number>();
@@ -61,9 +75,8 @@ export class DataFilter {
       refresh: boolean,
       private readonly f: Filters) {
     this.categoryIds = new Set(f.categoryIds || []);
-    this.feedIds = new Set(f.feedIds || []);
     this.itemIds = new Set(f.itemIds || []);
-    this.keepExisting = !refresh && !!f.keepExistingUnlessRefresh;
+    this.keepExisting = !refresh && !!f.keepUnlessRefresh;
     if (f.timeRange) {
       this.end = f.timeRange.end.toISOString();
       this.start = f.timeRange.start.toISOString();
@@ -105,11 +118,12 @@ export class DataFilter {
   }
 
   addNewFeed = (f: Feed): boolean => {
-    if (this.feedIds.size !== 0) {
-      if (this.feedIds.has(f.id)) {
+    if (this.f.feedId !== undefined) {
+      if (this.f.feedId === f.id) {
         this.includedFeedIds.add(f.id);
         return true;
       }
+      return false;
     }
 
     if (this.f.validOnly && f.disabled) {
@@ -127,9 +141,6 @@ export class DataFilter {
       }
     }
 
-    if (this.feedIds.size !== 0) {
-      return false;
-    }
     this.includedFeedIds.add(f.id);
     return true;
   }
@@ -154,6 +165,10 @@ export class DataFilter {
     }
 
     if (this.includedFeedIds.size !== 0 && !this.includedFeedIds.has(i.feedId)) {
+      return false;
+    }
+
+    if (this.f.feedId !== undefined && this.f.feedId !== i.feedId) {
       return false;
     }
 

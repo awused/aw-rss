@@ -31,12 +31,13 @@ var trustedHosts = map[string]bool{
 }
 
 var (
-	errUntrustedHost      = errors.New("Host not trusted for cloudflare bypass")
-	errUnsecureTransport  = errors.New("Cloudflare bypass requires https")
-	errCloudflareCaptcha  = errors.New("Cloudflare bypass cannot handle the captcha challenges")
-	errCloudflareBroken   = errors.New("Cfscrape is missing or out of date")
-	errCloudflareCooldown = errors.New("Cloudflare bypass previously failed, waiting up to 6 hours")
-	errNoCookies          = errors.New("Another thread failed to fetch cloudflare cookies")
+	errUntrustedHost        = errors.New("Host not trusted for cloudflare bypass")
+	errUnsecureTransport    = errors.New("Cloudflare bypass requires https")
+	errCloudflareCaptcha    = errors.New("Cloudflare bypass cannot handle the captcha challenges")
+	errCloudflareBroken     = errors.New("Cfscrape is missing or out of date")
+	errCloudflareBadGateway = errors.New("Bad gateway error from cloudflare")
+	errCloudflareCooldown   = errors.New("Cloudflare bypass previously failed, waiting up to 6 hours")
+	errNoCookies            = errors.New("Another thread failed to fetch cloudflare cookies")
 )
 
 func isCloudflareError(err error) bool {
@@ -44,12 +45,14 @@ func isCloudflareError(err error) bool {
 		err == errUnsecureTransport ||
 		err == errCloudflareCaptcha ||
 		err == errCloudflareBroken ||
+		err == errCloudflareBadGateway ||
 		err == errCloudflareCooldown ||
 		err == errNoCookies
 }
 
 const cloudflareSentinelOne = "<title>Attention Required! | Cloudflare</title>"
 const cloudflareSentinelTwo = "<title>Just a moment...</title>"
+const cloudflareBadGateway = "502: Bad gateway</title>"
 const cloudflareNormal = "This process is automatic. Your browser " +
 	"will redirect to your requested content shortly."
 const cloudflareMissing = "ModuleNotFoundError: No module named 'cfscrape'"
@@ -94,6 +97,15 @@ func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, e
 	if len(body) < 500 {
 		return false, nil
 	}
+
+	if strings.Contains(body[0:499], cloudflareBadGateway) {
+		h, _, err := host(feedURL)
+		if err == nil {
+			cf.setInvalid(h)
+		}
+		return true, errCloudflareBadGateway
+	}
+
 	if !strings.Contains(body[0:499], cloudflareSentinelOne) &&
 		!strings.Contains(body[0:499], cloudflareSentinelTwo) {
 		return false, nil
