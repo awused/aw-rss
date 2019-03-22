@@ -7,6 +7,8 @@
             mat-icon-button>
       <mat-icon>menu</mat-icon>
     </button>
+    <h1>Aw-RSS{{unread && (' (' + unread + ')') || ''}}</h1>
+    <span class="filler"></span>
     <button (click)="refresh()"
             aria-label="Refresh"
             mat-icon-button>
@@ -21,7 +23,8 @@
                  [fixedTopGap]="mobileQuery.matches ? 56 : 0"
                  fixedInViewport
                  disableClose>
-      <awrss-nav [showHeader]="!mobileQuery.matches"></awrss-nav>
+      <awrss-nav [showHeader]="!mobileQuery.matches"
+                 (unreadCount)="unread = $event"></awrss-nav>
     </mat-sidenav>
     <mat-sidenav-content>
       <router-outlet></router-outlet>

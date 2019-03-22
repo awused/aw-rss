@@ -1,8 +1,17 @@
 <div class="header primary-dark-bg"
      *ngIf="showHeader">
+  <!-- align="end"> -->
+  <button routerLink="/"
+          mat-icon-button>
+    <mat-icon>home</mat-icon>
+  </button>
+  <div class="title mat-subheading-2">
+    Aw-RSS{{unread ? (' (' + unread + ')') : ''}}
+  </div>
   <button (click)="refresh()"
           aria-label="Refresh"
-          mat-icon-button>
+          mat-icon-button
+          mat-button-right>
     <mat-icon>refresh</mat-icon>
   </button>
 </div>

@@ -5,6 +5,7 @@
   <awrss-item *cdkVirtualFor="let item of sortedItems; let even = even; let odd = odd"
               [item]="item"
               [showFeed]="!feed"
+              [showCategory]="!category && !feed"
               [class.primary-bg]="odd"
               [class.secondary-bg]="even">
   </awrss-item>

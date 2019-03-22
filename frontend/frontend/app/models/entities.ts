@@ -1,11 +1,19 @@
 export interface Category {
   readonly commitTimestamp: number;
   readonly disabled: boolean;
-  readonly hidden: boolean;
+  // Items in this feed are hidden in the main view
+  readonly hiddenMain: boolean;
+  // This category and its feeds are hidden in the nav bar
+  readonly hiddenNav: boolean;
   readonly id: number;
+  // A short name consisting of alphabetic characters and hyphens
+  // Used in routes
+  readonly name: string;
+  readonly title: string;
 }
 
 export interface Feed {
+  readonly categoryId?: number;
   readonly commitTimestamp: number;
   readonly createTimestamp: number;
   readonly disabled: boolean;

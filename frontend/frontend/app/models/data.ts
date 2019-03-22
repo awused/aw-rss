@@ -16,6 +16,13 @@ export class Updates {
       public readonly feeds: ReadonlyArray<Feed> = [],
       public readonly items: ReadonlyArray<Item> = [],
   ) {}
+
+  public isEmpty() {
+    return !this.refresh &&
+        this.categories.length === 0 &&
+        this.feeds.length === 0 &&
+        this.items.length === 0;
+  }
 }
 
 // A collection of categories, items, and feeds

@@ -6,6 +6,8 @@ import {Component,
         ViewChild} from '@angular/core';
 import {Title} from '@angular/platform-browser';
 
+import {Filters} from './models/filter';
+import {DataService} from './services/data.service';
 import {RefreshService} from './services/refresh.service';
 
 @Component({
@@ -17,7 +19,15 @@ export class AppComponent implements OnDestroy {
   public mobileQuery: MediaQueryList;
   public openNav = false;
 
+  public unread = 0;
+
   private mobileQueryListener: () => void;
+
+  private readonly filters: Filters = {
+    isNav: true,
+    validOnly: true,
+    unreadOnly: true,
+  }
 
   constructor(
       private readonly zone: NgZone,

@@ -49,6 +49,11 @@ class FeedMetadata {
       public feed: Feed,
       // True if we have all unread items up to DataService.timestamp
       public hasUnread: boolean = true,
+      // This isn't populated on feeds that have never fetched items or
+      // feeds that were disabled but the web client hasn't yet seen items
+      // for them.
+      // TODO -- evaluate whether this is worth actively fetching
+      public latestItem?: Date,
       // The time ranges of fetches read items, in order
       // Overlapping time ranges are merged
       public readTimeRanges: TimeRange[] = []) {}
@@ -59,21 +64,14 @@ class CategoryMetadata {
   public readonly feedIds: Set<number>;
 
   constructor(
-      public category: Category,
-      // All enabled feeds in this category have read items back _at least_ this far
-      // 0 -> we have all items
-      // This only applies to read items that have been deliberately fetched
-      public oldestReadItemId?: number) {
-    // TODO -- Add feedIds
-    // this.feedIds = new Set(this.category.feedIds);
-  }
+      public category: Category) {}
 }
 
 // A component that cares about read items in a category will need to subscribe
 // so that category mutations result in appropriate replays/fetches
 export interface CategorySubscription {
   readonly category: number;
-  readonly readTimeRange?: TimeRange;
+  readonly readTimeRange: TimeRange;
 }
 
 
@@ -87,6 +85,7 @@ export class DataService {
   private readonly data$: ReplaySubject<Data> = new ReplaySubject<Data>(1);
   private readonly updates$: Subject<Updates> = new Subject<Updates>();
   private readonly feedUpdates$: Observable<void>;
+  private readonly categoryUpdates$: Observable<void>;
   // All enabled feeds have read items back _at least_ this far
   // This only applies to read items that have been deliberately fetched
   private oldestReadItemId: number|undefined = undefined;
@@ -110,6 +109,12 @@ export class DataService {
                 filter((u: Updates) => u.feeds.length > 0),
                 map(() => {}),
                 share());
+    this.categoryUpdates$ =
+        this.updates$
+            .pipe(
+                filter((u: Updates) => u.categories.length > 0),
+                map(() => {}),
+                share());
   }
 
   public dataForFilters(f: Filters): Observable<FilteredData> {
@@ -131,12 +136,25 @@ export class DataService {
     return this.feedUpdates$;
   }
 
-  // This should never be called for a feed that doesn't exist in data
+  public categoryUpdates(): Observable<void> {
+    return this.categoryUpdates$;
+  }
+
+  // This should never be called for a feed that doesn't exist in the frontend
   public getFeed(id: number): Feed {
     if (!this.feedMetadata.has(id)) {
-      console.log(id);
+      const e = new Error('Tried to log non-existent feed ' + id);
+      this.errorService.showError(e);
+      throw e;
     }
     return this.feedMetadata.get(id).feed;
+  }
+
+  public getCategory(id: number): Category|undefined {
+    if (!this.categoryMetadata.has(id)) {
+      return;
+    }
+    return this.categoryMetadata.get(id).category;
   }
 
   public pushUpdates(u: Updates) {
@@ -164,7 +182,7 @@ export class DataService {
     // Handle these asynchronously, after starting a spinner
 
     // Cases where unread items need to be fetched:
-    // An "existing" (create_timestamp < timestamp) feed goes from disabled to
+    // An existing (create_timestamp < timestamp) feed goes from disabled to
     //     enabled and we don't already have the unread items for it
 
     // Cases where read items need to be fetched:
@@ -177,12 +195,12 @@ export class DataService {
     // Any cases where a fetch would have happened but we already had the data
     // -- existing feed disabled -> enabled
     // -- part of a category or we had the read items
-    // A feed that wasn't previously disabled is added to a category
+    // A feed that is added to a category
 
     // A category going from enabled to disabled is kept but doesn't cause
-    // fetches or replays. Users are kicked off of those category pages to the
-    // root.
-    // A disabled category getting enabled just recalculates the metadata.
+    // fetches or replays.
+
+
 
     // Handle feeds, then items, then categories
     let changed;
@@ -192,30 +210,101 @@ export class DataService {
       // Push to data first, so that subscribers of data can take the unchanged
       // fast-path
       this.data = d;
-      this.updateMetadata(u);
+      const mustReplay = this.updateMetadata(u);
+      if (mustReplay) {
+        // Replays are rare so it is fine to be inefficient
+        u = new Updates(
+            u.refresh, this.data.categories, this.data.feeds, this.data.items);
+      }
       this.data$.next(this.data);
+    } else {
+      u = new Updates(u.refresh);
+    }
+
+    // if mustReplay -> u = new Updates(u.refresh, this.data...)
+    if (!u.isEmpty()) {
       this.updates$.next(u);
-    } else if (u.refresh) {
-      this.updates$.next(new Updates(true));
     }
   }
 
-  private updateMetadata(u: Updates) {
+  private updateMetadata(u: Updates): boolean {
+    let mustReplay = false;
+
+    u.categories.forEach((c) => {
+      if (this.categoryMetadata.has(c.id)) {
+        const m = this.categoryMetadata.get(c.id);
+        if (m.category.commitTimestamp > c.commitTimestamp) {
+          return;
+        }
+        const oldc = m.category;
+        m.category = c;
+
+        if (c.disabled !== oldc.disabled) {
+          mustReplay = true;
+        }
+
+        if (oldc.hiddenMain && (!c.hiddenMain || c.disabled)) {
+          mustReplay = true;
+        }
+
+        if (oldc && (!c.hiddenNav || c.disabled)) {
+          mustReplay = true;
+        }
+
+
+        return;
+      }
+
+      this.categoryMetadata.set(
+          c.id,
+          new CategoryMetadata(c));
+      mustReplay = true;
+    });
+
     u.feeds.forEach((f) => {
       if (this.feedMetadata.has(f.id)) {
         const m = this.feedMetadata.get(f.id);
-        if (m.feed.commitTimestamp <= f.commitTimestamp) {
-          m.feed = f;
+        if (m.feed.commitTimestamp > f.commitTimestamp) {
+          return;
         }
+        const oldFeed = m.feed;
+        m.feed = f;
+
+        if (f.disabled) {
+          return;
+        }
+
+        if (oldFeed.disabled) {
+          mustReplay = true;
+        }
+
+        if (!m.hasUnread) {
+          // Fetch missing data
+        }
+
+        if (oldFeed.categoryId !== f.categoryId) {
+          mustReplay = true;
+          // Check for missing time ranges in category subscriptions
+          // Fetch if necessary
+        }
+        // Check for missing global time ranges and fetch missing data
         return;
       }
 
       this.feedMetadata.set(
           f.id,
           new FeedMetadata(f, f.createTimestamp > this.timestamp));
+      if (!f.disabled && f.createTimestamp < this.timestamp) {
+        // Do Fetches
+      }
     });
 
-    u.categories.forEach((c) => {});
+
+    u.items.forEach((i) => {
+
+                    });
+
+    return mustReplay;
   }
 
   private getInitialState() {
@@ -230,9 +319,16 @@ export class DataService {
                   state.items);
 
               this.data.feeds.forEach(
-                  (f) => this.feedMetadata.set(f.id, new FeedMetadata(f)));
+                  (f) => this.feedMetadata.set(
+                      f.id,
+                      new FeedMetadata(
+                          f,
+                          true,
+                          new Date(state.newestTimestamps[f.id]))));
+
               this.data.categories.forEach(
                   (c) => this.categoryMetadata.set(c.id, new CategoryMetadata(c)));
+
               this.data$.next(this.data);
             },
             (error: Error) => {

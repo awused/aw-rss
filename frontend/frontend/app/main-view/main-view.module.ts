@@ -13,9 +13,15 @@ import {MainViewComponent} from './components/main-view/main-view.component';
 // TODO -- trying to load a disabled category dumps the user back to the root
 const routes: Routes = [
   {path: 'feed', children: [
-     {path: ':feedid', pathMatch: 'full', component: MainViewComponent},
+     {path: ':feedId', pathMatch: 'full', component: MainViewComponent},
      {path: '', pathMatch: 'prefix', redirectTo: '/'},
    ]},
+  {path: 'category', children: [
+     {path: ':categoryName', pathMatch: 'full', component: MainViewComponent},
+     {path: '', pathMatch: 'prefix', redirectTo: '/'},
+   ]},
+  // Best effort attempt to redirect /:categoryName to a category.
+  {path: ':categoryName', redirectTo: '/category/:categoryName'},
   {path: '', pathMatch: 'full', component: MainViewComponent},
 ];
 

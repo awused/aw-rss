@@ -20,7 +20,8 @@ export interface Filters {
   readonly validOnly?: boolean;
   // Exclude items that have been read.
   readonly unreadOnly?: boolean;
-  readonly excludeHidden?: boolean;
+  readonly isMainView?: boolean;
+  readonly isNav?: boolean;
   // Whether to keep existing entities unconditionally
   // on non-refresh updates. When it's not a refresh existing objects will be
   // kept and updated, but new objects won't be added.
@@ -30,7 +31,7 @@ export interface Filters {
   // If feed or category IDs are supplied those will be considered valid even
   // if they would be excluded by validOnly. Feeds not included in either a
   // category or directly by ID will be excluded.
-  readonly categoryIds?: ReadonlyArray<number>;
+  readonly categoryName?: string;
   readonly feedId?: number;
   readonly itemIds?: ReadonlyArray<number>;
   // Exclude these types, mostly to improve performance.
@@ -44,9 +45,9 @@ export interface Filters {
 export interface PartialFilters extends Filters {
   validOnly?: boolean;
   unreadOnly?: boolean;
-  excludeHidden?: boolean;
+  isMainView?: boolean;
   keepUnlessRefresh?: boolean;
-  categoryIds?: ReadonlyArray<number>;
+  categoryName?: string;
   feedId?: number;
   itemIds?: ReadonlyArray<number>;
   excludeCategories?: boolean;
@@ -63,18 +64,17 @@ export const EmptyFilters: Filters = {
 
 // Use an interface to make it convenient to specify filters elsewhere
 export class DataFilter {
-  readonly keepExisting: boolean;
-  readonly categoryIds: ReadonlySet<number>;
-  readonly itemIds: ReadonlySet<number>;
-  readonly categoryFeedIds: Set<number> = new Set<number>();
-  readonly includedFeedIds: Set<number> = new Set<number>();
-  readonly end?: string;
-  readonly start?: string;
+  private readonly keepExisting: boolean;
+  private readonly itemIds: ReadonlySet<number>;
+  private readonly excludedCategories: Set<number> = new Set<number>();
+  private readonly includedFeedIds: Set<number> = new Set<number>();
+  private readonly end?: string;
+  private readonly start?: string;
+  private categoryId?: number;
 
   constructor(
       refresh: boolean,
       private readonly f: Filters) {
-    this.categoryIds = new Set(f.categoryIds || []);
     this.itemIds = new Set(f.itemIds || []);
     this.keepExisting = !refresh && !!f.keepUnlessRefresh;
     if (f.timeRange) {
@@ -85,10 +85,6 @@ export class DataFilter {
   }
 
   keepExistingCategory = (c: Category): boolean => {
-    if (this.categoryIds.size !== 0 && this.categoryIds.has(c.id)) {
-      // TODO -- add all feed ids to categoryFeedIds
-    }
-
     if (this.keepExisting) {
       return true;
     }
@@ -97,11 +93,21 @@ export class DataFilter {
   }
 
   addNewCategory = (c: Category): boolean => {
-    if (this.categoryIds.size !== 0) {
-      if (this.categoryIds.has(c.id)) {
-        // TODO -- add all feed ids to categoryFeedIds
+    if (this.f.categoryName !== undefined) {
+      if (this.f.categoryName === c.name) {
+        this.categoryId = c.id;
         return true;
       }
+      return false;
+    }
+
+    if (c.disabled) {
+      return false;
+    }
+
+    if ((c.hiddenMain && this.f.isMainView) ||
+        (c.hiddenNav && (this.f.isNav || this.f.isMainView))) {
+      this.excludedCategories.add(c.id);
       return false;
     }
 
@@ -130,15 +136,13 @@ export class DataFilter {
       return false;
     }
 
-    if (this.categoryIds.size !== 0) {
-      if (f.disabled) {
-        // A disabled feed will never be newly included in a category
-        return false;
-      }
-      if (this.categoryFeedIds.has(f.id)) {
-        this.includedFeedIds.add(f.id);
-        return true;
-      }
+    if (this.excludedCategories.has(f.categoryId)) {
+      return false;
+    }
+
+    if (this.f.categoryName &&
+        (this.categoryId === undefined || f.categoryId !== this.categoryId)) {
+      return false;
     }
 
     this.includedFeedIds.add(f.id);
@@ -164,7 +168,7 @@ export class DataFilter {
       return false;
     }
 
-    if (this.includedFeedIds.size !== 0 && !this.includedFeedIds.has(i.feedId)) {
+    if (!this.includedFeedIds.has(i.feedId)) {
       return false;
     }
 

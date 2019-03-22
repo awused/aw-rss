@@ -1,22 +1,32 @@
-<div *ngIf="showFeed"
-     class="item-header primary-text"
+<div *ngIf="showFeed || (showCategory && category)"
+     class="header primary-text"
      (mouseenter)="itemHover = false"
      (mouseleave)="itemHover = true">
+  <a *ngIf="showCategory && category"
+     class="category-link mat-body-strong"
+     [class.category-pad]="showFeed"
+     routerLink="/category/{{category.name}}">
+    {{category.title}}
+  </a>
   <a *ngIf="showFeed"
      class="feed-link mat-body-strong"
      routerLink="/feed/{{feed.id}}">
     {{feed.userTitle || feed.title}}
   </a>
 </div>
-<a class="item-link"
+<a class="link primary-text"
    [class.item-hover]="itemHover"
+   [class.no-header]="!showFeed && !showCategory"
    [href]="item.url | urlSanitize"
    (mouseup)="handleItemMouseup($event)"
+   (click)="handleItemClick($event)"
    rel="noopener"
    target="_blank">
-  <div class="item-spacer"
-       [class.thin]="!showFeed"></div>
-  <div class="item-title primary-text">
+  <div class="date">
+    {{item.timestamp | date:'yyyy-MM-dd HH:mm'}}
+  </div>
+  <div class="spacer"></div>
+  <div class="title">
     {{item.title}}
   </div>
 </a>

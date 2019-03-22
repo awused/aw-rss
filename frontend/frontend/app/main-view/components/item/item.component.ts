@@ -5,8 +5,11 @@ import {Component,
         OnDestroy,
         OnInit,
         SimpleChanges} from '@angular/core';
-import {Feed,
-        Item} from 'frontend/app/models/entities';
+import {
+  Category,
+  Feed,
+  Item
+} from 'frontend/app/models/entities';
 import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {Subject} from 'rxjs';
@@ -25,6 +28,8 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   public item: Item;
   @Input()
   public showFeed: boolean;
+  @Input()
+  public showCategory: boolean;
 
   @HostBinding('class.read')
   get read() {
@@ -38,6 +43,7 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
 
   public itemHover = true;
   public feed: Feed;
+  public category: Category;
   public disabled = false;
 
   private readonly onDestroy$: Subject<void> = new Subject();
@@ -59,7 +65,15 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   handleItemMouseup(event: MouseEvent) {
-    if (event.button === 1 && !this.item.read) {
+    if (event.button === 1 && !event.altKey && !this.item.read) {
+      this.toggleItemRead();
+    }
+  }
+
+  // Shift click -> toggle read
+  handleItemClick(event: MouseEvent) {
+    if (event.button === 0 && event.shiftKey) {
+      event.preventDefault();
       this.toggleItemRead();
     }
   }
@@ -75,11 +89,23 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
         .feedUpdates()
         .pipe(takeUntil(this.onDestroy$))
         .subscribe(() => this.handleChange());
+    this.dataService
+        .categoryUpdates()
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe(() => this.handleChange());
     this.handleChange();
   }
 
   private handleChange() {
     this.feed = this.dataService.getFeed(this.item.feedId);
+
+    this.category = undefined;
+    if (this.feed.categoryId) {
+      this.category = this.dataService.getCategory(this.feed.categoryId);
+      if (this.category && this.category.disabled) {
+        this.category = undefined;
+      }
+    }
   }
 
   ngOnDestroy() {

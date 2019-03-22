@@ -68,6 +68,26 @@ export class MainViewComponent implements OnInit, OnDestroy {
               this.sortedItems = this.sortItems(this.filteredData.items);
             }
           }
+
+          if (u.refresh && this.category && this.category.disabled) {
+            this.router.navigate(['/'], {replaceUrl: true});
+          }
+        });
+
+    this.dataService.feedUpdates()
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe(() => {
+          if (this.feed) {
+            this.feed = this.dataService.getFeed(this.feed.id);
+          }
+        });
+
+    this.dataService.categoryUpdates()
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe(() => {
+          if (this.category) {
+            this.category = this.dataService.getCategory(this.category.id);
+          }
         });
 
     this.route.paramMap
@@ -97,6 +117,15 @@ export class MainViewComponent implements OnInit, OnDestroy {
       this.feed = fd.feeds[0];
     }
 
+    if (fd.filters.categoryName !== undefined) {
+      if (fd.categories.length !== 1) {
+        this.router.navigate(['/'], {replaceUrl: true});
+        return;
+      }
+
+      this.category = fd.categories[0];
+    }
+
     // TODO -- if the category is disabed kick the user to /, here
     // TODO -- subscribe to the category in DataService, if it does exist
     this.filteredData = fd;
@@ -107,12 +136,12 @@ export class MainViewComponent implements OnInit, OnDestroy {
     const f: PartialFilters = {
       validOnly: true,
       unreadOnly: true,
-      excludeHidden: true,
+      isMainView: true,
       keepUnlessRefresh: true,
     };
 
-    if (p.has('feedid')) {
-      const fid = p.get('feedid');
+    if (p.has('feedId')) {
+      const fid = p.get('feedId');
       if (!/^\d+$/.test(fid)) {
         this.errorService.showError('Invalid feed ID: ' + fid);
         this.router.navigate(['/'], {replaceUrl: true});
@@ -120,6 +149,17 @@ export class MainViewComponent implements OnInit, OnDestroy {
       }
       f.feedId = parseInt(fid);
     }
+
+    if (p.has('categoryName')) {
+      const cname = p.get('categoryName');
+      if (!/^[a-z][a-z-]+[a-z]$/.test(cname)) {
+        this.errorService.showError('Invalid category name: ' + cname);
+        this.router.navigate(['/'], {replaceUrl: true});
+        return;
+      }
+      f.categoryName = cname;
+    }
+
     // TODO -- translate route params into filters
     return <Filters>f;
   }

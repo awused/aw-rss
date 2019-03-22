@@ -15,10 +15,15 @@ mat-toolbar {
 
 .fixed-layout {
   mat-sidenav {
+    border: none;
     width: 200px;
   }
 
   mat-sidenav-container {
     margin-top: 0;
   }
+}
+
+.filler {
+  flex: 1 1 auto;
 }
