@@ -11,10 +11,10 @@ import (
 
 // CurrentState contains the initial data sent to the client
 type CurrentState struct {
-	Timestamp int64           `json:"timestamp"`
-	Items     []*structs.Item `json:"items,omitempty"`
-	Feeds     []*structs.Feed `json:"feeds,omitempty"`
-	// Categoriess []*Category `json:"categories,omitempty"`
+	Timestamp   int64               `json:"timestamp"`
+	Items       []*structs.Item     `json:"items,omitempty"`
+	Feeds       []*structs.Feed     `json:"feeds,omitempty"`
+	Categoriess []*structs.Category `json:"categories,omitempty"`
 	// Timestamps of the newest items in each feed
 	NewestTimestamps map[int64]time.Time `json:"newestTimestamps,omitempty"`
 	// For now, at least, this is always all of the data at once
@@ -64,6 +64,13 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 		return nil, err
 	}
 
+	cs.Categoriess, err = getCurrentCategories(tx)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
 	cs.Feeds, err = getCurrentFeeds(tx)
 	if err != nil {
 		glog.Error(err)
@@ -94,6 +101,32 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 		return nil, err
 	}
 	return cs, err
+}
+
+func getCurrentCategories(tx *sql.Tx) ([]*structs.Category, error) {
+	glog.V(5).Info("getCurrentCategories() started")
+
+	sql := "SELECT " + structs.CategorySelectColumns + `
+	    FROM
+					categories
+			WHERE
+					categories.disabled = 0
+			ORDER BY categories.id ASC`
+
+	rows, err := tx.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cats, err := structs.ScanCategories(rows)
+
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+	glog.V(3).Infof("getCurrentCategories() retrieved %d categories", len(cats))
+	glog.V(5).Info("getCurrentCategories() completed")
+	return cats, nil
 }
 
 func getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
@@ -161,10 +194,10 @@ GROUP BY feedid;`
 
 // Updates contains all the entities that have changed after a given time
 type Updates struct {
-	Timestamp int64           `json:"timestamp,omitempty"`
-	Items     []*structs.Item `json:"items,omitempty"`
-	Feeds     []*structs.Feed `json:"feeds,omitempty"`
-	// Categoriess []*Category `json:"categories,omitempty"`
+	Timestamp  int64               `json:"timestamp,omitempty"`
+	Items      []*structs.Item     `json:"items,omitempty"`
+	Feeds      []*structs.Feed     `json:"feeds,omitempty"`
+	Categories []*structs.Category `json:"categories,omitempty"`
 	// When the client's state is too old and they should refresh instead
 	MustRefresh bool `json:"mustRefresh,omitempty"`
 }
@@ -214,6 +247,13 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 		return up, nil
 	}
 
+	up.Categories, err = getUpdatedCategories(tx, tstr)
+	if err != nil {
+		glog.Error(err)
+		tx.Rollback()
+		return nil, err
+	}
+
 	up.Feeds, err = getUpdatedFeeds(tx, tstr)
 	if err != nil {
 		glog.Error(err)
@@ -235,6 +275,30 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 		return nil, err
 	}
 	return up, err
+}
+
+func getUpdatedCategories(tx *sql.Tx, tstr string) ([]*structs.Category, error) {
+	glog.V(5).Info("getUpdatedFeeds() started")
+
+	sql := "SELECT " + structs.CategorySelectColumns + `
+		FROM categories INDEXED BY categories_commit_index
+		WHERE commit_timestamp > ?
+		ORDER BY categories.id ASC;`
+
+	rows, err := tx.Query(sql, tstr)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cats, err := structs.ScanCategories(rows)
+
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+	glog.V(3).Infof("getUpdatedCategories() retrieved %d feeds", len(cats))
+	glog.V(5).Info("getUpdatedCategories() completed")
+	return cats, nil
 }
 
 func getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*structs.Feed, error) {

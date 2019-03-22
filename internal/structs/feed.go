@@ -18,12 +18,13 @@ import (
 
 // Feed represents a single RSS feed
 type Feed struct {
-	id        int64
-	url       string
-	disabled  bool
-	title     string
-	siteURL   string
-	userTitle string
+	id         int64
+	url        string
+	disabled   bool
+	title      string
+	siteURL    string
+	userTitle  string
+	categoryID *int64
 
 	// The timestamp of the most recent failed fetch
 	// helps users see if a breakage is transient
@@ -41,6 +42,7 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 		Title           string     `json:"title"`
 		SiteURL         string     `json:"siteUrl"`
 		UserTitle       string     `json:"userTitle,omitempty"`
+		CategoryID      *int64     `json:"categoryId,omitempty"`
 		FailingSince    *time.Time `json:"failingSince,omitempty"`
 		CommitTimestamp int64      `json:"commitTimestamp"`
 		CreateTimestamp int64      `json:"createTimestamp"`
@@ -51,6 +53,7 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 		Title:           f.title,
 		SiteURL:         f.siteURL,
 		UserTitle:       f.userTitle,
+		CategoryID:      f.categoryID,
 		FailingSince:    f.failingSince,
 		CommitTimestamp: f.commitTimestamp.Unix(),
 		CreateTimestamp: f.createTimestamp.Unix(),
@@ -65,6 +68,7 @@ feeds.disabled,
 feeds.title,
 feeds.siteurl,
 feeds.usertitle,
+feeds.categoryid,
 feeds.failing_since,
 feeds.commit_timestamp,
 feeds.create_timestamp`
@@ -77,6 +81,7 @@ func scanFeed(feed *Feed) []interface{} {
 		&feed.title,
 		&feed.siteURL,
 		&feed.userTitle,
+		&feed.categoryID,
 		&feed.failingSince,
 		&feed.commitTimestamp,
 		&feed.createTimestamp}
@@ -164,6 +169,7 @@ SET
 	usertitle = ?,
 	title = ?,
 	siteurl = ?,
+	categoryid = ?,
 	failing_since = ?,
 	commit_timestamp = CURRENT_TIMESTAMP
 WHERE
@@ -179,6 +185,7 @@ func (f *Feed) update() EntityUpdate {
 			f.userTitle,
 			f.title,
 			f.siteURL,
+			f.categoryID,
 			f.failingSince,
 			f.id}}
 }

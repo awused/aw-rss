@@ -273,7 +273,8 @@ func (d *Database) upgradeFrom(version int) {
 
 				INSERT INTO feeds
 					SELECT
-						id,url,
+						id,
+						url,
 						disabled,
 						title,
 						siteurl,
@@ -293,11 +294,60 @@ func (d *Database) upgradeFrom(version int) {
 				DROP TABLE feeds_old;`)
 	d.upgradeTo(12, version, `
 				CREATE INDEX items_feed_timestamp_index ON items(feedid, timestamp);`)
-	if version < 11 {
-		_, err := d.db.Exec("VACUUM")
+	if version < 13 {
+		_, err := d.db.Exec(`
+				PRAGMA foreign_keys = OFF;`)
+		checkErr(err)
+		d.upgradeTo(13, version, `
+				CREATE TABLE categories(
+						id INTEGER PRIMARY KEY,
+						disabled INT NOT NULL DEFAULT 0,
+						name TEXT UNIQUE NOT NULL,
+						title TEXT NOT NULL,
+						hidden_nav INTEGER NOT NULL DEFAULT 0,
+						hidden_main INTEGER NOT NULL DEFAULT 0,
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+				ALTER TABLE feeds RENAME TO feeds_old;
+
+				CREATE TABLE feeds(
+						id INTEGER PRIMARY KEY,
+						url TEXT UNIQUE NOT NULL,
+						disabled INT NOT NULL DEFAULT 0,
+						title TEXT NOT NULL DEFAULT '',
+						siteurl TEXT NOT NULL DEFAULT '',
+						usertitle TEXT NOT NULL DEFAULT '',
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						create_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						failing_since TIMESTAMP DEFAULT NULL,
+						categoryid INTEGER DEFAULT NULL,
+						FOREIGN KEY(categoryid) REFERENCES categories(id));
+
+				INSERT INTO feeds
+						SELECT
+								*, NULL
+						FROM feeds_old;
+
+				DROP TABLE feeds_old;
+
+				CREATE INDEX feeds_disabled_index ON feeds(disabled);
+				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);
+
+				PRAGMA foreign_key_check;`)
+		_, err = d.db.Exec(`
+				PRAGMA foreign_keys = ON;
+				PRAGMA foreign_key_check;`)
 		checkErr(err)
 	}
 
+	d.upgradeTo(14, version, `
+				CREATE INDEX categories_disabled_index ON categories(disabled);
+				CREATE INDEX categories_commit_index ON categories(commit_timestamp);`)
+
+	if version < 13 {
+		_, err := d.db.Exec("VACUUM")
+		checkErr(err)
+	}
 }
 
 func (d *Database) upgradeTo(version int, oldVersion int, sql string) {

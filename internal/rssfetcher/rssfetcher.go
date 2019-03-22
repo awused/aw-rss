@@ -394,6 +394,7 @@ func (r *rssFetcher) fetchHTTPFeed(f *structs.Feed, kill <-chan struct{}) string
 		}
 		if err != nil {
 			glog.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
+			glog.Error("Body was: \n" + body)
 			panic(err)
 		}
 

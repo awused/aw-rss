@@ -126,15 +126,13 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 // GetItemsRequest is a request for items matching some constraints
 // Items from disabled feeds will not be fetched unless they're specified in
 // FeedIDs
-// If both FeedIDs and CategoryID are absent, items from every enabled feed
-// will be fetched
+// If no FeedIDs are present, items from every enabled feed will be fetched.
 type GetItemsRequest struct {
-	// ID of the category, if any
-	CategoryID *int64
 	// IDs of the Feed, if any
 	FeedIDs []*int64
 	// Include feeds specified by FeedIDs in the response
-	IncludeFeed bool
+	// Used when fetching a disabled feed
+	IncludeFeeds bool
 
 	// If true fetch all unread items
 	Unread bool
@@ -148,6 +146,8 @@ type GetItemsRequest struct {
 type GetItemsResponse struct {
 	Items []*structs.Item `json:"items"`
 	Feeds []*structs.Feed `json:"feeds,omitempty"`
+	// Don't include the categories, if any
+	// The frontend either has it or will on refresh
 }
 
 // GetItems returns the Items needed to fulfill the GetItemsRequest
@@ -159,7 +159,7 @@ func (d *Database) GetItems(
 		return nil, nil
 	}
 
-	if len(req.FeedIDs) != 0 && req.CategoryID != nil {
+	if len(req.FeedIDs) != 0 {
 		return nil, errors.New("Can't call GetItems for both feeds and a category")
 	}
 

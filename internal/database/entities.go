@@ -26,6 +26,17 @@ func updateEntity(dot dbOrTx, eu structs.EntityUpdate) error {
 	}
 
 	sql, binds := eu.Get()
-	_, err := dot.Exec(sql, binds...)
-	return err
+	result, err := dot.Exec(sql, binds...)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return errors.New("Update error: 0 rows affected")
+	}
+	return nil
 }
