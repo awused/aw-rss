@@ -2,6 +2,7 @@ import {Component} from '@angular/core';
 import {async,
         ComponentFixture,
         TestBed} from '@angular/core/testing';
+import {RouterTestingModule} from '@angular/router/testing';
 import {ItemFixtures} from 'frontend/app/models/models.fake';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';
@@ -25,7 +26,10 @@ describe('ItemComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-             imports: [PipesModule],
+             imports: [
+               RouterTestingModule,
+               PipesModule
+             ],
              declarations: [
                ItemComponent,
                TestWrapperComponent

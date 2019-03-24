@@ -19,6 +19,7 @@
 :host-context(.fixed-layout) {
   .date {
     display: block;
+    margin-right: 2px;
     margin-top: 2px;
     position: absolute;
     right: 92px;
@@ -26,7 +27,7 @@
 
   .header {
     position: absolute;
-    max-width: calc(100% - 94px - 114px);
+    max-width: calc(100% - 94px - 112px);
   }
 }
 

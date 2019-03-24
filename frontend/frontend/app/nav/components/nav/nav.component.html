@@ -10,6 +10,7 @@
   </div>
   <button (click)="refresh()"
           aria-label="Refresh"
+          [disabled]="isRefreshing()"
           mat-icon-button
           mat-button-right>
     <mat-icon>refresh</mat-icon>

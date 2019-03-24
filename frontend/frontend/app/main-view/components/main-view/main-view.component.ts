@@ -22,6 +22,7 @@ import {EmptyFilters,
         PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
 import {ErrorService} from 'frontend/app/services/error.service';
+import {ParamService} from 'frontend/app/services/param.service';
 import {Subject} from 'rxjs';
 import {
   filter,
@@ -47,7 +48,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly dataService: DataService,
-      private readonly errorService: ErrorService) {}
+      private readonly errorService: ErrorService,
+      private readonly paramService: ParamService) {}
 
   ngOnInit() {
     this.dataService.updates()
@@ -67,10 +69,14 @@ export class MainViewComponent implements OnInit, OnDestroy {
             } else {
               this.sortedItems = this.sortItems(this.filteredData.items);
             }
-          }
 
-          if (u.refresh && this.category && this.category.disabled) {
-            this.router.navigate(['/'], {replaceUrl: true});
+            if (this.category) {
+              this.category = this.dataService.getCategory(this.category.id);
+
+              if (u.refresh && this.category.disabled) {
+                this.router.navigate(['/'], {replaceUrl: true});
+              }
+            }
           }
         });
 
@@ -82,21 +88,18 @@ export class MainViewComponent implements OnInit, OnDestroy {
           }
         });
 
-    this.dataService.categoryUpdates()
-        .pipe(takeUntil(this.onDestroy$))
-        .subscribe(() => {
-          if (this.category) {
-            this.category = this.dataService.getCategory(this.category.id);
-          }
-        });
-
     this.route.paramMap
         .pipe(
             takeUntil(this.onDestroy$),
             map((p: ParamMap) => this.paramsToFilters(p)),
             filter((f?: Filters) => !!f),
             tap(() => this.filteredData = EmptyFilteredData),
-            switchMap((f: Filters) => this.dataService.dataForFilters(f)))
+            switchMap((f: Filters) => this.dataService.dataForFilters(f)),
+            // At worst, this snapshot will be a for a page the user is navigating to
+            tap(() => this.paramService.pushMainViewParams(this.route.snapshot.paramMap)),
+            // The first takeUntil will prevent unnecessary data requests
+            // This one will prevent mangling state strangely
+            takeUntil(this.onDestroy$))
         .subscribe((fd: FilteredData) => this.handleNewFilteredData(fd));
   }
 
@@ -110,7 +113,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
     if (fd.filters.feedId !== undefined) {
       if (fd.feeds.length !== 1) {
-        this.router.navigate(['/'], {replaceUrl: true});
+        // Nav component will redirect
         return;
       }
 
@@ -119,7 +122,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
     if (fd.filters.categoryName !== undefined) {
       if (fd.categories.length !== 1) {
-        this.router.navigate(['/'], {replaceUrl: true});
+        // Nav component will redirect
         return;
       }
 
@@ -143,18 +146,16 @@ export class MainViewComponent implements OnInit, OnDestroy {
     if (p.has('feedId')) {
       const fid = p.get('feedId');
       if (!/^\d+$/.test(fid)) {
-        this.errorService.showError('Invalid feed ID: ' + fid);
-        this.router.navigate(['/'], {replaceUrl: true});
+        // The nav service will log and redirect users
         return;
       }
-      f.feedId = parseInt(fid);
+      f.feedId = parseInt(fid, 10);
     }
 
     if (p.has('categoryName')) {
       const cname = p.get('categoryName');
       if (!/^[a-z][a-z-]+[a-z]$/.test(cname)) {
-        this.errorService.showError('Invalid category name: ' + cname);
-        this.router.navigate(['/'], {replaceUrl: true});
+        // The nav service will log and redirect users
         return;
       }
       f.categoryName = cname;
@@ -203,5 +204,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.onDestroy$.next();
+    this.paramService.pushMainViewParams();
   }
 }

@@ -201,8 +201,6 @@ export class DataService {
     // fetches or replays.
 
 
-
-    // Handle feeds, then items, then categories
     let changed;
     let d;
     [d, changed] = this.data.merge(u);

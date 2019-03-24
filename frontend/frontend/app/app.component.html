@@ -11,6 +11,7 @@
     <span class="filler"></span>
     <button (click)="refresh()"
             aria-label="Refresh"
+            [disabled]="isRefreshing()"
             mat-icon-button>
       <mat-icon>refresh</mat-icon>
     </button>

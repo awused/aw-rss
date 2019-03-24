@@ -6,8 +6,6 @@ import {Component,
         ViewChild} from '@angular/core';
 import {Title} from '@angular/platform-browser';
 
-import {Filters} from './models/filter';
-import {DataService} from './services/data.service';
 import {RefreshService} from './services/refresh.service';
 
 @Component({
@@ -18,16 +16,9 @@ import {RefreshService} from './services/refresh.service';
 export class AppComponent implements OnDestroy {
   public mobileQuery: MediaQueryList;
   public openNav = false;
-
   public unread = 0;
 
   private mobileQueryListener: () => void;
-
-  private readonly filters: Filters = {
-    isNav: true,
-    validOnly: true,
-    unreadOnly: true,
-  }
 
   constructor(
       private readonly zone: NgZone,
@@ -50,10 +41,14 @@ export class AppComponent implements OnDestroy {
     }
   }
 
-  // TODO -- Close nav on route change
+  // TODO -- Close nav on route change for mobile
 
-  refresh() {
+  public refresh() {
     this.refreshService.startRefresh();
+  }
+
+  public isRefreshing(): boolean {
+    return this.refreshService.isRefreshing();
   }
 
   ngOnDestroy(): void {

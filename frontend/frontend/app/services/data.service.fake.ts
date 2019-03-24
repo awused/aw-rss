@@ -32,6 +32,9 @@ export class FakeDataService {
     return of();
   }
 
+  public categoryUpdates(): Observable<void> {
+    return of();
+  }
 
   public getFeed(id: number): Feed {
     return FeedFixtures.emptyFeed;

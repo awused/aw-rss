@@ -21,7 +21,6 @@ export interface Filters {
   // Exclude items that have been read.
   readonly unreadOnly?: boolean;
   readonly isMainView?: boolean;
-  readonly isNav?: boolean;
   // Whether to keep existing entities unconditionally
   // on non-refresh updates. When it's not a refresh existing objects will be
   // kept and updated, but new objects won't be added.
@@ -101,12 +100,9 @@ export class DataFilter {
       return false;
     }
 
-    if (c.disabled) {
-      return false;
-    }
-
-    if ((c.hiddenMain && this.f.isMainView) ||
-        (c.hiddenNav && (this.f.isNav || this.f.isMainView))) {
+    if (this.f.isMainView && (c.hiddenMain || c.hiddenNav)) {
+      // hiddenMain categories are only included when referenced
+      // directly by name
       this.excludedCategories.add(c.id);
       return false;
     }

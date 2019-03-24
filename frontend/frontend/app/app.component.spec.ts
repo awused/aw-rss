@@ -5,6 +5,8 @@ import {RouterTestingModule} from '@angular/router/testing';
 
 import {AppComponent} from './app.component';
 import {NavModule} from './nav/nav.module';
+import {DataService} from './services/data.service';
+import {FakeDataService} from './services/data.service.fake';
 
 describe('AppComponent', () => {
   beforeEach(async(() => {
@@ -16,6 +18,9 @@ describe('AppComponent', () => {
              declarations: [
                AppComponent
              ],
+             providers: [
+               {provide: DataService, useClass: FakeDataService}
+             ]
            })
         .compileComponents();
   }));
