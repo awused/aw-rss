@@ -1,9 +1,13 @@
+mat-sidenav {
+  max-width: 100%;
+}
+
 mat-sidenav-container {
   margin-top: 56px;
 }
 
 mat-sidenav>* {
-  scrollbar-width: none;
+  //scrollbar-width: none;
 }
 
 mat-toolbar {
@@ -11,6 +15,22 @@ mat-toolbar {
   top: 0;
   height: 56px;
   z-index: 2;
+  max-width: 100%;
+}
+
+h1 {
+  display: flex;
+  overflow: hidden;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unread {
+  margin-left: 4px;
 }
 
 .fixed-layout {

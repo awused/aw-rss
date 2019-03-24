@@ -23,3 +23,11 @@ mat-sidenav>.mat-drawer-inner-container {
     width: 0;
   }
 }
+
+.cdk-drag-placeholder {
+  display: none !important;
+}
+
+awrss-nav .mat-expansion-panel-body {
+  padding: 0 0 0 8px;
+}

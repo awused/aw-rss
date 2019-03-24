@@ -1,0 +1,31 @@
+<div class="feed"
+     [class.failing]="fd.feed.failingSince"
+     [class.disabled]="fd.feed.disabled"
+     routerLinkActive="active">
+  <a *ngIf="!fd.feed.disabled"
+     class="link mat-subheading-1"
+     routerLink="/feed/{{fd.feed.id}}"
+     draggable="false"
+     ondragstart="return false;">
+    <div class="title"
+         matTooltip="{{fd.feed.userTitle || fd.feed.title}}"
+         matTooltipPosition="right">
+      {{fd.feed.userTitle || fd.feed.title}}
+    </div>
+    <div class="spacer"></div>
+    <div class="time"
+         matTooltip="{{fd.feed.failingSince | date:'yyyy-MM-dd HH:mm'}}"
+         *ngIf="fd.feed.failingSince">
+      ({{fd.feed.failingSince}})
+    </div>
+    <div class="unread"
+         *ngIf="!fd.feed.failingSince && fd.unread.size">
+      ({{fd.unread.size}})
+    </div>
+    <div class=""
+         class="time"
+         *ngIf="fd.lastItem">
+      {{something}}
+    </div>
+  </a>
+</div>

@@ -17,6 +17,7 @@ export class AppComponent implements OnDestroy {
   public mobileQuery: MediaQueryList;
   public openNav = false;
   public unread = 0;
+  public title = 'Aw-RSS';
 
   private mobileQueryListener: () => void;
 
@@ -29,7 +30,11 @@ export class AppComponent implements OnDestroy {
     // NgZone is the only option that doesn't break regular change detection
     this.mobileQueryListener = () => zone.run(() => true);
     this.mobileQuery.addEventListener('change', this.mobileQueryListener);
-    this.titleService.setTitle('Aw-RSS');
+    // Uncertain if I actually want to update the page's title constantly,
+    // or just the bar at the top
+    this.titleService.setTitle(this.title);
+
+    // TODO -- Auto close sidenav on navigation
   }
 
   @HostListener('window:keydown', ['$event'])

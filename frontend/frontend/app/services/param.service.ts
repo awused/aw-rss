@@ -2,9 +2,10 @@ import {Injectable} from '@angular/core';
 import {ParamMap} from '@angular/router';
 import {
   BehaviorSubject,
-  ReplaySubject,
+  Observable,
   Subject
 } from 'rxjs';
+import {debounceTime} from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -20,7 +21,7 @@ export class ParamService {
     this.mainViewParams$.next(p);
   }
 
-  public mainViewParams(): Subject<ParamMap|void> {
-    return this.mainViewParams$;
+  public mainViewParams(): Observable<ParamMap|void> {
+    return this.mainViewParams$.pipe(debounceTime(0));
   }
 }

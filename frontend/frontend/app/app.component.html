@@ -7,7 +7,13 @@
             mat-icon-button>
       <mat-icon>menu</mat-icon>
     </button>
-    <h1>Aw-RSS{{unread && (' (' + unread + ')') || ''}}</h1>
+    <h1>
+      <div class="title">{{title}}</div>
+      <div class="unread"
+           *ngIf="unread">
+        ({{unread}})
+      </div>
+    </h1>
     <span class="filler"></span>
     <button (click)="refresh()"
             aria-label="Refresh"
@@ -25,7 +31,9 @@
                  fixedInViewport
                  disableClose>
       <awrss-nav [showHeader]="!mobileQuery.matches"
-                 (unreadCount)="unread = $event"></awrss-nav>
+                 (unreadCount)="unread = $event"
+                 (pageTitle)="title = $event">
+      </awrss-nav>
     </mat-sidenav>
     <mat-sidenav-content>
       <router-outlet></router-outlet>

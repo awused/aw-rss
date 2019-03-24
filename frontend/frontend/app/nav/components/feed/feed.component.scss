@@ -1,0 +1,49 @@
+@import 'variables';
+
+:host(),
+.feed {
+  display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 100%;
+}
+
+.feed {
+  padding: 4px;
+}
+
+.unread {
+  margin-left: 4px;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+}
+
+.active {
+  background-color: mat-color($primary, lighter);
+
+  .link {
+    color: black;
+  }
+}
+
+.link {
+  color: white;
+  display: flex;
+  margin: 0;
+  padding: 2px 0;
+  overflow: hidden;
+  text-decoration: unset;
+  flex: 1 1 auto;
+
+  .spacer {
+    flex: 1 1 auto;
+  }
+
+  &:hover .title {
+    text-decoration: underline;
+  }
+}

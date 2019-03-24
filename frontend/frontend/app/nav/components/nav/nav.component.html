@@ -1,12 +1,15 @@
 <div class="header primary-dark-bg"
      *ngIf="showHeader">
-  <!-- align="end"> -->
   <button routerLink="/"
           mat-icon-button>
     <mat-icon>home</mat-icon>
   </button>
   <div class="title mat-subheading-2">
-    Aw-RSS{{unread ? (' (' + unread + ')') : ''}}
+    Aw-RSS
+  </div>
+  <div class="unread mat-subheading-2"
+       *ngIf="mainUnread">
+    ({{mainUnread}})
   </div>
   <button (click)="refresh()"
           aria-label="Refresh"
@@ -16,13 +19,77 @@
     <mat-icon>refresh</mat-icon>
   </button>
 </div>
-<!-- <div class="routes" -->
-<!--      [class.has&#45;header]="showHeader"> -->
-<!--   <p *ngFor="let x of [].constructor(100)"> -->
-<!--     something pretty long that should wrap around -->
-<!--     something pretty long that should wrap around -->
-<!--     something pretty long that should wrap around -->
-<!--     something pretty long that should wrap around -->
-<!--     something pretty long that should wrap around -->
-<!--   </p> -->
-<!-- </div> -->
+<div class="home-link"
+     *ngIf="!showHeader"
+     routerActiveLink="active">
+  <a class="link"
+     routerLink="/">
+    <div class="title">
+      Aw-RSS
+    </div>
+    <div class="spacer"></div>
+    <div class="unread"
+         *ngIf="mainUnread">
+      ({{mainUnread}})
+    </div>
+  </a>
+</div>
+<div class="body"
+     [class.has-header]="showHeader"
+     (mouseenter)="inBody = true"
+     (mouseleave)="inBody = false"
+     cdkDropListGroup>
+  <mat-expansion-panel *ngFor="let nc of navCategories; let evenC = even; let oddC = odd"
+                       class="category"
+                       [class.hidden]="hideCategory == nc.cData.category.id"
+                       [class.not-dragging]="draggingCategory !== nc.cData.category.id"
+                       [class.should-hide]="nc.cData.category.hiddenNav"
+                       routerLinkActive="active"
+                       cdkDropList
+                       [cdkDropListData]="nc.cData"
+                       (cdkDropListDropped)="dragDropped($event)"
+                       (mouseenter)="dropTarget = nc.cData"
+                       (mouseleave)="dropTarget = undefined"
+                       cdkDrag
+                       [cdkDragData]="nc.cData"
+                       (cdkDragStarted)="dragStarted($event)">
+    <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
+                                [class.primary-bg]="evenC">
+      <div routerLink="/category/{{nc.cData.category.name}}">
+        {{nc.cData.category.title}}
+      </div>
+    </mat-expansion-panel-header>
+    <ng-template matExpansionPanelContent>
+      <awrss-feed class="feed"
+                  [class.hidden]="dragging"
+                  *ngFor="let fd of nc.fData; let even = even; let odd = odd;"
+                  [class.primary-dark-bg]="oddC ? odd : !odd"
+                  [class.primary-bg]="oddC ? even : !even"
+                  [fd]="fd"
+                  routerLinkActive="active"
+                  cdkDrag
+                  [cdkDragData]="fd"
+                  (cdkDragStarted)="dragStarted($event)">
+      </awrss-feed>
+    </ng-template>
+  </mat-expansion-panel>
+  <div class="uncategorized"
+       cdkDropList
+       (cdkDropListDropped)="dragDropped($event)">
+    <awrss-feed class="feed"
+                [class.hidden]="dragging"
+                *ngFor="let fd of uncategorizedFeeds; let even = even; let odd = odd;"
+                [class.primary-dark-bg]="odd"
+                [class.primary-bg]="even"
+                [fd]="fd"
+                routerLinkActive="active"
+                cdkDrag
+                [cdkDragData]="fd"
+                (cdkDragStarted)="dragStarted($event)">
+    </awrss-feed>
+    <div class="uncategorized-target mat-title"
+         *ngIf="dragging">
+      {{draggingCategory ? 'End' : 'Uncategorized'}}
+    </div>
+  </div>
+</div>

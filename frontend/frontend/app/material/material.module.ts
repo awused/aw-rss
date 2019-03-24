@@ -1,10 +1,12 @@
 import {ScrollingModule} from '@angular/cdk/scrolling';
 import {NgModule} from '@angular/core';
 import {MatButtonModule,
+        MatExpansionModule,
         MatIconModule,
         MatSidenavModule,
         MatSnackBarModule,
-        MatToolbarModule} from '@angular/material';
+        MatToolbarModule,
+        MatTooltipModule} from '@angular/material';
 
 /**
  * Module only to import Material components, instead of importing them
@@ -12,10 +14,12 @@ import {MatButtonModule,
  */
 @NgModule({exports: [
   MatButtonModule,
+  MatExpansionModule,
   MatIconModule,
   MatSnackBarModule,
   MatSidenavModule,
   MatToolbarModule,
+  MatTooltipModule,
   ScrollingModule,
 ]})
 export class MaterialModule {

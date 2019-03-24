@@ -16,7 +16,7 @@
 </div>
 <a class="link primary-text"
    [class.item-hover]="itemHover"
-   [class.no-header]="!showFeed && !showCategory"
+   [class.no-header]="!showFeed && !(showCategory && category)"
    [href]="item.url | urlSanitize"
    (mouseup)="handleItemMouseup($event)"
    (click)="handleItemClick($event)"

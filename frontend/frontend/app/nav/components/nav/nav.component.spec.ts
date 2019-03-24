@@ -1,8 +1,13 @@
+import {DragDropModule} from '@angular/cdk/drag-drop';
 import {async,
         ComponentFixture,
         TestBed} from '@angular/core/testing';
+import {RouterTestingModule} from '@angular/router/testing';
+import {MaterialModule} from 'frontend/app/material/material.module';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
+
+import {FeedComponent} from '../feed/feed.component';
 
 import {NavComponent} from './nav.component';
 
@@ -12,7 +17,15 @@ describe('NavComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-             declarations: [NavComponent],
+             imports: [
+               RouterTestingModule,
+               DragDropModule,
+               MaterialModule
+             ],
+             declarations: [
+               NavComponent,
+               FeedComponent,
+             ],
              providers: [
                {provide: DataService, useClass: FakeDataService}
              ]

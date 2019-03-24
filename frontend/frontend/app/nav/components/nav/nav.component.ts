@@ -1,3 +1,8 @@
+import {
+  CdkDragDrop,
+  CdkDragRelease,
+  CdkDragStart
+} from '@angular/cdk/drag-drop';
 import {Component,
         EventEmitter,
         Input,
@@ -18,15 +23,17 @@ import {ParamService} from 'frontend/app/services/param.service';
 import {RefreshService} from 'frontend/app/services/refresh.service';
 
 
-interface FeedData {
-  feed?: Feed;
-  unread: Set<number>;
-  lastItem?: Date;
+export class FeedData {
+  constructor(
+      public feed: Feed,
+      public unread: Set<number> = new Set(),
+      public lastItem?: Date) {}
 }
 
-interface CategoryData {
-  category: Category;
-  unread: number;
+class CategoryData {
+  constructor(
+      public category: Category,
+      public unread: number = 0) {}
 }
 
 interface NavCategory {
@@ -40,24 +47,6 @@ interface NavCategory {
   styleUrls: ['./nav.component.scss']
 })
 export class NavComponent {
-  @Input()
-  public showHeader: boolean;
-  @Output()
-  public unreadCount = new EventEmitter<number>();
-  @Output()
-  public pageTitle = new EventEmitter<string>();
-
-  public selectedCategoryName: string;
-  public selectedFeed: number;
-  public navCategories: NavCategory[];
-  public uncategorizedFeeds: FeedData[];
-
-  private unreadByFeed: Map<number, FeedData> = new Map();
-  private unreadByCategory: Map<number, CategoryData> = new Map();
-  private mainUnread: number = 0;
-  private categoriesByName: Map<string, number> = new Map();
-
-  private filteredData: FilteredData = EmptyFilteredData;
 
   // This controller will never be destroyed
   constructor(
@@ -82,6 +71,40 @@ export class NavComponent {
               .subscribe((p: ParamMap) => this.handleParams(p));
         });
   }
+  @Input()
+  public showHeader: boolean;
+  @Output()
+  public unreadCount = new EventEmitter<number>();
+  @Output()
+  public pageTitle = new EventEmitter<string>();
+
+  public selectedCategoryName: string;
+  public selectedFeed: number;
+  public navCategories: NavCategory[];
+  public uncategorizedFeeds: FeedData[];
+  public dragging = false;
+  public draggingCategory?: number;
+  public hideCategory?: number;
+  public dropTarget: CategoryData|undefined;
+  public inBody = false;
+
+  private unreadByFeed: Map<number, FeedData> = new Map();
+  private unreadByCategory: Map<number, CategoryData> = new Map();
+  private mainUnread = 0;
+  private categoriesByName: Map<string, number> = new Map();
+
+  private static feedDataComparator(a: FeedData, b: FeedData): number {
+    if (a.unread.size && !b.unread.size) {
+      return -1;
+    }
+    if (!a.unread.size && b.unread.size) {
+      return 1;
+    }
+
+    const aTitle = a.feed.userTitle || a.feed.title;
+    const bTitle = b.feed.userTitle || b.feed.title;
+    return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
+  }
 
   public isRefreshing(): boolean {
     return this.refreshService.isRefreshing();
@@ -89,6 +112,49 @@ export class NavComponent {
 
   public refresh() {
     this.refreshService.startRefresh();
+  }
+
+  public dragStarted(event: CdkDragStart<FeedData|CategoryData>, x: any) {
+    const data = event.source.data;
+    this.dragging = true;
+    this.dropTarget = undefined;
+    this.inBody = true;
+    if (data instanceof FeedData) {
+      this.hideCategory = data.feed.categoryId;
+    }
+
+    if (data instanceof CategoryData) {
+      this.draggingCategory = data.category.id;
+    }
+  }
+
+  public dragDropped(event: CdkDragDrop<void, FeedData|CategoryData>) {
+    this.dragging = false;
+    this.hideCategory = undefined;
+    this.draggingCategory = undefined;
+    if (!event.isPointerOverContainer && !this.inBody) {
+      return;
+    }
+
+    // TODO -- Actually do these things
+    const data = event.item.data;
+    if (data instanceof CategoryData) {
+      if (this.dropTarget && data.category.id !== this.dropTarget.category.id) {
+        console.log(`would sort ${data.category.id} after ${this.dropTarget.category.id}`);
+      } else {
+        console.log(`would sort ${data.category.id} at the end`);
+      }
+    }
+
+    if (data instanceof FeedData) {
+      if (!this.dropTarget && data.feed.categoryId !== undefined) {
+        console.log(`would remove ${data.feed.id} from ${data.feed.categoryId}`);
+      }
+
+      if (this.dropTarget && data.feed.categoryId !== this.dropTarget.category.id) {
+        console.log(`would add ${data.feed.id} to ${this.dropTarget.category.id}`);
+      }
+    }
   }
 
   private handleParams(p: ParamMap|void) {
@@ -122,19 +188,15 @@ export class NavComponent {
       }
       this.selectedCategoryName = cname;
 
-      if (!this.categoriesByName.has(cname)) {
-        this.errorService.showError('Invalid category name: ' + cname);
-        this.router.navigate(['/'], {replaceUrl: true});
-        return;
-      }
-
       const cd = this.unreadByCategory.get(this.categoriesByName.get(cname));
       // Redirect for disabled categories or categories that have been renamed
       if (!cd || cd.category.disabled || cd.category.name !== cname) {
         this.errorService.showError('Invalid category name: ' + cname);
         this.router.navigate(['/'], {replaceUrl: true});
+        return;
       }
     }
+    this.emit();
   }
 
   private handleUpdates(u: Updates|FilteredData) {
@@ -156,10 +218,7 @@ export class NavComponent {
 
       if (!this.unreadByCategory.has(c.id)) {
         if (!c.disabled) {
-          this.unreadByCategory.set(c.id, {
-            category: c,
-            unread: 0
-          });
+          this.unreadByCategory.set(c.id, new CategoryData(c));
           recalculate = true;
           mustSort = true;
         }
@@ -185,7 +244,7 @@ export class NavComponent {
     u.feeds.forEach((f: Feed) => {
       if (!this.unreadByFeed.has(f.id)) {
         mustSort = true;
-        this.unreadByFeed.set(f.id, {feed: f, unread: new Set()});
+        this.unreadByFeed.set(f.id, new FeedData(f));
       }
 
       const fd = this.unreadByFeed.get(f.id);
@@ -213,7 +272,7 @@ export class NavComponent {
         fd.lastItem = new Date(it.timestamp);
       }
 
-      let change = it.read ? -1 : 1;
+      const change = it.read ? -1 : 1;
       if (it.read) {
         const removed = fd.unread.delete(it.id);
         if (!removed) {
@@ -295,7 +354,7 @@ export class NavComponent {
 
   private emit() {
     const cd = this.unreadByCategory.get(
-        this.categoriesByName.get(this.selectedCategoryName))
+        this.categoriesByName.get(this.selectedCategoryName));
     if (cd) {
       this.pageTitle.emit(cd.category.title);
       this.unreadCount.emit(cd.unread);
@@ -334,18 +393,5 @@ export class NavComponent {
 
   private isHidden(c: Category): boolean {
     return c.hiddenMain || c.hiddenNav;
-  }
-
-  private static feedDataComparator(a: FeedData, b: FeedData): number {
-    if (a.unread.size && !b.unread.size) {
-      return -1;
-    }
-    if (!a.unread.size && b.unread.size) {
-      return 1;
-    }
-
-    const aTitle = a.feed.userTitle || a.feed.title;
-    const bTitle = b.feed.userTitle || b.feed.title;
-    return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
   }
 }
