@@ -30,22 +30,6 @@ func main() {
 		serverChan <- struct{}{}
 	}()
 
-	/*fetcher, err := rssfetcher.RssFetcher()
-	if err != nil {
-		panic(err)
-	}
-	defer fetcher.Close()
-
-	fetcherChan := make(chan struct{}, 1)
-	go func() {
-		if err := fetcher.Run(); err != nil {
-			glog.Error(err)
-			panic(err)
-		}
-		glog.Info("fetcher.Run() exited normally")
-		fetcherChan <- struct{}{}
-	}()*/
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGUSR1)
 
@@ -69,5 +53,4 @@ Loop:
 	glog.Info("SIGINT caught, exiting")
 	server.Close()
 	<-serverChan
-	os.Exit(0)
 }

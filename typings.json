@@ -1,8 +1,0 @@
-{
-  "ambientDependencies": {
-    "es6-shim": "github:DefinitelyTyped/DefinitelyTyped/es6-shim/es6-shim.d.ts#4de74cb527395c13ba20b438c3a7a419ad931f1c",
-    "jasmine": "github:DefinitelyTyped/DefinitelyTyped/jasmine/jasmine.d.ts#bc92442c075929849ec41d28ab618892ba493504",
-    "moment": "github:DefinitelyTyped/DefinitelyTyped/moment/moment.d.ts#56295f5058cac7ae458540423c50ac2dcf9fc711",
-    "moment-node": "github:DefinitelyTyped/DefinitelyTyped/moment/moment-node.d.ts#56295f5058cac7ae458540423c50ac2dcf9fc711"
-  }
-}

@@ -1,0 +1,4 @@
+# Domain whitelist for cloudflare scraping.
+
+# Executable whitelist for external commands.
+# Only checked at feed creation time.
