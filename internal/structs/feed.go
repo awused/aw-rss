@@ -132,7 +132,6 @@ func getFeedTitle(f *Feed, gfe *gofeed.Feed) string {
 	}
 
 	if gfe.Items == nil || len(gfe.Items) == 0 || !mdsre.MatchString(f.url) {
-		glog.Infof("%s", !mdsre.MatchString(f.url))
 		return gfe.Title
 	}
 
@@ -231,7 +230,7 @@ func FeedMergeGofeed(gfe *gofeed.Feed) func(*Feed) EntityUpdate {
 		} else {
 			if newF.siteURL == "" && !strings.HasPrefix(newF.url, "!") {
 				// Default to the feed URL if it's a URL, only log f once
-				glog.Warningf("Feed without link [%s]", newF)
+				glog.Warningf("Feed without link [%s]", &newF)
 				newF.siteURL = newF.url
 			}
 		}

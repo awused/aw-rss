@@ -60,14 +60,12 @@ func (w *webserver) Close() error {
 }
 
 func (w *webserver) close(rssError error) error {
-	glog.Info("Closing webserver")
-	if rssError != nil {
-	}
-
 	if w.closed {
-		glog.Warning("Tried to close webserver that has already been closed")
+		glog.V(1).Info("Tried to close webserver that has already been closed")
 		return nil
 	}
+	glog.Info("Closing webserver")
+
 	w.closeLock.Lock()
 	defer w.closeLock.Unlock()
 	if w.closed {

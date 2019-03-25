@@ -4,7 +4,6 @@ package rssfetcher
 
 import (
 	"errors"
-	"net/url"
 	"os/exec"
 	"strings"
 	"sync"
@@ -60,13 +59,11 @@ const cloudflareBroken = "Cloudflare may have changed their technique," +
 	"or there may be a bug in the script."
 
 type cloudflare struct {
-	cookies      map[string]string
-	userAgents   map[string]string
-	cookieLock   sync.RWMutex
-	fetching     map[string]chan struct{}
-	fetchingLock sync.Mutex
-	pythonLock   sync.Mutex
-	closeChan    <-chan struct{}
+	cookies    map[string]string
+	userAgents map[string]string
+	cookieLock sync.RWMutex
+	pythonLock sync.Mutex
+	closeChan  <-chan struct{}
 
 	brokenCfscrape bool
 	// If we have permanent failures, disable these hosts for 6 hours at a time
@@ -78,19 +75,9 @@ func newCloudflare(closeChan <-chan struct{}) *cloudflare {
 	return &cloudflare{
 		cookies:      make(map[string]string),
 		userAgents:   make(map[string]string),
-		fetching:     make(map[string]chan struct{}),
 		closeChan:    closeChan,
 		invalidUntil: make(map[string]time.Time),
 	}
-}
-
-func host(feedURL string) (string, string, error) {
-	u, err := url.Parse(feedURL)
-	if err != nil {
-		return "", "", err
-	}
-
-	return u.Host, u.Scheme, nil
 }
 
 func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, error) {
@@ -122,10 +109,10 @@ func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, e
 }
 
 func (cf *cloudflare) getCookie(feedURL string) (
-	cookie string, userAgent string, blocked bool, permanentFailure error) {
+	cookie string, userAgent string, permanentFailure error) {
 	h, scheme, err := host(feedURL)
 	if err != nil {
-		return "", "", false, nil
+		return "", "", nil
 	}
 
 	cf.failureLock.Lock()
@@ -135,32 +122,20 @@ func (cf *cloudflare) getCookie(feedURL string) (
 
 	if time.Now().Before(inv) {
 		if broken {
-			return "", "", false, errCloudflareBroken
+			return "", "", errCloudflareBroken
 		}
-		return "", "", false, errCloudflareCooldown
+		return "", "", errCloudflareCooldown
 	}
 
 	if scheme != "https" || !trustedHosts[h] {
-		return "", "", false, nil
-	}
-
-	cf.fetchingLock.Lock()
-	fetchChan, blocking := cf.fetching[h]
-	cf.fetchingLock.Unlock()
-
-	if blocking {
-		select {
-		case <-fetchChan:
-		case <-cf.closeChan:
-			return "", "", true, nil
-		}
+		return "", "", nil
 	}
 
 	c, ua, err := cf.getExistingCookie(h)
 	if err == errNoCookies {
 		err = nil
 	}
-	return c, ua, blocking, err
+	return c, ua, err
 }
 
 func (cf *cloudflare) getExistingCookie(
@@ -222,25 +197,6 @@ func (cf *cloudflare) getNewCookie(
 		return "", "", errUntrustedHost
 	}
 
-	cf.fetchingLock.Lock()
-	fetchChan, ok := cf.fetching[h]
-	if !ok {
-		fetchChan = make(chan struct{})
-		cf.fetching[h] = fetchChan
-		defer cf.finishFetching(h)
-	}
-	cf.fetchingLock.Unlock()
-
-	if ok {
-		select {
-		case <-fetchChan:
-		case <-cf.closeChan:
-			return "", "", nil
-		}
-		return cf.getExistingCookie(h)
-	}
-
-	// This thread is now responsible for fetching cookies for this host
 	cf.pythonLock.Lock()
 	defer cf.pythonLock.Unlock()
 	select {
@@ -298,12 +254,4 @@ func (cf *cloudflare) setInvalid(h string) {
 	// This keeps the maximum time between fetches to 7 hours
 	cf.invalidUntil[h] = time.Now().Add(time.Hour)
 	cf.failureLock.Unlock()
-}
-
-func (cf *cloudflare) finishFetching(h string) {
-	cf.fetchingLock.Lock()
-	c := cf.fetching[h]
-	close(c)
-	delete(cf.fetching, h)
-	cf.fetchingLock.Unlock()
 }
