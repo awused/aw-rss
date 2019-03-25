@@ -7,14 +7,14 @@
             mat-icon-button>
       <mat-icon>menu</mat-icon>
     </button>
-    <h1>
+    <h1 class="header">
       <div class="title">{{title}}</div>
+      <div class="spacer"></div>
       <div class="unread"
            *ngIf="unread">
         ({{unread}})
       </div>
     </h1>
-    <span class="filler"></span>
     <button (click)="refresh()"
             aria-label="Refresh"
             [disabled]="isRefreshing()"

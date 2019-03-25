@@ -1,16 +1,5 @@
 <div class="header primary-dark-bg"
      *ngIf="showHeader">
-  <button routerLink="/"
-          mat-icon-button>
-    <mat-icon>home</mat-icon>
-  </button>
-  <div class="title mat-subheading-2">
-    Aw-RSS
-  </div>
-  <div class="unread mat-subheading-2"
-       *ngIf="mainUnread">
-    ({{mainUnread}})
-  </div>
   <button (click)="refresh()"
           aria-label="Refresh"
           [disabled]="isRefreshing()"
@@ -18,6 +7,17 @@
           mat-button-right>
     <mat-icon>refresh</mat-icon>
   </button>
+  <a class="link mat-title"
+     routerLink="/">
+    <div class="title">
+      Aw-RSS
+    </div>
+    <div class="spacer"></div>
+    <div class="unread"
+         *ngIf="mainUnread">
+      ({{mainUnread}})
+    </div>
+  </a>
 </div>
 <div class="home-link"
      *ngIf="!showHeader"
@@ -34,17 +34,25 @@
     </div>
   </a>
 </div>
+<!-- TODO
+   https://github.com/angular/material2/pull/14732
+   [cdkDragStartDelay]="showHeader ? 1000 : 0"
+
+   on every draggable so we don't break scrolling
+
+  Then remove the hacky right padding on the menu on mobile.
+-->
 <div class="body"
      [class.has-header]="showHeader"
-     (mouseenter)="inBody = true"
-     (mouseleave)="inBody = false"
      cdkDropListGroup>
   <mat-expansion-panel *ngFor="let nc of navCategories; let evenC = even; let oddC = odd"
                        class="category"
                        [class.hidden]="hideCategory == nc.cData.category.id"
                        [class.not-dragging]="draggingCategory !== nc.cData.category.id"
-                       [class.should-hide]="nc.cData.category.hiddenNav"
-                       routerLinkActive="active"
+                       [class.should-hide]="shouldHideCategory(nc.cData.category)"
+                       [expanded]="expanded[nc.cData.category.id]"
+                       (opened)="expanded[nc.cData.category.id] = true"
+                       (closed)="expanded[nc.cData.category.id] = false"
                        cdkDropList
                        [cdkDropListData]="nc.cData"
                        (cdkDropListDropped)="dragDropped($event)"
@@ -54,9 +62,21 @@
                        [cdkDragData]="nc.cData"
                        (cdkDragStarted)="dragStarted($event)">
     <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
-                                [class.primary-bg]="evenC">
-      <div routerLink="/category/{{nc.cData.category.name}}">
-        {{nc.cData.category.title}}
+                                [class.primary-bg]="evenC"
+                                [collapsedHeight]="'48px'"
+                                [expandedHeight]="'48px'"
+                                routerLinkActive="active">
+      <div class="link"
+           routerLink="/category/{{nc.cData.category.name}}">
+        <div class="title">
+          {{nc.cData.category.title}}
+        </div>
+        <div class="spacer"></div>
+        <div class="unread"
+             *ngIf="nc.cData.unread">
+          ({{nc.cData.unread}})
+        </div>
+        <!-- TODO - show unread counter -->
       </div>
     </mat-expansion-panel-header>
     <ng-template matExpansionPanelContent>
@@ -74,6 +94,8 @@
     </ng-template>
   </mat-expansion-panel>
   <div class="uncategorized"
+       (mouseenter)="dropTarget = 'uncategorized'"
+       (mouseleave)="dropTarget = undefined"
        cdkDropList
        (cdkDropListDropped)="dragDropped($event)">
     <awrss-feed class="feed"

@@ -16,16 +16,16 @@
     <div class="time"
          matTooltip="{{fd.feed.failingSince | date:'yyyy-MM-dd HH:mm'}}"
          *ngIf="fd.feed.failingSince">
-      ({{fd.feed.failingSince}})
+      ({{fd.failingSinceString}})
     </div>
     <div class="unread"
          *ngIf="!fd.feed.failingSince && fd.unread.size">
       ({{fd.unread.size}})
     </div>
-    <div class=""
-         class="time"
-         *ngIf="fd.lastItem">
-      {{something}}
+    <div class="time"
+         matTooltip="{{fd.lastItem | date:'yyyy-MM-dd HH:mm'}}"
+         *ngIf="!fd.feed.failingSince && !fd.unread.size && fd.lastItem">
+      ({{fd.lastItemString}})
     </div>
   </a>
 </div>

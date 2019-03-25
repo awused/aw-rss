@@ -27,7 +27,9 @@ export class FeedData {
   constructor(
       public feed: Feed,
       public unread: Set<number> = new Set(),
-      public lastItem?: Date) {}
+      public lastItem?: Date,
+      public failingSinceString?: string,
+      public lastItemString?: string) {}
 }
 
 class CategoryData {
@@ -47,7 +49,6 @@ interface NavCategory {
   styleUrls: ['./nav.component.scss']
 })
 export class NavComponent {
-
   // This controller will never be destroyed
   constructor(
       private readonly route: ActivatedRoute,
@@ -69,6 +70,13 @@ export class NavComponent {
 
           this.paramService.mainViewParams()
               .subscribe((p: ParamMap) => this.handleParams(p));
+          this.route.queryParamMap
+              .subscribe((q: ParamMap) => {
+                // Dammit Angular https://github.com/angular/angular/issues/12664
+                if (q.has('all')) {
+                  this.showAll = q.get('all') === 'true';
+                }
+              });
         });
   }
   @Input()
@@ -78,15 +86,16 @@ export class NavComponent {
   @Output()
   public pageTitle = new EventEmitter<string>();
 
-  public selectedCategoryName: string;
-  public selectedFeed: number;
+  public selectedCategoryName?: string;
+  public selectedFeed?: number;
   public navCategories: NavCategory[];
   public uncategorizedFeeds: FeedData[];
   public dragging = false;
   public draggingCategory?: number;
   public hideCategory?: number;
-  public dropTarget: CategoryData|undefined;
-  public inBody = false;
+  public dropTarget: CategoryData|string|undefined;
+  public showAll = false;
+  public expanded: {[x: number]: boolean} = {};
 
   private unreadByFeed: Map<number, FeedData> = new Map();
   private unreadByCategory: Map<number, CategoryData> = new Map();
@@ -106,6 +115,23 @@ export class NavComponent {
     return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
   }
 
+  public shouldHideCategory(c: Category): boolean {
+    if (this.showAll) {
+      return false;
+    }
+
+    if (!c.hiddenNav || c.name === this.selectedCategoryName) {
+      return false;
+    }
+
+    const fd = this.unreadByFeed.get(this.selectedFeed);
+    if (fd && fd.feed.categoryId === c.id) {
+      return false;
+    }
+
+    return true;
+  }
+
   public isRefreshing(): boolean {
     return this.refreshService.isRefreshing();
   }
@@ -118,7 +144,6 @@ export class NavComponent {
     const data = event.source.data;
     this.dragging = true;
     this.dropTarget = undefined;
-    this.inBody = true;
     if (data instanceof FeedData) {
       this.hideCategory = data.feed.categoryId;
     }
@@ -128,31 +153,38 @@ export class NavComponent {
     }
   }
 
-  public dragDropped(event: CdkDragDrop<void, FeedData|CategoryData>) {
+  public dragDropped(event: CdkDragDrop<CategoryData|void, FeedData|CategoryData>) {
     this.dragging = false;
     this.hideCategory = undefined;
     this.draggingCategory = undefined;
-    if (!event.isPointerOverContainer && !this.inBody) {
+    if (!event.isPointerOverContainer) {
       return;
     }
+
+    // this.dropTarget is a really hacky workaround for removing feeds from categories
+    // it only works with a real mouse
+    // TODO -- Implement a better workaround for Material's awful drag and drop on mobile
+    const target = this.dropTarget || event.container.data;
+    const targetCategory = target instanceof CategoryData ? target : undefined;
+
 
     // TODO -- Actually do these things
     const data = event.item.data;
     if (data instanceof CategoryData) {
-      if (this.dropTarget && data.category.id !== this.dropTarget.category.id) {
-        console.log(`would sort ${data.category.id} after ${this.dropTarget.category.id}`);
+      if (targetCategory && data.category.id !== targetCategory.category.id) {
+        console.log(`would sort ${data.category.id} after ${targetCategory.category.id}`);
       } else {
         console.log(`would sort ${data.category.id} at the end`);
       }
     }
 
     if (data instanceof FeedData) {
-      if (!this.dropTarget && data.feed.categoryId !== undefined) {
+      if (!targetCategory && data.feed.categoryId !== undefined) {
         console.log(`would remove ${data.feed.id} from ${data.feed.categoryId}`);
       }
 
-      if (this.dropTarget && data.feed.categoryId !== this.dropTarget.category.id) {
-        console.log(`would add ${data.feed.id} to ${this.dropTarget.category.id}`);
+      if (targetCategory && data.feed.categoryId !== targetCategory.category.id) {
+        console.log(`would add ${data.feed.id} to ${targetCategory.category.id}`);
       }
     }
   }
@@ -242,14 +274,24 @@ export class NavComponent {
     });
 
     u.feeds.forEach((f: Feed) => {
-      if (!this.unreadByFeed.has(f.id)) {
+      let fd = this.unreadByFeed.get(f.id);
+      if (!fd) {
         mustSort = true;
-        this.unreadByFeed.set(f.id, new FeedData(f));
+        fd = new FeedData(f);
+        this.unreadByFeed.set(f.id, fd);
+        const lastItem = this.dataService.getInitialTimestampForFeed(f.id);
+        if (lastItem) {
+          fd.lastItem = new Date(lastItem);
+          fd.lastItemString = this.timeAgoString(fd.lastItem);
+        }
       }
 
-      const fd = this.unreadByFeed.get(f.id);
       const oldf = fd.feed;
       fd.feed = f;
+
+      if (f.failingSince) {
+        fd.failingSinceString = this.timeAgoString(new Date(f.failingSince));
+      }
 
       if (f.disabled !== oldf.disabled) {
         recalculate = true;
@@ -258,6 +300,11 @@ export class NavComponent {
       if (f.categoryId !== oldf.categoryId) {
         mustSort = true;
         recalculate = true;
+      }
+
+      if (f.title !== oldf.title ||
+          f.userTitle !== oldf.userTitle) {
+        mustSort = true;
       }
     });
 
@@ -270,6 +317,7 @@ export class NavComponent {
       const fd = this.unreadByFeed.get(it.feedId);
       if (!fd.lastItem || new Date(it.timestamp) > fd.lastItem) {
         fd.lastItem = new Date(it.timestamp);
+        fd.lastItemString = this.timeAgoString(fd.lastItem);
       }
 
       const change = it.read ? -1 : 1;
@@ -279,13 +327,7 @@ export class NavComponent {
           // Item is read, but we weren't counting it anyway
           return;
         }
-        if (fd.unread.size === 0) {
-          mustSort = true;
-        }
       } else if (!fd.unread.has(it.id)) {
-        if (fd.unread.size === 0) {
-          mustSort = true;
-        }
         fd.unread.add(it.id);
       } else {
         // Item is unread but we are already counting it
@@ -308,6 +350,11 @@ export class NavComponent {
 
     if (recalculate) {
       this.recalculateUnread();
+    }
+
+    if (u instanceof Updates && u.refresh) {
+      mustSort = true;
+      this.refreshTimeStrings();
     }
 
     if (mustSort) {
@@ -350,6 +397,29 @@ export class NavComponent {
       }
       return a.cData.category.id - b.cData.category.id;
     });
+  }
+
+  private refreshTimeStrings() {
+    this.unreadByFeed.forEach((fd: FeedData) => {
+      if (fd.lastItem) {
+        fd.lastItemString = this.timeAgoString(fd.lastItem);
+      }
+      if (fd.feed.failingSince) {
+        fd.failingSinceString = this.timeAgoString(new Date(fd.feed.failingSince));
+      }
+    });
+  }
+
+  private timeAgoString(ts: Date): string {
+    // Only care about days, hours, and minutes
+    const intervalM = (new Date().valueOf() - ts.valueOf()) / (1000 * 60);
+
+    if (intervalM > 60 * 24 * 2) {
+      return Math.trunc(intervalM / (60 * 24)) + 'd';
+    } else if (intervalM > 120) {
+      return Math.trunc(intervalM / 60) + 'h';
+    }
+    return Math.trunc(intervalM) + 'm';
   }
 
   private emit() {

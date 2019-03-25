@@ -4,33 +4,24 @@
   display: flex;
   position: fixed;
   width: 200px;
-  white-space: nowrap;
   z-index: 2;
 
 
-  .unread,
-  .title {
-    margin: 7px 0 0;
+  .link {
+    padding: 9px 8px 7px 0;
+    line-height: 24px;
   }
 
   .unread {
-    flex: 1 1 auto;
-    margin-left: 4px;
+    margin: 0 0 0 4px;
   }
 
-  .title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 
 .home-link {
+  height: 40px;
   margin-right: 40px;
   padding: 4px;
-}
-
-.home-link {
-  padding-right: 40px;
 
   &.has-header {
     padding-right: 0;
@@ -41,11 +32,18 @@
 .link {
   color: white;
   display: flex;
-  margin: 0;
-  padding: 2px 0;
-  overflow: hidden;
-  text-decoration: unset;
   flex: 1 1 auto;
+  margin: 0;
+  overflow: hidden;
+  padding: 2px 0;
+  text-decoration: unset;
+  white-space: nowrap;
+
+  .title {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   .spacer {
     flex: 1 1 auto;
@@ -108,4 +106,8 @@
 
 .cdk-drop-list-dragging.not-dragging.category {
   transform: none !important;
+}
+
+.mat-expansion-panel-header {
+  padding: 0 8px;
 }

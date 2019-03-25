@@ -10,6 +10,10 @@
 
 .feed {
   padding: 4px;
+
+  &.failing .time {
+    color: mat-color($warn, darker);
+  }
 }
 
 .unread {
@@ -27,6 +31,14 @@
 
   .link {
     color: black;
+  }
+
+  &.failing {
+    background-color: mat-color($warn, darker);
+
+    .time {
+      color: black;
+    }
   }
 }
 

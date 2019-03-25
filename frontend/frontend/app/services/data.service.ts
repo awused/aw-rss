@@ -93,6 +93,7 @@ export class DataService {
   private hasAllCategories = false;
   private feedMetadata: Map<number, FeedMetadata> = new Map();
   private categoryMetadata: Map<number, CategoryMetadata> = new Map();
+  private initialNewestTimestamps: {[x: number]: string};
 
   constructor(
       private readonly http: HttpClient,
@@ -148,6 +149,11 @@ export class DataService {
       throw e;
     }
     return this.feedMetadata.get(id).feed;
+  }
+
+
+  public getInitialTimestampForFeed(id: number): string|undefined {
+    return this.initialNewestTimestamps[id];
   }
 
   public getCategory(id: number): Category|undefined {
@@ -311,6 +317,7 @@ export class DataService {
         .subscribe(
             (state: CurrentState) => {
               this.timestamp = state.timestamp;
+              this.initialNewestTimestamps = state.newestTimestamps;
               this.data = new Data(
                   state.categories,
                   state.feeds,
@@ -326,6 +333,7 @@ export class DataService {
 
               this.data.categories.forEach(
                   (c) => this.categoryMetadata.set(c.id, new CategoryMetadata(c)));
+
 
               this.data$.next(this.data);
             },

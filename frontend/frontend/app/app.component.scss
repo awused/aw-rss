@@ -20,6 +20,7 @@ mat-toolbar {
 
 h1 {
   display: flex;
+  flex: 1 1 auto;
   overflow: hidden;
 }
 
@@ -27,6 +28,10 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.spacer {
+  flex: 1 1 auto;
 }
 
 .unread {
