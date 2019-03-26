@@ -12,7 +12,7 @@
   padding: 4px;
 
   &.failing .time {
-    color: mat-color($warn, darker);
+    color: mat-color($warn);
   }
 }
 
@@ -46,7 +46,7 @@
   color: white;
   display: flex;
   margin: 0;
-  padding: 2px 0;
+  //padding: 2px 0;
   overflow: hidden;
   text-decoration: unset;
   flex: 1 1 auto;

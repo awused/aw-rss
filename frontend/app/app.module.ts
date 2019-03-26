@@ -9,6 +9,7 @@ import {environment} from '../environments/environment';
 
 import {AppRoutingModule} from './app-routing.module';
 import {AppComponent} from './app.component';
+import {DirectivesModule} from './directives/directives.module';
 import {MainViewModule} from './main-view/main-view.module';
 import {MaterialModule} from './material/material.module';
 import {NavModule} from './nav/nav.module';
@@ -26,6 +27,7 @@ import {NavModule} from './nav/nav.module';
     NavModule,
     AppRoutingModule,  // last
     MaterialModule,
+    DirectivesModule,
     ServiceWorkerModule.register(
         '/ngsw-worker.js', {enabled: environment.production})
   ],

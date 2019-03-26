@@ -42,6 +42,20 @@ interface ServerUpdates {
   mustRefresh?: boolean;
 }
 
+interface GetItemsRequest {
+  categoryId?: number;
+  feedIds?: number[];
+  includeFeeds?: boolean;
+  unread?: boolean;
+  readAfter?: Date;
+  readBefore?: Date;
+}
+
+interface GetItemsResponse {
+  items: Item[];
+  feeds?: Feed[];
+}
+
 
 // Data about what is present in the cache for this feed
 class FeedMetadata {
@@ -49,17 +63,12 @@ class FeedMetadata {
       public feed: Feed,
       // True if we have all unread items up to DataService.timestamp
       public hasUnread: boolean = true,
-      // This isn't populated on feeds that have never fetched items or
-      // feeds that were disabled but the web client hasn't yet seen items
-      // for them.
-      // TODO -- evaluate whether this is worth actively fetching
-      public latestItem?: Date,
       // The time ranges of fetches read items, in order
       // Overlapping time ranges are merged
       public readTimeRanges: TimeRange[] = []) {}
 }
 
-// Data about what is present in the cache for this feed
+// Data about what is present in the cache for this category
 class CategoryMetadata {
   public readonly feedIds: Set<number>;
 
@@ -68,9 +77,9 @@ class CategoryMetadata {
 }
 
 // A component that cares about read items in a category will need to subscribe
-// so that category mutations result in appropriate replays/fetches
-export interface CategorySubscription {
-  readonly category: number;
+// so that missing data is fetched when necessary
+export interface ReadSubscription {
+  readonly category?: number;
   readonly readTimeRange: TimeRange;
 }
 
@@ -93,6 +102,7 @@ export class DataService {
   private hasAllCategories = false;
   private feedMetadata: Map<number, FeedMetadata> = new Map();
   private categoryMetadata: Map<number, CategoryMetadata> = new Map();
+  // For now it's enough to just do this at initial load
   private initialNewestTimestamps: {[x: number]: string};
 
   constructor(
@@ -119,10 +129,12 @@ export class DataService {
   }
 
   public dataForFilters(f: Filters): Observable<FilteredData> {
+    // TODO -- Handle disabled missing data synchronously
+    // 1. Disabled feeds
+    // 2. data from the past
     return this.data$
         .pipe(
             take(1),
-            // TODO -- Handle interesting missing data cases here synchronously
             map((data: Data): FilteredData => {
               return new FilteredData(
                   data.filter(f), f);
@@ -183,13 +195,10 @@ export class DataService {
     }
   }
 
-  private handleUpdates(u: Updates) {
+  // Returns whether it replayed or not
+  private handleUpdates(u: Updates): boolean {
     // Handle cases where feed/entities need to be fetched or replayed
     // Handle these asynchronously, after starting a spinner
-
-    // Cases where unread items need to be fetched:
-    // An existing (create_timestamp < timestamp) feed goes from disabled to
-    //     enabled and we don't already have the unread items for it
 
     // Cases where read items need to be fetched:
     // An existing feed goes from disabled to enabled and we have read items
@@ -197,25 +206,22 @@ export class DataService {
     // An existing feed goes from disabled to enabled and is part of a category
     //     (including just added) with read items fetched (and we don't have them)
 
-    // Cases where feeds (and items of those feeds) need to be replayed:
-    // Any cases where a fetch would have happened but we already had the data
-    // -- existing feed disabled -> enabled
-    // -- part of a category or we had the read items
-    // A feed that is added to a category
-
     // A category going from enabled to disabled is kept but doesn't cause
     // fetches or replays.
 
 
     let changed;
     let d;
+    let replayed = false;
     [d, changed] = this.data.merge(u);
     if (changed) {
       // Push to data first, so that subscribers of data can take the unchanged
       // fast-path
       this.data = d;
-      const mustReplay = this.updateMetadata(u);
+      const [mustReplay, backfillUnread, backfillRead] = this.mergeMetadata(u);
+      this.maybeBackfill(backfillUnread, backfillRead);
       if (mustReplay) {
+        replayed = true;
         // Replays are rare so it is fine to be inefficient
         u = new Updates(
             u.refresh, this.data.categories, this.data.feeds, this.data.items);
@@ -225,13 +231,19 @@ export class DataService {
       u = new Updates(u.refresh);
     }
 
-    // if mustReplay -> u = new Updates(u.refresh, this.data...)
     if (!u.isEmpty()) {
       this.updates$.next(u);
     }
+    return replayed;
   }
 
-  private updateMetadata(u: Updates): boolean {
+  // [mustReplay, backfillUnread, backfillRead]
+  private mergeMetadata(
+      u: Updates,
+      isBackfill: boolean = false): [boolean, Set<number>, Set<number>] {
+    const backfillUnread: Set<number> = new Set();
+    const backfillRead: Set<number> = new Set();
+
     let mustReplay = false;
 
     u.categories.forEach((c) => {
@@ -268,6 +280,10 @@ export class DataService {
     u.feeds.forEach((f) => {
       if (this.feedMetadata.has(f.id)) {
         const m = this.feedMetadata.get(f.id);
+        if (isBackfill) {
+          m.hasUnread = true;
+        }
+
         if (m.feed.commitTimestamp > f.commitTimestamp) {
           return;
         }
@@ -283,13 +299,16 @@ export class DataService {
         }
 
         if (!m.hasUnread) {
+          backfillUnread.add(f.id);
           // Fetch missing data
         }
 
         if (oldFeed.categoryId !== f.categoryId) {
           mustReplay = true;
+          // if (this.sub && (!this.sub.id || f.categoryId == this.sub.id)) {
           // Check for missing time ranges in category subscriptions
           // Fetch if necessary
+          // }
         }
         // Check for missing global time ranges and fetch missing data
         return;
@@ -297,18 +316,71 @@ export class DataService {
 
       this.feedMetadata.set(
           f.id,
-          new FeedMetadata(f, f.createTimestamp > this.timestamp));
-      if (!f.disabled && f.createTimestamp < this.timestamp) {
+          new FeedMetadata(
+              f,
+              isBackfill || f.createTimestamp >= this.timestamp));
+      if (!f.disabled && !isBackfill && f.createTimestamp < this.timestamp) {
         // Do Fetches
+        backfillUnread.add(f.id);
+
+        // if (this.sub && (!this.sub.id || f.categoryId == this.sub.id)) {
+        // Check for missing time ranges in category subscriptions
+        // Fetch if necessary
+        // }
       }
     });
 
 
-    u.items.forEach((i) => {
+    return [mustReplay, backfillUnread, backfillRead];
+  }
 
-                    });
+  private maybeBackfill(unread: Set<number>, read: Set<number>) {
+    if (!unread.size && !read.size) {
+      return;
+    }
 
-    return mustReplay;
+    // We will never have feeds where we only care about read items
+    const unreadOnly = [...unread].filter((x) => !read.has(x));
+    if (unreadOnly.length) {
+      this.getItems({
+        feedIds: [...unreadOnly],
+        unread: true,
+      });
+    }
+    if (read.size) {
+      // TODO
+      console.log(`Would fetch read items for ${[...read]}`);
+    }
+  }
+
+  private getItems(req: GetItemsRequest) {
+    this.loadingService.startLoading();
+    this.http.post<GetItemsResponse>('/api/items', req)
+        .subscribe(
+            (resp: GetItemsResponse) => {
+              const u = new Updates(false, [], resp.feeds, resp.items);
+              // We don't trigger backfills from backfills
+              // There is a bug where this can cause missing items if a user
+              // updates a previously disabled feed to switch its categories
+              // between a refresh and when the backfill completes, but that is
+              // simply not worth handling.
+              const mustReplay = this.mergeMetadata(u, req.unread)[0];
+              // TODO -- fill in time ranges here
+              const replayed = this.handleUpdates(u);
+              if (mustReplay && !replayed) {
+                this.updates$.next(
+                    new Updates(
+                        false,
+                        this.data.categories,
+                        this.data.feeds,
+                        this.data.items));
+              }
+            },
+            (error: Error) => {
+              this.errorService.showError(error);
+              this.loadingService.finishLoading();
+            },
+            () => this.loadingService.finishLoading());
   }
 
   private getInitialState() {
@@ -325,15 +397,11 @@ export class DataService {
 
               this.data.feeds.forEach(
                   (f) => this.feedMetadata.set(
-                      f.id,
-                      new FeedMetadata(
-                          f,
-                          true,
-                          new Date(state.newestTimestamps[f.id]))));
+                      f.id, new FeedMetadata(f, true)));
 
               this.data.categories.forEach(
-                  (c) => this.categoryMetadata.set(c.id, new CategoryMetadata(c)));
-
+                  (c) => this.categoryMetadata.set(
+                      c.id, new CategoryMetadata(c)));
 
               this.data$.next(this.data);
             },
@@ -341,8 +409,7 @@ export class DataService {
               this.errorService.showError(error);
               this.loadingService.finishLoading();
             },
-            () => this.loadingService.finishLoading(),
-        );
+            () => this.loadingService.finishLoading());
   }
 
   private refreshState(): void {

@@ -6,18 +6,42 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/awused/aw-rss/internal/database"
 	"github.com/awused/aw-rss/internal/structs"
 	"github.com/go-chi/chi"
 	"github.com/golang/glog"
 )
 
+// It'd be nice to replace this with grpc but grpc-web is too much of a pain
 func (ws *webserver) apiRoutes(r chi.Router) {
-	//r.Post("/items", ws.getItems)
+	r.Post("/items", ws.getItems)
 	r.Post("/items/{id}/read", ws.setItemRead(true))
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 
 	r.Get("/current", ws.currentState)
 	r.Get("/updates/{timestamp}", ws.updatesSince)
+}
+
+func (ws *webserver) getItems(w http.ResponseWriter, r *http.Request) {
+	var req database.GetItemsRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resp, err := ws.db.GetItems(req)
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err = json.NewEncoder(w).Encode(resp); err != nil {
+		glog.Error(err)
+	}
 }
 
 func (ws *webserver) setItemRead(readState bool) http.HandlerFunc {

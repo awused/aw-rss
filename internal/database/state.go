@@ -9,6 +9,8 @@ import (
 	"github.com/golang/glog"
 )
 
+// TODO -- move these request/response objects to a separate package
+
 // CurrentState contains the initial data sent to the client
 type CurrentState struct {
 	Timestamp   int64               `json:"timestamp"`

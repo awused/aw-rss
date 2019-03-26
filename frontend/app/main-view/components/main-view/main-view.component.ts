@@ -88,6 +88,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
           }
         });
 
+    // TODO -- this needs to combine params and query params
+    // and debounce them
     this.route.paramMap
         .pipe(
             takeUntil(this.onDestroy$),

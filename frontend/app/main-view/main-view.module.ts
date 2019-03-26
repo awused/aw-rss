@@ -3,6 +3,7 @@ import {NgModule} from '@angular/core';
 import {RouterModule,
         Routes} from '@angular/router';
 
+import {DirectivesModule} from '../directives/directives.module';
 import {MaterialModule} from '../material/material.module';
 import {PipesModule} from '../pipes/pipes.module';
 
@@ -31,6 +32,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     MaterialModule,
     PipesModule,
+    DirectivesModule,
   ],
   declarations: [ItemComponent, MainViewComponent],
   exports: [RouterModule]

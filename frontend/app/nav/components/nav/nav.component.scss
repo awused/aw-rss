@@ -1,5 +1,11 @@
 @import 'variables';
 
+// TODO - remove https://github.com/angular/material2/pull/14732
+.home-link,
+.body {
+  margin-right: 60px;
+}
+
 .header {
   display: flex;
   position: fixed;
@@ -20,7 +26,6 @@
 
 .home-link {
   height: 40px;
-  margin-right: 40px;
   padding: 4px;
 
   &.has-header {
@@ -73,7 +78,6 @@
 }
 
 .body {
-  padding-right: 40px;
   min-width: 200px;
 
   &.has-header {

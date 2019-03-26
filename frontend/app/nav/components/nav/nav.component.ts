@@ -71,12 +71,8 @@ export class NavComponent {
           this.paramService.mainViewParams()
               .subscribe((p: ParamMap) => this.handleParams(p));
           this.route.queryParamMap
-              .subscribe((q: ParamMap) => {
-                // Dammit Angular https://github.com/angular/angular/issues/12664
-                if (q.has('all')) {
-                  this.showAll = q.get('all') === 'true';
-                }
-              });
+              .subscribe(
+                  (q: ParamMap) => this.showAll = q.get('all') === 'true');
         });
   }
   @Input()
@@ -89,24 +85,35 @@ export class NavComponent {
   public selectedCategoryName?: string;
   public selectedFeed?: number;
   public navCategories: NavCategory[];
+  // Contains uncategorized feeds that have unread items or are failing
   public uncategorizedFeeds: FeedData[];
+  // Contains only successful uncategorized feeds with no unread items
+  // that are not failing
+  public uncategorizedReadFeeds: FeedData[] = [];
   public dragging = false;
   public draggingCategory?: number;
-  public hideCategory?: number;
   public dropTarget: CategoryData|string|undefined;
   public showAll = false;
   public expanded: {[x: number]: boolean} = {};
+  public expandRead = false;
 
   private unreadByFeed: Map<number, FeedData> = new Map();
   private unreadByCategory: Map<number, CategoryData> = new Map();
   private mainUnread = 0;
   private categoriesByName: Map<string, number> = new Map();
 
+  // Failing feeds at the top, then feeds with unread items, then the rest.
+  // Within those buckets they're sorted alphabetically.
   private static feedDataComparator(a: FeedData, b: FeedData): number {
+    if (a.feed.failingSince && !b.feed.failingSince) {
+      return -1;
+    } else if (!a.feed.failingSince && b.feed.failingSince) {
+      return 1;
+    }
+
     if (a.unread.size && !b.unread.size) {
       return -1;
-    }
-    if (!a.unread.size && b.unread.size) {
+    } else if (!a.unread.size && b.unread.size) {
       return 1;
     }
 
@@ -143,10 +150,6 @@ export class NavComponent {
   public dragStarted(event: CdkDragStart<FeedData|CategoryData>, x: any) {
     const data = event.source.data;
     this.dragging = true;
-    this.dropTarget = undefined;
-    if (data instanceof FeedData) {
-      this.hideCategory = data.feed.categoryId;
-    }
 
     if (data instanceof CategoryData) {
       this.draggingCategory = data.category.id;
@@ -155,16 +158,19 @@ export class NavComponent {
 
   public dragDropped(event: CdkDragDrop<CategoryData|void, FeedData|CategoryData>) {
     this.dragging = false;
-    this.hideCategory = undefined;
     this.draggingCategory = undefined;
-    if (!event.isPointerOverContainer) {
+    // if (!event.isPointerOverContainer) {
+    //   return;
+    // }
+
+    // this.dropTarget is a really hacky workaround for Angular Material's
+    // broken drag and drop
+    // TODO -- Implement a better workaround for Material's awful drag and drop on mobile
+    if (!this.dropTarget) {
       return;
     }
 
-    // this.dropTarget is a really hacky workaround for removing feeds from categories
-    // it only works with a real mouse
-    // TODO -- Implement a better workaround for Material's awful drag and drop on mobile
-    const target = this.dropTarget || event.container.data;
+    const target = this.dropTarget;
     const targetCategory = target instanceof CategoryData ? target : undefined;
 
 
@@ -366,6 +372,7 @@ export class NavComponent {
   private sortNav() {
     this.navCategories = [];
     this.uncategorizedFeeds = [];
+    this.uncategorizedReadFeeds = [];
 
     const ncm: Map<number, NavCategory> = new Map();
 
@@ -375,12 +382,15 @@ export class NavComponent {
     this.unreadByFeed.forEach((fd: FeedData) => {
       if (ncm.has(fd.feed.categoryId)) {
         ncm.get(fd.feed.categoryId).fData.push(fd);
-      } else {
+      } else if (fd.unread.size || fd.feed.failingSince) {
         this.uncategorizedFeeds.push(fd);
+      } else {
+        this.uncategorizedReadFeeds.push(fd);
       }
     });
 
     this.uncategorizedFeeds.sort(NavComponent.feedDataComparator);
+    this.uncategorizedReadFeeds.sort(NavComponent.feedDataComparator);
 
     ncm.forEach((nc: NavCategory) => {
       nc.fData.sort(NavComponent.feedDataComparator);
@@ -395,6 +405,10 @@ export class NavComponent {
 
         return a.cData.category.sortOrder - b.cData.category.sortOrder;
       }
+      if (b.cData.category.sortOrder !== undefined) {
+        return 1;
+      }
+
       return a.cData.category.id - b.cData.category.id;
     });
   }

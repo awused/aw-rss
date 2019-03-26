@@ -47,7 +47,6 @@
      cdkDropListGroup>
   <mat-expansion-panel *ngFor="let nc of navCategories; let evenC = even; let oddC = odd"
                        class="category"
-                       [class.hidden]="hideCategory == nc.cData.category.id"
                        [class.not-dragging]="draggingCategory !== nc.cData.category.id"
                        [class.should-hide]="shouldHideCategory(nc.cData.category)"
                        [expanded]="expanded[nc.cData.category.id]"
@@ -66,8 +65,8 @@
                                 [collapsedHeight]="'48px'"
                                 [expandedHeight]="'48px'"
                                 routerLinkActive="active">
-      <div class="link"
-           routerLink="/category/{{nc.cData.category.name}}">
+      <a class="link"
+         routerLink="/category/{{nc.cData.category.name}}">
         <div class="title">
           {{nc.cData.category.title}}
         </div>
@@ -77,7 +76,7 @@
           ({{nc.cData.unread}})
         </div>
         <!-- TODO - show unread counter -->
-      </div>
+      </a>
     </mat-expansion-panel-header>
     <ng-template matExpansionPanelContent>
       <awrss-feed class="feed"
@@ -113,5 +112,28 @@
          *ngIf="dragging">
       {{draggingCategory ? 'End' : 'Uncategorized'}}
     </div>
+    <mat-expansion-panel class="uncategorized"
+                         [class.hidden]="dragging"
+                         *ngIf="uncategorizedReadFeeds.length">
+      <mat-expansion-panel-header>
+        Read Feeds
+      </mat-expansion-panel-header>
+      <ng-template matExpansionPanelContent>
+        <div cdkDropList
+             (cdkDropListDropped)="dragDropped($event)">
+          <awrss-feed class="feed"
+                      *ngFor="let fd of uncategorizedReadFeeds; let even = even; let odd = odd;"
+                      [class.primary-dark-bg]="odd"
+                      [class.primary-bg]="even"
+                      [fd]="fd"
+                      routerLinkActive="active"
+                      cdkDrag
+                      [cdkDragData]="fd"
+                      (cdkDragStarted)="dragStarted($event)">
+          </awrss-feed>
+        </div>
+      </ng-template>
+    </mat-expansion-panel>
+
   </div>
 </div>
