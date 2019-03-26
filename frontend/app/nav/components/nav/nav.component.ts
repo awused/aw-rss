@@ -76,7 +76,7 @@ export class NavComponent {
         });
   }
   @Input()
-  public showHeader: boolean;
+  public isMobile: boolean;
   @Output()
   public unreadCount = new EventEmitter<number>();
   @Output()
@@ -159,14 +159,12 @@ export class NavComponent {
   public dragDropped(event: CdkDragDrop<CategoryData|void, FeedData|CategoryData>) {
     this.dragging = false;
     this.draggingCategory = undefined;
-    // if (!event.isPointerOverContainer) {
-    //   return;
-    // }
 
-    // this.dropTarget is a really hacky workaround for Angular Material's
-    // broken drag and drop
+    // This is a really hacky workaround for Angular Material's
+    // broken drag and drop.
+    // It's worthless on mobile.
     // TODO -- Implement a better workaround for Material's awful drag and drop on mobile
-    if (!this.dropTarget) {
+    if (!this.dropTarget || this.isMobile) {
       return;
     }
 

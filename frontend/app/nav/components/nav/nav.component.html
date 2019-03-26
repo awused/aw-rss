@@ -1,5 +1,5 @@
 <div class="header primary-dark-bg"
-     *ngIf="showHeader">
+     *ngIf="!isMobile">
   <button (click)="refresh()"
           aria-label="Refresh"
           [disabled]="isRefreshing()"
@@ -20,7 +20,7 @@
   </a>
 </div>
 <div class="home-link"
-     *ngIf="!showHeader"
+     *ngIf="isMobile"
      routerActiveLink="active">
   <a class="link"
      routerLink="/">
@@ -36,14 +36,14 @@
 </div>
 <!-- TODO
    https://github.com/angular/material2/pull/14732
-   [cdkDragStartDelay]="showHeader ? 1000 : 0"
+   [cdkDragStartDelay]="isMobile ? 1000 : 0"
 
    on every draggable so we don't break scrolling
 
   Then remove the hacky right padding on the menu on mobile.
 -->
 <div class="body"
-     [class.has-header]="showHeader"
+     [class.has-header]="!isMobile"
      cdkDropListGroup>
   <mat-expansion-panel *ngFor="let nc of navCategories; let evenC = even; let oddC = odd"
                        class="category"
@@ -58,6 +58,7 @@
                        (mouseenter)="dropTarget = nc.cData"
                        (mouseleave)="dropTarget = undefined"
                        cdkDrag
+                       [cdkDragDisabled]="isMobile"
                        [cdkDragData]="nc.cData"
                        (cdkDragStarted)="dragStarted($event)">
     <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
@@ -87,6 +88,7 @@
                   [fd]="fd"
                   routerLinkActive="active"
                   cdkDrag
+                  [cdkDragDisabled]="isMobile"
                   [cdkDragData]="fd"
                   (cdkDragStarted)="dragStarted($event)">
       </awrss-feed>
@@ -105,6 +107,7 @@
                 [fd]="fd"
                 routerLinkActive="active"
                 cdkDrag
+                [cdkDragDisabled]="isMobile"
                 [cdkDragData]="fd"
                 (cdkDragStarted)="dragStarted($event)">
     </awrss-feed>
@@ -128,6 +131,7 @@
                       [fd]="fd"
                       routerLinkActive="active"
                       cdkDrag
+                      [cdkDragDisabled]="isMobile"
                       [cdkDragData]="fd"
                       (cdkDragStarted)="dragStarted($event)">
           </awrss-feed>

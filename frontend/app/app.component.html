@@ -30,7 +30,7 @@
                  [fixedTopGap]="mobileQuery.matches ? 56 : 0"
                  fixedInViewport
                  disableClose>
-      <awrss-nav [showHeader]="!mobileQuery.matches"
+      <awrss-nav [isMobile]="mobileQuery.matches"
                  (unreadCount)="unread = $event"
                  (pageTitle)="title = $event">
       </awrss-nav>
