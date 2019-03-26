@@ -7,7 +7,8 @@
     "types": [
       "jasmine",
       "node"
-    ]
+    ],
+    "downlevelIteration": true
   },
   "files": [
     "test.ts",

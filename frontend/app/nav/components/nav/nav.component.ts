@@ -319,6 +319,7 @@ export class NavComponent {
       }
 
       const fd = this.unreadByFeed.get(it.feedId);
+      const hadLastItem = !!fd.lastItem;
       if (!fd.lastItem || new Date(it.timestamp) > fd.lastItem) {
         fd.lastItem = new Date(it.timestamp);
         fd.lastItemString = this.timeAgoString(fd.lastItem);
@@ -332,6 +333,11 @@ export class NavComponent {
           return;
         }
       } else if (!fd.unread.has(it.id)) {
+        // Specifically, we want to catch backfills that otherwise wouldn't
+        // trigger a resort
+        if (!hadLastItem && fd.unread.size === 0) {
+          mustSort = true;
+        }
         fd.unread.add(it.id);
       } else {
         // Item is unread but we are already counting it
