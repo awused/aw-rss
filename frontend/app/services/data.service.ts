@@ -365,7 +365,17 @@ export class DataService {
               // between a refresh and when the backfill completes, but that is
               // simply not worth handling.
               const mustReplay = this.mergeMetadata(u, req.unread)[0];
-              // TODO -- fill in time ranges here
+              req.feedIds.forEach((fid: number) => {
+                const fm = this.feedMetadata.get(fid);
+                if (!fm) {
+                  return;
+                }
+
+                if (req.unread) {
+                  fm.hasUnread = true;
+                }
+                // TODO -- fill in time ranges here
+              });
               const replayed = this.handleUpdates(u);
               if (mustReplay && !replayed) {
                 this.updates$.next(
