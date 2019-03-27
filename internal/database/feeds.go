@@ -115,3 +115,30 @@ func getCurrentFeeds(dot dbOrTx) ([]*structs.Feed, error) {
 	glog.V(5).Info("getCurrentFeeds() completed")
 	return feeds, nil
 }
+
+// InsertNewFeed creates and inserts a new feed from the url and user title
+func (d *Database) InsertNewFeed(url string, userTite string) (
+	*structs.Feed, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if err := d.checkClosed(); err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	glog.Info("Adding new feed [%s]", url)
+
+	sql := `INSERT INTO feeds(url, usertitle) VALUES (?, ?);`
+	res, err := d.db.Exec(sql, url, userTite)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return getFeed(d.db, id)
+}

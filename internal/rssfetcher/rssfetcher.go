@@ -30,6 +30,8 @@ const startupRateLimit = 250 * time.Millisecond
 type RssFetcher interface {
 	Run() error
 	Close() error
+	// InformFeedChanged informs the fetcher that a feed has changed
+	InformFeedChanged()
 }
 
 type feedError struct {
@@ -48,6 +50,8 @@ type rssFetcher struct {
 	lastPolled   time.Time
 	wg           sync.WaitGroup
 	errorChan    chan feedError
+	// Used when a feed has changed in a way that will impact fetching
+	feedsChangedChan chan struct{}
 	// Per-host critical sections
 	hostLocks map[string]*sync.Mutex
 	closed    bool
@@ -76,11 +80,21 @@ func NewRssFetcher() (RssFetcher, error) {
 	rss.hostLocks = make(map[string]*sync.Mutex)
 	rss.closeChan = make(chan struct{})
 	rss.errorChan = make(chan feedError)
+	rss.feedsChangedChan = make(chan struct{})
 
 	rss.cloudflare = newCloudflare(rss.closeChan)
 
 	glog.V(5).Info("rssFetcher() completed")
 	return &rss, nil
+}
+
+// InformFeedChanged informs the fetcher that a feed has changed in a way that
+// impacts fetching.
+func (r *rssFetcher) InformFeedChanged() {
+	select {
+	case r.feedsChangedChan <- struct{}{}:
+	case <-r.closeChan:
+	}
 }
 
 func (r *rssFetcher) Close() error {
@@ -131,10 +145,14 @@ func (r *rssFetcher) Run() (err error) {
 		}
 	}()
 
+	forcePoll := false
+
 	glog.Info("rssFetcher started running")
 	for {
-		if r.lastPolled.IsZero() || time.Since(r.lastPolled) > dbPollPeriod {
+		if forcePoll ||
+			r.lastPolled.IsZero() || time.Since(r.lastPolled) > dbPollPeriod {
 			glog.V(3).Info("Checking database for new feeds")
+			forcePoll = false
 
 			newFeedsArray, err := r.db.GetCurrentFeeds()
 			if err != nil {
@@ -179,7 +197,9 @@ func (r *rssFetcher) Run() (err error) {
 			return nil
 		case <-time.After(dbPollPeriod - time.Since(r.lastPolled)):
 			// This polling is the last line of defense against out of band edits
-			// TODO -- Add another routine to handle single updates
+		case <-r.feedsChangedChan:
+			forcePoll = true
+			// This is a rare enough case that it's simplest to just poll the DB again
 		}
 	}
 }

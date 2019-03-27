@@ -7,11 +7,17 @@ import {map,
 
 import {Data,
         Updates} from '../models/data';
-import {Item} from '../models/entities';
+import {Feed,
+        Item} from '../models/entities';
 
 import {DataService} from './data.service';
 import {ErrorService} from './error.service';
 import {LoadingService} from './loading.service';
+
+interface AddFeedResponse {
+  candidates?: string[];
+  feed?: Feed;
+}
 
 // MutateService is used to update components
 // This only returns void observables so components know when actions have
@@ -45,6 +51,35 @@ export class MutateService {
 
     this.subscribe(obs);
     return obs.pipe(map(() => {}));
+  }
+
+  public newFeed(feedUrl: string, title: string, force: boolean):
+      Observable<string[]|void> {
+    const url = `/api/feeds/add`;
+    const request = {
+      url: feedUrl,
+      title,
+      force
+    };
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http
+            .post<AddFeedResponse>(url, request)
+            .pipe(
+                map((resp: AddFeedResponse) => {
+                  if (resp.feed) {
+                    this.dataService.pushUpdates(
+                        new Updates(false, [], [resp.feed]));
+                  }
+
+                  if (resp.candidates) {
+                    return resp.candidates;
+                  }
+                }),
+                share());
+    this.subscribe(obs);
+    return obs;
   }
 
   private subscribe(obs: Observable<any>) {

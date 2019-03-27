@@ -18,6 +18,8 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 	r.Post("/items/{id}/read", ws.setItemRead(true))
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 
+	r.Post("/feeds/add", ws.addFeed)
+
 	r.Get("/current", ws.currentState)
 	r.Get("/updates/{timestamp}", ws.updatesSince)
 }

@@ -1,0 +1,37 @@
+<div mat-dialog-content>
+  <mat-tab-group>
+    <mat-tab label="Feed">
+      <form (ngSubmit)="submitFeed()"
+            autocomplete="off"
+            name="feedForm"
+            #feedForm="ngForm">
+        <mat-form-field>
+          <input matInput
+                 name="feed-url"
+                 #feedurl
+                 required
+                 [formControl]="feedUrl"
+                 placeholder="Feed URL">
+        </mat-form-field>
+        <mat-form-field>
+          <input matInput
+                 name="user-title"
+                 #usertitle
+                 [(ngModel)]="title"
+                 placeholder="Title Override"
+                 matTooltip="Override the automatically detected title of the feed. Optional.">
+        </mat-form-field>
+        <div align="right">
+          <button type="submit"
+                  [disabled]="!feedUrl.valid"
+                  mat-button>
+            Add
+          </button>
+        </div>
+      </form>
+    </mat-tab>
+    <mat-tab label="Category">
+      Soon(tm)
+    </mat-tab>
+  </mat-tab-group>
+</div>

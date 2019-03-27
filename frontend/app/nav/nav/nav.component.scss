@@ -115,3 +115,9 @@
 .mat-expansion-panel-header {
   padding: 0 8px;
 }
+
+.buttons {
+  display: flex;
+  flex-direction: row-reverse;
+  margin-top: 8px;
+}

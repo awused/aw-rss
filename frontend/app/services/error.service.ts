@@ -14,13 +14,22 @@ export class ErrorService {
 
   public showError(error: string|Error|HttpErrorResponse): Observable<MatSnackBarDismiss> {
     let m: string;
-    if (error instanceof Error || error instanceof HttpErrorResponse) {
+    if (error instanceof HttpErrorResponse) {
+      m = `${error.statusText}: ${error.error}`;
+    } else if (error instanceof Error) {
       m = error.message;
     } else {
       m = error;
     }
     console.error(error);
-    return this.snackBar.open(m, 'Close')
+    return this.snackBar
+        .open(
+            m,
+            'Close',
+            {
+              politeness: 'assertive',
+              panelClass: 'warn-bg',
+            })
         .afterDismissed();
   }
 }

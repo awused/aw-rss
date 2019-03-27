@@ -138,6 +138,15 @@
         </div>
       </ng-template>
     </mat-expansion-panel>
+  </div>
 
+  <div class="buttons"
+       [class.hidden]="dragging">
+    <button (click)="openAddDialog()"
+            aria-label="Add Feed or Category"
+            mat-button
+            mat-button-right>
+      New
+    </button>
   </div>
 </div>

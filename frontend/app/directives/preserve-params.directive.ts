@@ -1,10 +1,5 @@
-import {Directive,
-        OnDestroy,
-        OnInit} from '@angular/core';
-import {ActivatedRoute,
-        RouterLinkWithHref} from '@angular/router';
-import {Subject} from 'rxjs';
-import {takeUntil} from 'rxjs/operators';
+import {Directive} from '@angular/core';
+import {RouterLinkWithHref} from '@angular/router';
 
 @Directive({
   // This is adequate as long as I don't programmatically nagivate users
@@ -14,22 +9,9 @@ import {takeUntil} from 'rxjs/operators';
   // Use [queryParamsHandling]="''" to disable it
   selector: 'a[routerLink]:not([queryParamsHandling])'
 })
-export class PreserveParamsDirective implements OnInit, OnDestroy {
-  private readonly onDestroy$: Subject<void> = new Subject();
-
+export class PreserveParamsDirective {
   constructor(
-      private readonly link: RouterLinkWithHref,
-      private readonly route: ActivatedRoute) {}
-
-  ngOnInit() {
-    this.route.queryParamMap
-        .pipe(takeUntil(this.onDestroy$))
-        .subscribe(queryParams => {
-          this.link.queryParams = Object.assign({}, this.route.snapshot.queryParams);
-        });
-  }
-
-  ngOnDestroy() {
-    this.onDestroy$.next();
+      private readonly link: RouterLinkWithHref) {
+    this.link.queryParamsHandling = 'merge';
   }
 }
