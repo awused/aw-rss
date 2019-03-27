@@ -1,5 +1,16 @@
 @import 'variables';
 
+:host() {
+  &.disabled {
+    display: none;
+
+    &.active {
+      display: flex;
+    }
+  }
+}
+
+
 :host(),
 .feed {
   display: flex;

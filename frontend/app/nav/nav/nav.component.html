@@ -85,6 +85,7 @@
                   *ngFor="let fd of nc.fData; let even = even; let odd = odd;"
                   [class.primary-dark-bg]="oddC ? odd : !odd"
                   [class.primary-bg]="oddC ? even : !even"
+                  [class.disabled]="fd.feed.disabled"
                   [fd]="fd"
                   routerLinkActive="active"
                   cdkDrag
@@ -104,6 +105,7 @@
                 *ngFor="let fd of uncategorizedFeeds; let even = even; let odd = odd;"
                 [class.primary-dark-bg]="odd"
                 [class.primary-bg]="even"
+                [class.disabled]="fd.feed.disabled"
                 [fd]="fd"
                 routerLinkActive="active"
                 cdkDrag

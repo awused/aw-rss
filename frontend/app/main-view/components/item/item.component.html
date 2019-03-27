@@ -11,7 +11,7 @@
   <a *ngIf="showFeed"
      class="feed-link mat-body-strong"
      routerLink="/feed/{{feed.id}}">
-    {{feed.userTitle || feed.title}}
+    {{feed.userTitle || feed.title || feed.siteUrl || feed.url}}
   </a>
 </div>
 <a class="link primary-text"

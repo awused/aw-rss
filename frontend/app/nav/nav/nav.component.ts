@@ -106,6 +106,26 @@ export class NavComponent {
   private mainUnread = 0;
   private categoriesByName: Map<string, number> = new Map();
 
+  // Failing feeds at the top, then feeds with unread items, then the rest.
+  // Within those buckets they're sorted alphabetically.
+  private static feedDataComparator(a: FeedData, b: FeedData): number {
+    if (a.feed.failingSince && !b.feed.failingSince) {
+      return -1;
+    } else if (!a.feed.failingSince && b.feed.failingSince) {
+      return 1;
+    }
+
+    if (a.unread.size && !b.unread.size) {
+      return -1;
+    } else if (!a.unread.size && b.unread.size) {
+      return 1;
+    }
+
+    const aTitle = a.feed.userTitle || a.feed.title;
+    const bTitle = b.feed.userTitle || b.feed.title;
+    return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
+  }
+
 
   public openAddDialog() {
     this.dialog.open(AddDialogComponent, {
@@ -472,25 +492,5 @@ export class NavComponent {
 
   private isHidden(c: Category): boolean {
     return c.hiddenMain || c.hiddenNav;
-  }
-
-  // Failing feeds at the top, then feeds with unread items, then the rest.
-  // Within those buckets they're sorted alphabetically.
-  private static feedDataComparator(a: FeedData, b: FeedData): number {
-    if (a.feed.failingSince && !b.feed.failingSince) {
-      return -1;
-    } else if (!a.feed.failingSince && b.feed.failingSince) {
-      return 1;
-    }
-
-    if (a.unread.size && !b.unread.size) {
-      return -1;
-    } else if (!a.unread.size && b.unread.size) {
-      return 1;
-    }
-
-    const aTitle = a.feed.userTitle || a.feed.title;
-    const bTitle = b.feed.userTitle || b.feed.title;
-    return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
   }
 }

@@ -14,9 +14,10 @@ export class ErrorService {
 
   public showError(error: string|Error|HttpErrorResponse): Observable<MatSnackBarDismiss> {
     let m: string;
-    if (error instanceof HttpErrorResponse) {
+    if (error instanceof HttpErrorResponse &&
+        typeof error.error === 'string') {
       m = `${error.statusText}: ${error.error}`;
-    } else if (error instanceof Error) {
+    } else if (error instanceof Error || error instanceof HttpErrorResponse) {
       m = error.message;
     } else {
       m = error;

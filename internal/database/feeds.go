@@ -127,7 +127,7 @@ func (d *Database) InsertNewFeed(url string, userTite string) (
 		return nil, err
 	}
 
-	glog.Info("Adding new feed [%s]", url)
+	glog.Infof("Adding new feed [%s]", url)
 
 	sql := `INSERT INTO feeds(url, usertitle) VALUES (?, ?);`
 	res, err := d.db.Exec(sql, url, userTite)
