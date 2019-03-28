@@ -73,6 +73,7 @@ func initLogger(conf config.Config) *os.File {
 	log.SetReportCaller(true)
 
 	log.SetFormatter(&log.TextFormatter{
+		ForceColors:   true,
 		FullTimestamp: true,
 		// The SetReportCaller option was clearly written by someone who resented it.
 		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
@@ -93,7 +94,7 @@ func initLogger(conf config.Config) *os.File {
 	if conf.LogFile != "" {
 		// Don't persist logs between sessions, they're not useful
 		file, err = os.OpenFile(
-			conf.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
+			conf.LogFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 
 		if err != nil {
 			log.Fatal(err)
