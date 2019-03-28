@@ -21,11 +21,14 @@
 </div>
 <div class="home-link"
      *ngIf="isMobile"
-     routerActiveLink="active">
-  <a class="link"
+     routerLinkActive="active"
+     [routerLinkActiveOptions]="{exact:true}">
+  <a class="
+     link
+     mat-subheading-1"
      routerLink="/">
     <div class="title">
-      Aw-RSS
+      All Feeds
     </div>
     <div class="spacer"></div>
     <div class="unread"
@@ -80,14 +83,11 @@
       </a>
     </mat-expansion-panel-header>
     <ng-template matExpansionPanelContent>
-      <awrss-feed class="feed"
-                  [class.hidden]="dragging"
+      <awrss-feed [class.hidden]="dragging"
                   *ngFor="let fd of nc.fData; let even = even; let odd = odd;"
                   [class.primary-dark-bg]="oddC ? odd : !odd"
                   [class.primary-bg]="oddC ? even : !even"
-                  [class.disabled]="fd.feed.disabled"
                   [fd]="fd"
-                  routerLinkActive="active"
                   cdkDrag
                   [cdkDragDisabled]="isMobile"
                   [cdkDragData]="fd"
@@ -100,14 +100,11 @@
        (mouseleave)="dropTarget = undefined"
        cdkDropList
        (cdkDropListDropped)="dragDropped($event)">
-    <awrss-feed class="feed"
-                [class.hidden]="dragging"
+    <awrss-feed [class.hidden]="dragging"
                 *ngFor="let fd of uncategorizedFeeds; let even = even; let odd = odd;"
                 [class.primary-dark-bg]="odd"
                 [class.primary-bg]="even"
-                [class.disabled]="fd.feed.disabled"
                 [fd]="fd"
-                routerLinkActive="active"
                 cdkDrag
                 [cdkDragDisabled]="isMobile"
                 [cdkDragData]="fd"
@@ -126,12 +123,10 @@
       <ng-template matExpansionPanelContent>
         <div cdkDropList
              (cdkDropListDropped)="dragDropped($event)">
-          <awrss-feed class="feed"
-                      *ngFor="let fd of uncategorizedReadFeeds; let even = even; let odd = odd;"
+          <awrss-feed *ngFor="let fd of uncategorizedReadFeeds; let even = even; let odd = odd;"
                       [class.primary-dark-bg]="odd"
                       [class.primary-bg]="even"
                       [fd]="fd"
-                      routerLinkActive="active"
                       cdkDrag
                       [cdkDragDisabled]="isMobile"
                       [cdkDragData]="fd"
