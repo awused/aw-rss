@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/awused/aw-rss/internal/structs"
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO -- move these request/response objects to a separate package
@@ -47,42 +47,42 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 	cs := &CurrentState{}
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	// A transaction minimizes the number of locks and prevents external modifications
 	tx, err := d.db.Begin()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Timestamp, err = getTransactionTimestamp(tx)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Categoriess, err = getCurrentCategories(tx)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Feeds, err = getCurrentFeeds(tx)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Items, err = getCurrentItems(tx)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -91,14 +91,14 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 	// Item content
 	cs.NewestTimestamps, err = getNewestTimestamps(tx)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -106,8 +106,6 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 }
 
 func getCurrentCategories(tx *sql.Tx) ([]*structs.Category, error) {
-	glog.V(5).Info("getCurrentCategories() started")
-
 	sql := "SELECT " + structs.CategorySelectColumns + `
 	    FROM
 					categories
@@ -123,17 +121,14 @@ func getCurrentCategories(tx *sql.Tx) ([]*structs.Category, error) {
 	cats, err := structs.ScanCategories(rows)
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
-	glog.V(3).Infof("getCurrentCategories() retrieved %d categories", len(cats))
-	glog.V(5).Info("getCurrentCategories() completed")
+	log.Debugf("getCurrentCategories() retrieved %d categories", len(cats))
 	return cats, nil
 }
 
 func getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
-	glog.V(5).Info("getCurrentItems() started")
-
 	sql := "SELECT " + structs.ItemSelectColumns + `
 	    FROM
 					feeds CROSS JOIN items ON items.feedid = feeds.id
@@ -149,11 +144,10 @@ func getCurrentItems(tx *sql.Tx) ([]*structs.Item, error) {
 	items, err := structs.ScanItems(rows)
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
-	glog.V(3).Infof("getCurrentItems() retrieved %d items", len(items))
-	glog.V(5).Info("getCurrentItems() completed")
+	log.Debugf("getCurrentItems() retrieved %d items", len(items))
 	return items, nil
 }
 
@@ -182,7 +176,7 @@ GROUP BY feedid;`
 		var t []uint8
 		err = rows.Scan(&fid, &t)
 		if err != nil {
-			glog.Error(err)
+			log.Error(err)
 			return nil, err
 		}
 		out[fid], err = time.Parse("2006-01-02 15:04:05Z07:00", string(t))
@@ -218,21 +212,21 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 	up := &Updates{}
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	// A transaction minimizes the number of locks and prevents external modifications
 	tx, err := d.db.Begin()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	up.Timestamp, err = getTransactionTimestamp(tx)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -242,7 +236,7 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 		up.MustRefresh = true
 		err = tx.Commit()
 		if err != nil {
-			glog.Error(err)
+			log.Error(err)
 			tx.Rollback()
 			return nil, err
 		}
@@ -251,28 +245,28 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 
 	up.Categories, err = getUpdatedCategories(tx, tstr)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	up.Feeds, err = getUpdatedFeeds(tx, tstr)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	up.Items, err = getUpdatedItems(tx, tstr)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -280,8 +274,6 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 }
 
 func getUpdatedCategories(tx *sql.Tx, tstr string) ([]*structs.Category, error) {
-	glog.V(5).Info("getUpdatedFeeds() started")
-
 	sql := "SELECT " + structs.CategorySelectColumns + `
 		FROM categories INDEXED BY categories_commit_index
 		WHERE commit_timestamp > ?
@@ -295,17 +287,14 @@ func getUpdatedCategories(tx *sql.Tx, tstr string) ([]*structs.Category, error) 
 	cats, err := structs.ScanCategories(rows)
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
-	glog.V(3).Infof("getUpdatedCategories() retrieved %d feeds", len(cats))
-	glog.V(5).Info("getUpdatedCategories() completed")
+	log.Debugf("getUpdatedCategories() retrieved %d feeds", len(cats))
 	return cats, nil
 }
 
 func getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*structs.Feed, error) {
-	glog.V(5).Info("getUpdatedFeeds() started")
-
 	sql := "SELECT " + structs.FeedSelectColumns + `
 		FROM feeds INDEXED BY feeds_commit_index
 		WHERE commit_timestamp > ?
@@ -319,16 +308,14 @@ func getUpdatedFeeds(tx *sql.Tx, tstr string) ([]*structs.Feed, error) {
 	feeds, err := structs.ScanFeeds(rows)
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
-	glog.V(3).Infof("getUpdatedFeeds() retrieved %d feeds", len(feeds))
-	glog.V(5).Info("getUpdatedFeeds() completed")
+	log.Debugf("getUpdatedFeeds() retrieved %d feeds", len(feeds))
 	return feeds, nil
 }
 
 func getUpdatedItems(tx *sql.Tx, tstr string) ([]*structs.Item, error) {
-	glog.V(5).Info("getUpdatedItems() started")
 
 	sql := "SELECT " + structs.ItemSelectColumns + `
 		FROM items INDEXED BY items_commit_index
@@ -343,10 +330,9 @@ func getUpdatedItems(tx *sql.Tx, tstr string) ([]*structs.Item, error) {
 	items, err := structs.ScanItems(rows)
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
-	glog.V(3).Infof("getUpdatedItems() retrieved %d items", len(items))
-	glog.V(5).Info("getUpdatedItems() completed")
+	log.Debugf("getUpdatedItems() retrieved %d items", len(items))
 	return items, nil
 }

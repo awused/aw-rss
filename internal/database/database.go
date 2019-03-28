@@ -2,17 +2,15 @@ package database
 
 import (
 	"database/sql"
-	"flag"
 	"fmt"
 	"strconv"
 	"sync"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
+
 	// Imported for side effects
 	_ "github.com/mattn/go-sqlite3"
 )
-
-var dbfile = flag.String("db", ":memory:", "The file used to persist the database. Defaults to an in-memory database")
 
 var (
 	once      sync.Once
@@ -33,56 +31,51 @@ type Database struct {
 	closeLock sync.Mutex
 }
 
-// GetDatabase gets an existing DB instance, if any, or creates a new one
-func GetDatabase() (d *Database, err error) {
+// NewDatabase creates a new database instances around the provided sqlite3 DB
+func NewDatabase(dbfile string) (d *Database, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(error)
 		}
 	}()
 
-	glog.V(5).Info("GetDatabase() started")
+	log.Infof("Using database %s", dbfile)
+	if dbfile == ":memory:" {
+		log.Warning("Using in-memory database, state will not persist between runs")
+	}
 
-	once.Do(func() {
-		glog.V(1).Info("No existing instance, creating new database")
+	db, err := sql.Open("sqlite3", dbfile)
+	if err != nil {
+		log.Panic(err)
+	}
 
-		glog.V(1).Infof("Using database %s", *dbfile)
-		if *dbfile == ":memory:" {
-			glog.Warning("Using in-memory database, state will not persist between runs")
-		}
+	err = db.Ping()
+	if err != nil {
+		log.Panic(err)
+	}
 
-		db, err := sql.Open("sqlite3", *dbfile)
-		checkErr(err)
+	var dbase Database
+	dbase.db = db
 
-		err = db.Ping()
-		checkErr(err)
+	dbase.init()
 
-		var dbase Database
-		dbase.db = db
-
-		dbase.init()
-
-		singleton = &dbase
-	})
-
-	glog.V(5).Info("GetDatabase() completed")
-	return singleton, nil
+	return &dbase, nil
 }
 
 // Close closes the database, freeing all resources
 // Requests in flight are allowed to complete but those that haven't started
 // are cancelled
 func (d *Database) Close() error {
-	glog.Info("Closing database")
+	log.Info("Closing database")
 
 	if d.closed {
-		glog.Warning("Tried to close database that has already been closed")
+		log.Warning("Tried to close database that has already been closed")
 		return nil
 	}
 	d.closeLock.Lock()
 	defer d.closeLock.Unlock()
 	if d.closed {
-		glog.Warning("Tried to close database that has already been closed")
+		log.Warning("Tried to close database that has already been closed")
 		return nil
 	}
 
@@ -96,24 +89,34 @@ func (d *Database) Close() error {
 func (d *Database) readVersion() int {
 	var version string
 	err := d.db.QueryRow("SELECT value FROM metadata WHERE key = ?", "dbversion").Scan(&version)
-	checkErr(err)
+	if err != nil {
+		log.Panic(err)
+	}
 	i, err := strconv.Atoi(version)
-	checkErr(err)
+	if err != nil {
+		log.Panic(err)
+	}
 	return i
 }
 
 func (d *Database) getVersion() int {
 	rows, err := d.db.Query("SELECT name FROM sqlite_master WHERE type = 'table';")
-	checkErr(err)
+	if err != nil {
+		log.Panic(err)
+	}
 
 	for rows.Next() {
 		var tableName string
 		err := rows.Scan(&tableName)
-		checkErr(err)
+		if err != nil {
+			log.Panic(err)
+		}
 
 		if tableName == "metadata" {
 			err = rows.Close()
-			checkErr(err)
+			if err != nil {
+				log.Panic(err)
+			}
 
 			return d.readVersion()
 		}
@@ -297,7 +300,9 @@ func (d *Database) upgradeFrom(version int) {
 	if version < 13 {
 		_, err := d.db.Exec(`
 				PRAGMA foreign_keys = OFF;`)
-		checkErr(err)
+		if err != nil {
+			log.Panic(err)
+		}
 		d.upgradeTo(13, version, `
 				CREATE TABLE categories(
 						id INTEGER PRIMARY KEY,
@@ -337,7 +342,9 @@ func (d *Database) upgradeFrom(version int) {
 		_, err = d.db.Exec(`
 				PRAGMA foreign_keys = ON;
 				PRAGMA foreign_key_check;`)
-		checkErr(err)
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 
 	d.upgradeTo(14, version, `
@@ -346,7 +353,9 @@ func (d *Database) upgradeFrom(version int) {
 
 	if version < 13 {
 		_, err := d.db.Exec("VACUUM")
-		checkErr(err)
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 }
 
@@ -354,14 +363,16 @@ func (d *Database) upgradeTo(version int, oldVersion int, sql string) {
 	if version <= oldVersion {
 		return
 	}
-	glog.Infof("Upgrading database to version %d", version)
+	log.Infof("Upgrading database to version %d", version)
 
 	tx, err := d.db.Begin()
-	checkErr(err)
+	if err != nil {
+		log.Panic(err)
+	}
 
 	_, err = tx.Exec(sql)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		panic(err)
 	}
@@ -369,42 +380,40 @@ func (d *Database) upgradeTo(version int, oldVersion int, sql string) {
 	_, err = tx.Exec(`INSERT OR REPLACE INTO metadata(key, value) VALUES ('dbversion', ?);`, strconv.Itoa(version))
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		panic(err)
 	}
 
-	checkErr(tx.Commit())
+	err = tx.Commit()
+	if err != nil {
+		log.Panic(err)
+	}
 }
 
 func (d *Database) init() {
-	glog.V(5).Info("init() started")
+	log.Debug("init() started")
 
 	version := d.getVersion()
 
-	glog.Infof("Database is version %d", version)
+	log.Infof("Database is version %d", version)
 
 	_, err := d.db.Exec(`
 			PRAGMA foreign_keys = ON;`)
-	checkErr(err)
+	if err != nil {
+		log.Panic(err)
+	}
 
 	d.upgradeFrom(version)
 
-	glog.V(5).Info("init() completed")
+	log.Trace("init() completed")
 }
 
 func (d *Database) checkClosed() error {
 	if d.closed {
 		err := fmt.Errorf("Database already closed")
-		glog.ErrorDepth(1, err)
+		log.Error(err)
 		return err
 	}
 	return nil
-}
-
-func checkErr(err error) {
-	if err != nil {
-		glog.ErrorDepth(1, err)
-		panic(err)
-	}
 }

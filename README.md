@@ -1,27 +1,44 @@
-# Frontend
+# AW-RSS
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 6.0.8.
+An RSS/Atom aggregator with a web frontend.
 
-## Development server
+# Running Locally
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+`go get -u github.com/awused/aw-rss`
 
-## Code scaffolding
+Run `npm install` and `npm run-script prod` in the project root to build and compress the frontend.
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+Copy `aw-rss.toml.sample` to `~/.config/aw-rss/aw-rss.toml` or `~/.aw-rss.toml` and fill it out according to the instructions.
 
-## Build
+Run `aw-rss` and navigate to `http://localhost:9092` or the port you configured to access the application. The process will shut down cleanly if killed with SIGINT.
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+## Remote Access
 
-## Running unit tests
+Aw-RSS does not handle any kind of security, authentication, or authorization so it is not safe to expose to the internet. At the minimum you'll need a reverse proxy like nginx with HTTP basic authentication to protect it.
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+# Cloudflare
 
-## Running end-to-end tests
+I include some limited workarounds for cloudflare protected feeds using [cfscrape](https://github.com/Anorov/cloudflare-scrape). You'll need python3, node, and cfscrape installed to run it.
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
+As a safeguard you'll have to whitelist individual hosts in the config file to avoid running javascript you don't minimally trust.
 
-## Further help
+# External Commands
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+I have support for running external commands that generate RSS or atom feeds on stdout in place of calling HTTP servers. Use this if you want to write your own scraper for a website that does not provide feeds.
+
+You cannot add these using the web frontend, you must use the sqlite3 CLI to do it. In place of a url place a shell command prepended by an exclamation point.
+
+Example: `INSERT INTO feeds(url) VALUES('!my-command arg1 arg2 arg3');`
+
+# Frontend Development
+
+You'll have to edit angular.json to match the port you configured the backend to serve on.
+
+Run `ng serve --aot` for an angular dev server. Navigate to `http://localhost:4200/` with the backend already running.
+
+# Why
+
+I built this because I did not like any of the RSS readers, free or paid, I tried after Google Reader died.
+
+Tiny Tiny RSS is the closest thing and I likely would have used it but I did not want to run PHP on my server. Since starting it I've been able to add niche features and workaround for broken feeds that wouldn't be appropriate in a large and widely used project like tt-rss.
+

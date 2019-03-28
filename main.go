@@ -1,33 +1,41 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"os/signal"
+	"path"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 
+	"github.com/awused/aw-rss/internal/config"
 	"github.com/awused/aw-rss/internal/webserver"
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	flag.Parse()
-	defer glog.Flush()
-
-	server, err := webserver.NewWebServer()
+	conf, err := config.LoadConfig()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	defer server.Close()
 
-	serverChan := make(chan struct{}, 1)
+	initLogger(conf)
+
+	server, err := webserver.NewWebServer(conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	serverChan := make(chan error)
 	go func() {
 		if err := server.Run(); err != nil {
-			glog.Error(err)
-			panic(err)
+			log.Error(err)
+			serverChan <- err
+		} else {
+			log.Info("server.Run() exited normally")
 		}
-		glog.Info("server.Run() exited normally")
-		serverChan <- struct{}{}
+		close(serverChan)
 	}()
 
 	sigs := make(chan os.Signal, 1)
@@ -36,21 +44,62 @@ func main() {
 Loop:
 	for {
 		select {
-		case <-serverChan:
-			glog.Errorf("webserver.Run() exited unexpectedly")
-			panic("webserver.Run() exited unexpectedly")
+		case err = <-serverChan:
+			if err != nil {
+				log.Fatalf("webserver.Run() exited unexpectedly with [%v]", err)
+			}
+			log.Fatalf("webserver.Run() exited unexpectedly")
 		case sig := <-sigs:
 			switch sig {
 			case syscall.SIGINT:
 				break Loop
 			case syscall.SIGUSR1:
-				glog.Info("SIGUSR1")
+				log.Info("SIGUSR1")
 			}
 		}
 	}
 	signal.Reset(syscall.SIGINT)
 
-	glog.Info("SIGINT caught, exiting")
+	log.Info("SIGINT caught, exiting")
 	server.Close()
 	<-serverChan
+}
+
+func initLogger(conf config.Config) {
+	// Slow, but not significant
+	log.SetReportCaller(true)
+
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+		// The SetReportCaller option was clearly written by someone who resented it.
+		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+			_, filename := path.Split(f.File)
+			if filename == "logger.go" {
+				return "", ""
+			}
+
+			s := strings.Split(f.Function, ".")
+			funcname := s[len(s)-1]
+			filename = filename + ":" + strconv.Itoa(f.Line)
+			return funcname + "()", filename
+		},
+	})
+
+	if conf.LogFile != "" {
+		// Don't persist logs between sessions, they're not useful
+		file, err := os.OpenFile(
+			conf.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.SetOutput(file)
+		defer file.Close()
+	}
+
+	lvl, err := log.ParseLevel(conf.LogLevel)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetLevel(lvl)
 }

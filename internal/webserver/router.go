@@ -1,16 +1,13 @@
 package webserver
 
 import (
-	"flag"
 	"net/http"
 	"os"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	log "github.com/sirupsen/logrus"
 )
-
-// TODO -- this must die
-var staticRoot = flag.String("static", "/usr/local/www/rss-aggregator", "Directory containing the static files used")
 
 // redirectingFileSystem is an implementation of http.FileSystem that
 // redirects all 404s to an index, which is useful for client side routing
@@ -31,6 +28,12 @@ func (rfs redirectingFileSystem) Open(name string) (http.File, error) {
 }
 
 func (w *webserver) getRouter() http.Handler {
+	middleware.DefaultLogger = middleware.RequestLogger(
+		&middleware.DefaultLogFormatter{
+			Logger:  log.StandardLogger(),
+			NoColor: false,
+		})
+
 	router := chi.NewRouter()
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)
@@ -39,7 +42,7 @@ func (w *webserver) getRouter() http.Handler {
 	router.Route("/api", w.apiRoutes)
 	router.Get("/*", http.FileServer(
 		redirectingFileSystem{
-			http.Dir(*staticRoot),
+			http.Dir(w.conf.DistDir),
 			"index.html"}).ServeHTTP)
 
 	return router

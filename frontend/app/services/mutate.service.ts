@@ -15,6 +15,7 @@ import {ErrorService} from './error.service';
 import {LoadingService} from './loading.service';
 
 interface AddFeedResponse {
+  status: 'success'|'invalid'|'candidates';
   candidates?: string[];
   feed?: Feed;
 }
@@ -54,7 +55,7 @@ export class MutateService {
   }
 
   public newFeed(feedUrl: string, title: string, force: boolean):
-      Observable<string[]|void> {
+      Observable<string[]|'invalid'|void> {
     const url = `/api/feeds/add`;
     const request = {
       url: feedUrl,
@@ -71,6 +72,10 @@ export class MutateService {
                   if (resp.feed) {
                     this.dataService.pushUpdates(
                         new Updates(false, [], [resp.feed]));
+                  }
+
+                  if (resp.status === 'invalid') {
+                    return resp.status;
                   }
 
                   if (resp.candidates) {

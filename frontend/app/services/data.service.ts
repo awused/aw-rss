@@ -47,8 +47,9 @@ interface GetItemsRequest {
   feedIds?: number[];
   includeFeeds?: boolean;
   unread?: boolean;
-  readAfter?: Date;
   readBefore?: Date;
+  readBeforeCount?: number;
+  readAfter?: Date;
 }
 
 interface GetItemsResponse {
@@ -61,11 +62,24 @@ interface GetItemsResponse {
 class FeedMetadata {
   constructor(
       public feed: Feed,
-      // True if we have all unread items up to DataService.timestamp
-      public hasUnread: boolean = true,
-      // The time ranges of fetches read items, in order
-      // Overlapping time ranges are merged
-      public readTimeRanges: TimeRange[] = []) {}
+      // True if we have all unread items, at least up to DataService.timestamp
+      public hasUnread: boolean,
+      // True only when we know we have all read items from the database
+      public allRead: boolean,
+      // We have all read items after this timestamp for this feed
+      // If readAfter <= feed.createTimestamp, then we have all read items
+      private readAfter?: Date) {}
+
+  public setReadAfter(d: Date) {
+    if (d <= new Date(this.feed.createTimestamp + '000')) {
+      this.allRead = true;
+    }
+    this.readAfter = d;
+  }
+
+  public hasReadAfter(d: Date) {
+    return this.allRead || this.readAfter >= d;
+  }
 }
 
 // Data about what is present in the cache for this category
@@ -76,11 +90,11 @@ class CategoryMetadata {
       public category: Category) {}
 }
 
-// A component that cares about read items in a category will need to subscribe
+// A component that cares about read items will need to subscribe
 // so that missing data is fetched when necessary
 export interface ReadSubscription {
   readonly category?: number;
-  readonly readTimeRange: TimeRange;
+  readonly readAfter: Date;
 }
 
 
@@ -195,7 +209,7 @@ export class DataService {
     }
   }
 
-  // Returns whether it replayed or not
+  // Returns whether it replayed all data or not
   private handleUpdates(u: Updates): boolean {
     // Handle cases where feed/entities need to be fetched or replayed
     // Handle these asynchronously, after starting a spinner
@@ -318,7 +332,8 @@ export class DataService {
           f.id,
           new FeedMetadata(
               f,
-              isBackfill || f.createTimestamp >= this.timestamp));
+              isBackfill || f.createTimestamp >= this.timestamp,
+              f.createTimestamp >= this.timestamp));
       if (!f.disabled && !isBackfill && f.createTimestamp < this.timestamp) {
         // Do Fetches
         backfillUnread.add(f.id);
@@ -407,7 +422,7 @@ export class DataService {
 
               this.data.feeds.forEach(
                   (f) => this.feedMetadata.set(
-                      f.id, new FeedMetadata(f, true)));
+                      f.id, new FeedMetadata(f, true, false)));
 
               this.data.categories.forEach(
                   (c) => this.categoryMetadata.set(

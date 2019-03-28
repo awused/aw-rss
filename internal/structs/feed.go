@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/mmcdole/gofeed"
+	log "github.com/sirupsen/logrus"
 )
 
 // Feed represents a single RSS feed
@@ -92,7 +92,7 @@ func ScanFeed(row *sql.Row) (*Feed, error) {
 	var feed Feed
 	err := row.Scan(scanFeed(&feed)...)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	return &feed, nil
@@ -105,13 +105,13 @@ func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 		var feed Feed
 		err := rows.Scan(scanFeed(&feed)...)
 		if err != nil {
-			glog.Error(err)
+			log.Error(err)
 			return nil, err
 		}
 		feeds = append(feeds, &feed)
 	}
 	if err := rows.Err(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	return feeds, nil
@@ -140,7 +140,7 @@ func getFeedTitle(f *Feed, gfe *gofeed.Feed) string {
 		return gfe.Title
 	}
 
-	glog.V(2).Infof("Overriding Mangadex RSS title with [%s]", groups[1])
+	log.Tracef("Overriding Mangadex RSS title with [%s]", groups[1])
 	return groups[1]
 }
 
@@ -230,7 +230,7 @@ func FeedMergeGofeed(gfe *gofeed.Feed) func(*Feed) EntityUpdate {
 		} else {
 			if newF.siteURL == "" && !strings.HasPrefix(newF.url, "!") {
 				// Default to the feed URL if it's a URL, only log f once
-				glog.Warningf("Feed without link [%s]", &newF)
+				log.Warningf("Feed without link [%s]", &newF)
 				newF.siteURL = newF.url
 			}
 		}

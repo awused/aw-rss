@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/awused/aw-rss/internal/structs"
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 func entityGetSQL(table string, columns string) string {
@@ -20,7 +20,7 @@ func insertSQL(table string, columns string, placeholders string) string {
 // TODO -- these can eventually become real generic  methods
 
 func updateEntity(dot dbOrTx, eu structs.EntityUpdate) error {
-	glog.V(2).Infof("Writing updated entity [%s]", eu)
+	log.Debugf("Writing updated entity [%s]", eu)
 	if eu.Noop() {
 		return errors.New("Tried to update using noop entity update")
 	}

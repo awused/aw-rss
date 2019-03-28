@@ -2,19 +2,18 @@ package database
 
 import (
 	"github.com/awused/aw-rss/internal/structs"
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 // GetCurrentFeeds returns the set of enabled feeds
 // It's currently only used by the backend on initialization
 // and as a guard against out of band edits.
 func (d *Database) GetCurrentFeeds() ([]*structs.Feed, error) {
-	glog.V(5).Info("GetFeeds() started")
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -29,19 +28,19 @@ func (d *Database) MutateFeed(
 	defer d.lock.Unlock()
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	f, err := getFeed(tx, id)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -54,21 +53,21 @@ func (d *Database) MutateFeed(
 
 	err = updateEntity(tx, update)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	newF, err := getFeed(tx, id)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -91,8 +90,6 @@ func getFeed(dot dbOrTx, id int64) (*structs.Feed, error) {
 // func (d *Database) GetDisabledFeeds
 
 func getCurrentFeeds(dot dbOrTx) ([]*structs.Feed, error) {
-	glog.V(5).Info("getCurrentFeeds() started")
-
 	sql := "SELECT " + structs.FeedSelectColumns + `
 	    FROM
 					feeds
@@ -108,11 +105,10 @@ func getCurrentFeeds(dot dbOrTx) ([]*structs.Feed, error) {
 	feeds, err := structs.ScanFeeds(rows)
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
-	glog.V(3).Infof("getCurrentFeeds() retrieved %d feeds", len(feeds))
-	glog.V(5).Info("getCurrentFeeds() completed")
+	log.Tracef("getCurrentFeeds() retrieved %d feeds", len(feeds))
 	return feeds, nil
 }
 
@@ -123,11 +119,11 @@ func (d *Database) InsertNewFeed(url string, userTite string) (
 	defer d.lock.Unlock()
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
-	glog.Infof("Adding new feed [%s]", url)
+	log.Infof("Adding new feed [%s]", url)
 
 	sql := `INSERT INTO feeds(url, usertitle) VALUES (?, ?);`
 	res, err := d.db.Exec(sql, url, userTite)

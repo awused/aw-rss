@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/mmcdole/gofeed"
+	log "github.com/sirupsen/logrus"
 )
 
 // Item represents a single entry in an RSS feed
@@ -76,7 +76,7 @@ func ScanItem(row *sql.Row) (*Item, error) {
 	var item Item
 	err := row.Scan(scanItem(&item)...)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	return &item, nil
@@ -89,13 +89,13 @@ func ScanItems(rows *sql.Rows) ([]*Item, error) {
 		var item Item
 		err := rows.Scan(scanItem(&item)...)
 		if err != nil {
-			glog.Error(err)
+			log.Error(err)
 			return nil, err
 		}
 		items = append(items, &item)
 	}
 	if err := rows.Err(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	return items, nil
@@ -105,7 +105,6 @@ func ScanItems(rows *sql.Rows) ([]*Item, error) {
 // which may be duplicates of Items already present in the database.
 // These should be inserted or ignored into the database then discarded.
 func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
-	glog.V(1).Infof("Creating %d items for [%s]", len(gfItems), f)
 	var items []*Item
 
 	for i := range gfItems {
@@ -117,15 +116,15 @@ func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
 
 	handleItemQuirks(items, gfItems, f)
 
-	glog.V(2).Infof("Created %d items for [Feed: %d]", len(gfItems), f.ID())
+	log.Debugf("Created %d items for [Feed: %d]", len(gfItems), f.ID())
 	return items
 }
 
 func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	defer func() {
 		if r := recover(); r != nil {
-			glog.Error(r.(error))
-			glog.Errorf("%+v\n", gfi)
+			log.Error(r.(error))
+			log.Errorf("%+v\n", gfi)
 		}
 	}()
 	var item Item
@@ -136,14 +135,12 @@ func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	if gfi.Link != "" {
 		item.url = gfi.Link
 	} else {
-		glog.Infof("No link present in gofeed.Item %+v\n", gfi)
+		log.Infof("No link present in gofeed.Item %+v\n", gfi)
 	}
 	// So few feeds actually populate their full Content that it is not useful
 	item.description = gfi.Description
 	item.timestamp = getTimestamp(gfi)
 
-	glog.V(3).Infof("Created [%s]", &item)
-	glog.V(7).Infof("Content for new [%s] is %s", &item, item.description)
 	return &item
 }
 
@@ -173,7 +170,7 @@ func getTimestamp(gfi *gofeed.Item) time.Time {
 		return gfi.UpdatedParsed.UTC()
 	}
 
-	glog.V(2).Infof("No parseable date for item \"%s\"", gfi.Link)
+	log.Tracef("No parseable date for item \"%s\"", gfi.Link)
 	return time.Now().UTC()
 }
 

@@ -9,7 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
+	"github.com/awused/aw-rss/internal/config"
+	log "github.com/sirupsen/logrus"
 )
 
 const cookieScript = `
@@ -25,9 +26,7 @@ print(ua)
 // This needs to be configureable by the user
 // Don't run arbitrary JS from untrusted domains, only handle problematic sites
 // as they're identified
-var trustedHosts = map[string]bool{
-	"mangadex.org": true,
-}
+var trustedHosts = map[string]bool{}
 
 var (
 	errUntrustedHost        = errors.New("Host not trusted for cloudflare bypass")
@@ -71,7 +70,11 @@ type cloudflare struct {
 	failureLock  sync.Mutex
 }
 
-func newCloudflare(closeChan <-chan struct{}) *cloudflare {
+func newCloudflare(conf config.Config, closeChan <-chan struct{}) *cloudflare {
+	for _, v := range conf.CloudflareDomains {
+		trustedHosts[v] = true
+	}
+
 	return &cloudflare{
 		cookies:      make(map[string]string),
 		userAgents:   make(map[string]string),
@@ -205,7 +208,7 @@ func (cf *cloudflare) getNewCookie(
 	default:
 	}
 
-	glog.Infof("Fetching new cloudflare cookie for [%s]", h)
+	log.Infof("Fetching new cloudflare cookie for [%s]", h)
 	return cf.runPython(feedURL, h)
 }
 
@@ -227,14 +230,14 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 			return "", "", errCloudflareBroken
 		}
 
-		glog.Error(str)
+		log.Error(str)
 		return "", "", errCloudflareCaptcha
 	}
 
 	lines := strings.Split(string(out), "\n")
 
 	if len(lines) < 2 {
-		glog.Errorf("Missing cloudflare cookie or user agent for " + feedURL)
+		log.Errorf("Missing cloudflare cookie or user agent for " + feedURL)
 		cf.setInvalid(h)
 		return "", "", errCloudflareBroken
 	}

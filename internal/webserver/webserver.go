@@ -1,8 +1,9 @@
 package webserver
 
 import (
-	"flag"
+	"strconv"
 
+	"github.com/awused/aw-rss/internal/config"
 	"github.com/awused/aw-rss/internal/database"
 	"github.com/awused/aw-rss/internal/rssfetcher"
 
@@ -10,11 +11,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
-
-var protocol = flag.String("proto", "tcp", "Network protocol used, tcp, udp, or unix")
-var addr = flag.String("addr", "localhost:8080", "The address the web server listens to for connections")
 
 // WebServer A web server
 type WebServer interface {
@@ -23,6 +21,7 @@ type WebServer interface {
 }
 
 type webserver struct {
+	conf      config.Config
 	db        *database.Database
 	wg        sync.WaitGroup
 	listener  net.Listener
@@ -33,25 +32,23 @@ type webserver struct {
 }
 
 // NewWebServer creates a new webserver
-func NewWebServer() (WebServer, error) {
-	glog.V(5).Info("WebServer() started")
+func NewWebServer(c config.Config) (WebServer, error) {
+	web := webserver{conf: c}
 
-	db, err := database.GetDatabase()
+	db, err := database.NewDatabase(web.conf.Database)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
-	var web webserver
 	web.db = db
 
-	web.rss, err = rssfetcher.NewRssFetcher()
+	web.rss, err = rssfetcher.NewRssFetcher(web.conf, db)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
-	glog.V(5).Info("WebServer() completed")
 	return &web, nil
 }
 
@@ -61,15 +58,15 @@ func (w *webserver) Close() error {
 
 func (w *webserver) close(rssError error) error {
 	if w.closed {
-		glog.V(1).Info("Tried to close webserver that has already been closed")
+		log.Info("Tried to close webserver that has already been closed")
 		return nil
 	}
-	glog.Info("Closing webserver")
+	log.Info("Closing webserver")
 
 	w.closeLock.Lock()
 	defer w.closeLock.Unlock()
 	if w.closed {
-		glog.Warning("Tried to close webserver that has already been closed")
+		log.Warning("Tried to close webserver that has already been closed")
 		return nil
 	}
 
@@ -78,7 +75,7 @@ func (w *webserver) close(rssError error) error {
 	w.rssError = rssError
 	w.listener.Close()
 
-	defer glog.Info("Close() completed")
+	defer log.Info("Close() completed")
 	// rss.Close() also closes the database
 	return w.rss.Close()
 }
@@ -86,35 +83,37 @@ func (w *webserver) close(rssError error) error {
 func (w *webserver) Run() (err error) {
 	go w.runRss()
 
-	glog.Info("Webserver.Run() started")
+	log.Info("Webserver.Run() started")
 
-	w.listener, err = net.Listen(*protocol, *addr)
+	addr := "localhost:" + strconv.Itoa(w.conf.Port)
+
+	w.listener, err = net.Listen("tcp", addr)
 	if err != nil {
-		glog.Errorf("Failed to open listening socket for %s on %s: %s", *protocol, *addr, err)
+		log.Errorf("Failed to open listening socket on %s: %s", addr, err)
 	}
-	glog.Infof("Listening for connections on %s", *addr)
+	log.Infof("Listening for connections on %s", addr)
 
 	err = http.Serve(w.listener, w.getRouter())
 
 	w.closeLock.Lock()
 	defer w.closeLock.Unlock()
 	if !w.closed {
-		glog.Error(err)
+		log.Error(err)
 		return err
 	}
-	glog.Info("webserver closed, exiting")
+	log.Info("webserver closed, exiting")
 	return w.rssError
 }
 
 func (w *webserver) runRss() {
-	glog.Info("Starting rssfetcher")
+	log.Info("Starting rssfetcher")
 
 	err := w.rss.Run()
 
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		w.close(err)
 	} else {
-		glog.Info("rssfetcher closed")
+		log.Info("rssfetcher closed")
 	}
 }

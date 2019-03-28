@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 // Category is a grouping of feeds. Feeds can be in at most one category.
@@ -78,7 +78,7 @@ func ScanCategory(row *sql.Row) (*Category, error) {
 	var cat Category
 	err := row.Scan(scanCategory(&cat)...)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	return &cat, nil
@@ -91,13 +91,13 @@ func ScanCategories(rows *sql.Rows) ([]*Category, error) {
 		var cat Category
 		err := rows.Scan(scanCategory(&cat)...)
 		if err != nil {
-			glog.Error(err)
+			log.Error(err)
 			return nil, err
 		}
 		cats = append(cats, &cat)
 	}
 	if err := rows.Err(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	return cats, nil

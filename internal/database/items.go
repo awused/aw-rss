@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/awused/aw-rss/internal/structs"
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 // MutateItem applies `fn` to one item from the DB and returns it
@@ -17,19 +17,19 @@ func (d *Database) MutateItem(
 	defer d.lock.Unlock()
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	it, err := getItem(tx, id)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -42,21 +42,21 @@ func (d *Database) MutateItem(
 
 	err = updateEntity(tx, update)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	newIt, err := getItem(tx, id)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
@@ -72,9 +72,8 @@ func getItem(dot dbOrTx, id int64) (*structs.Item, error) {
 
 // InsertItems inserts new items into the database if they aren't present
 func (d *Database) InsertItems(items []*structs.Item) error {
-	glog.V(5).Info("InsertItems() started")
 	if len(items) == 0 {
-		glog.V(2).Info("InsertItems() called with empty list")
+		log.Info("InsertItems() called with empty list")
 		return nil
 	}
 
@@ -82,7 +81,7 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 	defer d.lock.Unlock()
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return err
 	}
 
@@ -91,35 +90,32 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 
 	for _, i := range items {
 		// TODO -- ON CONFLICT UPDATE if we want to handle updates
-		glog.V(4).Infof("Attempting to insert [%s]", i)
+		log.Tracef("Attempting to insert [%s]", i)
 		binds = append(binds, i.InsertValues()...)
 	}
 
-	glog.V(2).Infof("Inserting %d potentially new items", len(items))
-	glog.V(6).Info(sql)
-	glog.V(7).Info(binds)
+	log.Debugf("Inserting %d potentially new items", len(items))
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return err
 	}
 
 	_, err = tx.Exec(strings.Repeat(sql, len(items)), binds...)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return err
 	}
 
-	glog.V(5).Info("InsertItem() completed")
 	return nil
 }
 
@@ -139,10 +135,17 @@ type GetItemsRequest struct {
 
 	// If true fetch all unread items
 	Unread bool `json:"unread"`
-	// Fetch all read items after this timestamp (exclusive)
-	ReadAfter *time.Time `json:"readAfter"`
-	// Fetch ReadBeforeCount items before this timestamp (inclusive)
+	// Note that they will be filtered by timestamp, but ordered by ID.
+	ReadBeforeCount int `json:"readBeforeCount"`
+	// Fetch _at least_ ReadBeforeCount items before this timestamp (exclusive)
+	// Guaranteed that all existing read items between ReadBefore and the minimum
+	// timestamp in the response are fetched.
 	ReadBefore *time.Time `json:"readBefore"`
+
+	// Fetch _all_ read items after this timestamp (inclusive)
+	// This is used when backfilling on the frontend, but only in the rare
+	// case where a category is open and a feed is added to it or re-enabled.
+	ReadAfter *time.Time `json:"readAfter"`
 }
 
 // GetItemsResponse is used to fulfill the GetItemsRequest
@@ -158,9 +161,8 @@ func (d *Database) GetItems(
 	req GetItemsRequest) (*GetItemsResponse, error) {
 	var err error
 
-	glog.V(5).Info("GetItems() started")
 	if !req.Unread && req.ReadAfter == nil && req.ReadBefore == nil {
-		glog.V(2).Info("GetItems() called with empty request")
+		log.Info("GetItems() called with empty request")
 		return nil, nil
 	}
 
@@ -180,7 +182,7 @@ func (d *Database) GetItems(
 	defer d.lock.RUnlock()
 
 	if err := d.checkClosed(); err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -189,7 +191,7 @@ func (d *Database) GetItems(
 	if !req.IncludeFeeds {
 		resp.Items, err = getItemsFor(d.db, req)
 		if err != nil {
-			glog.Error(err)
+			log.Error(err)
 			return nil, err
 		}
 
@@ -198,28 +200,28 @@ func (d *Database) GetItems(
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	resp.Items, err = getItemsFor(tx, req)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
 
 	/*resp.Feed, err = getFeedsFor(tx, req)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}*/
 
 	err = tx.Commit()
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		tx.Rollback()
 		return nil, err
 	}
