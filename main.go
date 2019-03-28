@@ -20,7 +20,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	initLogger(conf)
+	file := initLogger(conf)
+	if file != nil {
+		defer file.Close()
+	}
 
 	server, err := webserver.NewWebServer(conf)
 	if err != nil {
@@ -65,7 +68,7 @@ Loop:
 	<-serverChan
 }
 
-func initLogger(conf config.Config) {
+func initLogger(conf config.Config) *os.File {
 	// Slow, but not significant
 	log.SetReportCaller(true)
 
@@ -85,16 +88,17 @@ func initLogger(conf config.Config) {
 		},
 	})
 
+	var file *os.File
+	var err error
 	if conf.LogFile != "" {
 		// Don't persist logs between sessions, they're not useful
-		file, err := os.OpenFile(
+		file, err = os.OpenFile(
 			conf.LogFile, os.O_CREATE|os.O_WRONLY, 0666)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 		log.SetOutput(file)
-		defer file.Close()
 	}
 
 	lvl, err := log.ParseLevel(conf.LogLevel)
@@ -102,4 +106,6 @@ func initLogger(conf config.Config) {
 		log.Fatal(err)
 	}
 	log.SetLevel(lvl)
+
+	return file
 }
