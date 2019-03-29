@@ -20,6 +20,8 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 
 	r.Post("/feeds/add", ws.addFeed)
 
+	r.Post("/categories/add", ws.addCategory)
+
 	r.Get("/current", ws.currentState)
 	r.Get("/updates/{timestamp}", ws.updatesSince)
 }

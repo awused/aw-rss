@@ -7,8 +7,11 @@ import {map,
 
 import {Data,
         Updates} from '../models/data';
-import {Feed,
-        Item} from '../models/entities';
+import {
+  Category,
+  Feed,
+  Item
+} from '../models/entities';
 
 import {DataService} from './data.service';
 import {ErrorService} from './error.service';
@@ -40,18 +43,25 @@ export class MutateService {
   public markItemRead(it: Item, read: boolean): Observable<void> {
     const url = `/api/items/${it.id}/${read ? 'read' : 'unread'}`;
 
+    // The data service will merge in an item with the same commit_timestamp.
+    // This will be overridden by the API response.
+    const optimisticItem: Item = Object.assign({}, it, {read: read});
+
     this.loadingService.startLoading();
+    this.dataService.pushUpdates(new Updates(false, [], [], [optimisticItem]));
     const obs =
         this.http
             .post<Item>(url, {})
             .pipe(
-                tap((nit: Item) =>
+                map((nit: Item) =>
                         this.dataService.pushUpdates(
                             new Updates(false, [], [], [nit]))),
                 share());
 
-    this.subscribe(obs);
-    return obs.pipe(map(() => {}));
+    this.subscribe(
+        obs,
+        () => this.dataService.pushUpdates(new Updates(false, [], [], [it])));
+    return obs.pipe();
   }
 
   public newFeed(feedUrl: string, title: string, force: boolean):
@@ -70,7 +80,7 @@ export class MutateService {
             .pipe(
                 map((resp: AddFeedResponse) => {
                   if (resp.feed) {
-                    this.dataService.pushUpdates(
+                    return this.dataService.pushUpdates(
                         new Updates(false, [], [resp.feed]));
                   }
 
@@ -87,11 +97,33 @@ export class MutateService {
     return obs;
   }
 
-  private subscribe(obs: Observable<any>) {
+  public newCategory(name: string, title: string): Observable<void> {
+    const url = `/api/categories/add`;
+    const request = {
+      name,
+      title,
+    };
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http
+            .post<Category>(url, request)
+            .pipe(
+                map((cat: Category) =>
+                        this.dataService.pushUpdates(
+                            new Updates(false, [cat]))),
+                share());
+    this.subscribe(obs);
+    return obs;
+  }
+  private subscribe(
+      obs: Observable<any>,
+      rollback: () => void = () => undefined) {
     obs.subscribe(
         () => this.loadingService.finishLoading(),
         (err: Error) => {
           this.errorService.showError(err);
+          rollback();
           this.loadingService.finishLoading();
         });
   }

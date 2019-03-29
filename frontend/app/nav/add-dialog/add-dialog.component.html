@@ -1,23 +1,27 @@
 <div mat-dialog-content>
   <mat-tab-group>
     <mat-tab label="Feed">
-      <form (ngSubmit)="submitFeed()"
+      <form [formGroup]="feedForm"
+            (ngSubmit)="submitFeed(feedForm.value)"
             autocomplete="off"
-            name="feedForm"
-            #feedForm="ngForm">
+            novalidate
+            name="feedForm">
         <mat-form-field>
           <input matInput
-                 name="feed-url"
-                 #feedurl
-                 required
-                 [formControl]="feedUrl"
-                 placeholder="Feed URL">
+                 name="url"
+                 formControlName="url"
+                 placeholder="URL">
+          <mat-error *ngIf="feedForm.controls['url'].hasError('pattern')">
+            URL must be HTTP or HTTPS
+          </mat-error>
+          <mat-error *ngIf="feedForm.controls['url'].hasError('required')">
+            URL is required
+          </mat-error>
         </mat-form-field>
         <mat-form-field>
           <input matInput
-                 name="user-title"
-                 #usertitle
-                 [(ngModel)]="title"
+                 name="title"
+                 formControlName="title"
                  placeholder="Title Override"
                  matTooltip="Override the automatically detected title of the feed. Optional.">
         </mat-form-field>
@@ -27,7 +31,7 @@
             Cancel
           </button>
           <button type="submit"
-                  [disabled]="!feedUrl.valid"
+                  [disabled]="!feedForm.valid"
                   mat-button>
             Add
           </button>
@@ -35,7 +39,46 @@
       </form>
     </mat-tab>
     <mat-tab label="Category">
-      Soon(tm)
+      <form [formGroup]="categoryForm"
+            (ngSubmit)="submitCategory(categoryForm.value)"
+            autocomplete="off"
+            novalidate
+            name="categoryForm">
+        <mat-form-field>
+          <input matInput
+                 name="name"
+                 formControlName="name"
+                 placeholder="Name">
+          <mat-error *ngIf="categoryForm.controls['name'].hasError('pattern')">
+            Name must start with a letter and contain only lowercase letters,
+            numbers, and hyphens.
+          </mat-error>
+          <mat-error *ngIf="categoryForm.controls['name'].hasError('required')">
+            Name is required
+          </mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <input matInput
+                 name="title"
+                 formControlName="title"
+                 placeholder="Title">
+          <mat-error
+                     *ngIf="categoryForm.controls['title'].hasError('required')">
+            Title is required
+          </mat-error>
+        </mat-form-field>
+        <div align="right">
+          <button mat-button
+                  mat-dialog-close>
+            Cancel
+          </button>
+          <button type="submit"
+                  [disabled]="!categoryForm.valid"
+                  mat-button>
+            Add
+          </button>
+        </div>
+      </form>
     </mat-tab>
   </mat-tab-group>
 </div>

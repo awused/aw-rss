@@ -81,9 +81,6 @@ func getFeed(dot dbOrTx, id int64) (*structs.Feed, error) {
 	return structs.ScanFeed(dot.QueryRow(sql, id))
 }
 
-// GetFeed gets a single (always disabled) feed when requested by the frontend
-// func (d *Database) GetFeed
-
 // GetDisabledFeeds returns all disabled feeds from the database for the admin
 // page. There's no support for pagination or filtering as it's assumed the
 // number of feeds will never be prohibitively large.
@@ -113,7 +110,7 @@ func getCurrentFeeds(dot dbOrTx) ([]*structs.Feed, error) {
 }
 
 // InsertNewFeed creates and inserts a new feed from the url and user title
-func (d *Database) InsertNewFeed(url string, userTite string) (
+func (d *Database) InsertNewFeed(url string, userTitle string) (
 	*structs.Feed, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -126,7 +123,7 @@ func (d *Database) InsertNewFeed(url string, userTite string) (
 	log.Infof("Adding new feed [%s]", url)
 
 	sql := `INSERT INTO feeds(url, usertitle) VALUES (?, ?);`
-	res, err := d.db.Exec(sql, url, userTite)
+	res, err := d.db.Exec(sql, url, userTitle)
 	if err != nil {
 		return nil, err
 	}

@@ -42,8 +42,8 @@ export class Data {
       df: DataFilter): [ReadonlyArray<T>, boolean] {
     // Most merges are a relatively small number of updates into a larger list,
     // and tend to be newer items rather than older ones.
-    // Optimize by using splice when changes are found rather than always
-    // creating a new array.
+    // TODO -- Optimize by using splice when changes are found rather than
+    // always creating a new array.
     const merged = [];
     let changed = false;
 

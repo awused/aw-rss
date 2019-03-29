@@ -65,6 +65,7 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 
 		if err = json.NewEncoder(w).Encode(resp); err != nil {
 			log.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		ws.rss.InformFeedChanged()
 		return
