@@ -314,7 +314,7 @@ func (r *rssFetcher) runExternalCommandFeed(
 	// "Host" is the executable
 	// This is not correct when there are spaces in the path, but it fails
 	// in a safe manner.
-	h := strings.SplitN(f.URL(), " ", 1)[0]
+	h := strings.SplitN(f.URL(), " ", 2)[0]
 	r.mapLock.Lock()
 	lock, ok := r.hostLocks[h]
 	if !ok {

@@ -109,6 +109,14 @@ export class DataFilter {
   }
 
   keepExistingFeed = (f: Feed): boolean => {
+    if (this.f.feedId !== undefined) {
+      if (this.f.feedId === f.id) {
+        this.includedFeedIds.add(f.id);
+        return true;
+      }
+      return false;
+    }
+
     if (this.categoryId !== undefined && f.categoryId !== this.categoryId) {
       return false;
     }
@@ -126,9 +134,6 @@ export class DataFilter {
   }
 
   addNewFeed = (f: Feed): boolean => {
-    if (f.id === 130) {
-      //debugger;
-    }
     if (this.f.feedId !== undefined) {
       if (this.f.feedId === f.id) {
         this.includedFeedIds.add(f.id);
