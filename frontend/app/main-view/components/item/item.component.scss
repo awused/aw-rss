@@ -4,8 +4,7 @@
   color: white;
   display: grid;
   grid-template-columns: auto 86px;
-  height: 44px;
-  padding: 4px;
+  height: 52px;
 
   &.read {
     opacity: 0.5;
@@ -27,6 +26,8 @@
 
   .header {
     position: absolute;
+    left: 4px;
+    top: 4px;
     max-width: calc(100% - 94px - 112px);
   }
 }
@@ -38,7 +39,7 @@
 .no-header>.date {
   display: block;
   position: absolute;
-  right: 0;
+  right: 4px;
   left: 4px;
 }
 
@@ -61,6 +62,10 @@
   margin-right: 12px;
 }
 
+.link {
+  padding: 4px 0 4px 4px;
+}
+
 .link,
 .title,
 .header {
@@ -74,7 +79,9 @@
 
 .header {
   position: absolute;
-  max-width: calc(100% - 94px);
+  right: 4px;
+  left: 4px;
+  max-width: calc(100% - 90px);
 }
 
 .feed-title {
@@ -90,4 +97,5 @@
 
 .read-button {
   height: 44px;
+  margin: 4px 4px 4px 0;
 }

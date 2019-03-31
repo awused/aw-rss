@@ -309,11 +309,35 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 	}
 }
 
-func (r *rssFetcher) runExternalCommandFeed(f *structs.Feed, kill <-chan struct{}) string {
-	output, err := exec.Command("sh", "-c", f.URL()[1:]).Output()
+func (r *rssFetcher) runExternalCommandFeed(
+	f *structs.Feed, kill <-chan struct{}) string {
+	// "Host" is the executable
+	// This is not correct when there are spaces in the path, but it fails
+	// in a safe manner.
+	h := strings.SplitN(f.URL(), " ", 1)[0]
+	r.mapLock.Lock()
+	lock, ok := r.hostLocks[h]
+	if !ok {
+		lock = &sync.Mutex{}
+		r.hostLocks[h] = lock
+	}
+	r.mapLock.Unlock()
+
+	lock.Lock()
+	defer lock.Unlock()
+
+	// Check if we've been killed while acquiring the lock
+	select {
+	case <-kill:
+		return ""
+	default:
+	}
+
+	output, err := exec.Command("sh", "-c", f.URL()[1:]).CombinedOutput()
 
 	if err != nil {
 		log.Errorf("Error running external command for [%s]: %v", f, err)
+		log.Error("Output was: \n" + string(output))
 		panic(err)
 	}
 
