@@ -5,18 +5,14 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/awused/aw-rss/internal/database"
 	log "github.com/sirupsen/logrus"
 )
-
-type addCategoryRequest struct {
-	Name  string `json:"name"`
-	Title string `json:"title"`
-}
 
 var categoryNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]+$`)
 
 func (ws *webserver) addCategory(w http.ResponseWriter, r *http.Request) {
-	var req addCategoryRequest
+	var req database.AddCategoryRequest
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -39,7 +35,7 @@ func (ws *webserver) addCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := ws.db.InsertNewCategory(req.Name, req.Title)
+	c, err := ws.db.InsertNewCategory(req)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

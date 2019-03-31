@@ -67,6 +67,21 @@
             Title is required
           </mat-error>
         </mat-form-field>
+        <mat-form-field>
+          <mat-label>Visibility</mat-label>
+          <mat-select name="visibility"
+                      formControlName="visibility">
+            <mat-option value="show">Show</mat-option>
+            <mat-option value="hiddenMain"
+                        matTooltip="Items won't show up in the main list and won't count towards the overall unread number.">
+              Exclude From Main View
+            </mat-option>
+            <mat-option value="hiddenNav"
+                        matTooltip="Won't show up in the nav at all. You'll have to manually navigate to them or load the app with ?all=true">
+              Hide Completely
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
         <div align="right">
           <button mat-button
                   mat-dialog-close>

@@ -9,7 +9,7 @@ import {MutateService} from 'frontend/app/services/mutate.service';
 
 // This is just to let users know they need an HTTP/S url
 const FEED_URL_PATTERN = /^https?:\/\//i;
-const CATEGORY_NAME_PATTERN = /^[a-z][a-z0-9-]+$/i;
+const CATEGORY_NAME_PATTERN = /^[a-z][a-z0-9-]+$/;
 
 @Component({
   selector: 'awrss-add-dialog',
@@ -28,8 +28,10 @@ export class AddDialogComponent {
     name: new FormControl('', [
       Validators.required, Validators.pattern(CATEGORY_NAME_PATTERN)
     ]),
-    title: new FormControl('', [Validators.required])
+    title: new FormControl('', [Validators.required]),
+    visibility: new FormControl('')
   });
+
   constructor(
       private readonly dialogRef: MatDialogRef<AddDialogComponent>,
       private readonly mutateService: MutateService,
@@ -49,8 +51,14 @@ export class AddDialogComponent {
 
 
   public submitCategory(formValue) {
+    const req = {
+      name: formValue.name,
+      title: formValue.title,
+      hiddenNav: formValue.visibility === 'hiddenNav',
+      hiddenMain: formValue.visibility === 'hiddenMain'
+    };
     this.mutateService
-        .newCategory(formValue.name, formValue.title)
+        .newCategory(req)
         .subscribe(() => {
           this.snackBar.open(`Added Category [${formValue.title}]`, '', {
             duration: 3000

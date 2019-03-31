@@ -16,12 +16,15 @@ import {EmptyFilteredData,
         FilteredData,
         Updates} from 'frontend/app/models/data';
 import {Category,
+        CATEGORY_NAME_REGEX,
         Feed,
         Item} from 'frontend/app/models/entities';
 import {DataService} from 'frontend/app/services/data.service';
 import {ErrorService} from 'frontend/app/services/error.service';
+import {MutateService} from 'frontend/app/services/mutate.service';
 import {ParamService} from 'frontend/app/services/param.service';
 import {RefreshService} from 'frontend/app/services/refresh.service';
+
 import {AddDialogComponent} from '../add-dialog/add-dialog.component';
 
 
@@ -58,6 +61,7 @@ export class NavComponent {
       private readonly router: Router,
       private readonly refreshService: RefreshService,
       private readonly dataService: DataService,
+      private readonly mutateService: MutateService,
       private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
       private readonly dialog: MatDialog) {
@@ -202,11 +206,13 @@ export class NavComponent {
 
     if (data instanceof FeedData) {
       if (!targetCategory && data.feed.categoryId !== undefined) {
-        console.log(`would remove ${data.feed.id} from ${data.feed.categoryId}`);
+        this.mutateService.editFeed(data.feed, {clearCategory: true});
       }
 
       if (targetCategory && data.feed.categoryId !== targetCategory.category.id) {
-        console.log(`would add ${data.feed.id} to ${targetCategory.category.id}`);
+        this.mutateService.editFeed(
+            data.feed,
+            {categoryId: targetCategory.category.id});
       }
     }
   }
@@ -235,7 +241,7 @@ export class NavComponent {
 
     if (p.has('categoryName')) {
       const cname = p.get('categoryName');
-      if (!/^[a-z][a-z-]+[a-z]$/.test(cname)) {
+      if (!CATEGORY_NAME_REGEX.test(cname)) {
         this.errorService.showError('Invalid category name: ' + cname);
         this.router.navigate(['/'], {replaceUrl: true});
         return;

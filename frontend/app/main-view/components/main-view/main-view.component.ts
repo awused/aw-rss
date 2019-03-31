@@ -14,6 +14,7 @@ import {Data,
         Updates} from 'frontend/app/models/data';
 import {
   Category,
+  CATEGORY_NAME_REGEX,
   Feed,
   Item
 } from 'frontend/app/models/entities';
@@ -57,7 +58,9 @@ export class MainViewComponent implements OnInit, OnDestroy {
         .subscribe((u: Updates) => {
           let changed;
           const oldItemLength = this.filteredData.items.length;
+          console.log(u);
           [this.filteredData, changed] = this.filteredData.merge(u);
+          console.log(this.filteredData);
           if (changed) {
             // Fast path
             if (!u.refresh &&
@@ -156,7 +159,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
     if (p.has('categoryName')) {
       const cname = p.get('categoryName');
-      if (!/^[a-z][a-z-]+[a-z]$/.test(cname)) {
+      if (!CATEGORY_NAME_REGEX.test(cname)) {
         // The nav service will log and redirect users
         return;
       }

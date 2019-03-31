@@ -97,17 +97,64 @@ export class MutateService {
     return obs;
   }
 
-  public newCategory(name: string, title: string): Observable<void> {
-    const url = `/api/categories/add`;
-    const request = {
-      name,
-      title,
+  public editFeed(feed: Feed, edit: {
+    categoryId?: number,
+    clearCategory?: boolean,
+    disabled?: boolean,
+    usertTitle?: string
+  }): Observable<void> {
+    const url = `/api/feeds/edit`;
+    const req = {
+      id: feed.id,
+      edit
     };
+
+    const merge: any = {};
+    if (edit.categoryId !== undefined) {
+      merge.categoryId = edit.categoryId;
+    } else if (edit.clearCategory) {
+      merge.categoryId = undefined;
+    }
+
+    if (edit.disabled !== undefined) {
+      merge.disabled = edit.disabled;
+    }
+
+    if (edit.usertTitle !== undefined) {
+      merge.userTitle = edit.usertTitle;
+    }
+
+    const optimisticFeed = Object.assign({}, feed, merge);
+
+
+    this.loadingService.startLoading();
+    this.dataService.pushUpdates(new Updates(false, [], [optimisticFeed]));
+    const obs =
+        this.http.post<Feed>(url, req)
+            .pipe(
+                map((f: Feed) =>
+                        this.dataService.pushUpdates(
+                            new Updates(false, [], [f]))),
+                share());
+
+    this.subscribe(
+        obs,
+        () => this.dataService.pushUpdates(new Updates(false, [], [feed])));
+    return obs;
+  }
+
+  public newCategory(req: {
+    name: string,
+    title: string,
+    hiddenNav: boolean,
+    hiddenMain: boolean
+  }): Observable<void> {
+    const url = `/api/categories/add`;
 
     this.loadingService.startLoading();
     const obs =
         this.http
-            .post<Category>(url, request)
+            .post<Category>(url, req)
             .pipe(
                 map((cat: Category) =>
                         this.dataService.pushUpdates(

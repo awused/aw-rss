@@ -19,6 +19,7 @@
    [class.no-header]="!showFeed && !(showCategory && category)"
    [href]="item.url | urlSanitize"
    (mouseup)="handleItemMouseup($event)"
+   (contextmenu)="handleContextMenu($event)"
    (click)="handleItemClick($event)"
    rel="noopener"
    target="_blank">
@@ -26,7 +27,8 @@
     {{item.timestamp | date:'yyyy-MM-dd HH:mm'}}
   </div>
   <div class="spacer"></div>
-  <div class="title">
+  <div (contextmenu)="$event.stopPropagation()"
+       class="title">
     {{item.title}}
   </div>
 </a>

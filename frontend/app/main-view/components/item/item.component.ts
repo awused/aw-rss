@@ -66,6 +66,16 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
 
   handleItemMouseup(event: MouseEvent) {
     if (event.button === 1 && !event.altKey && !this.item.read) {
+      // Chrome will prevent the link from opening if it's replaced
+      // optimistically in the same event loop.
+      setTimeout(() => this.toggleItemRead());
+    }
+  }
+
+  // Right click with no modifiers on the blank space
+  handleContextMenu(event: MouseEvent) {
+    if (!event.ctrlKey && !event.shiftKey) {
+      event.preventDefault();
       this.toggleItemRead();
     }
   }

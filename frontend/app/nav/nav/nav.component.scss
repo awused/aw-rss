@@ -89,6 +89,7 @@
   }
 }
 
+
 .category {
   border-radius: 0;
   margin-bottom: 8px;
@@ -98,6 +99,29 @@
 
     &.active {
       display: block
+    }
+  }
+
+  .mat-expansion-panel-header {
+    flex-direction: row-reverse;
+    padding: 0;
+
+    &.active {
+      background-color: white;
+
+      .link {
+        color: black;
+      }
+    }
+
+    .link-div {
+      flex: 1 1 auto;
+      margin-left: 16px;
+    }
+
+    .link {
+      flex: 1 1 auto;
+      padding: 10px 8px 10px 0;
     }
   }
 }

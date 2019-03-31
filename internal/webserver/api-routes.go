@@ -19,6 +19,7 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 
 	r.Post("/feeds/add", ws.addFeed)
+	r.Post("/feeds/edit", ws.editFeed)
 
 	r.Post("/categories/add", ws.addCategory)
 

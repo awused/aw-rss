@@ -318,6 +318,7 @@ export class DataService {
         }
 
         if (oldFeed.categoryId !== f.categoryId) {
+          console.log('must replay');
           mustReplay = true;
           // if (this.sub && (!this.sub.id || f.categoryId == this.sub.id)) {
           // Check for missing time ranges in category subscriptions

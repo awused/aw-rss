@@ -32,7 +32,7 @@ Example: `INSERT INTO feeds(url) VALUES('!my-command arg1 arg2 arg3');`
 
 # Frontend Development
 
-You'll have to edit angular.json to match the port you configured the backend to serve on.
+You'll have to edit proxy.conf.json to match the port you configured the backend to serve on.
 
 Run `ng serve --aot` for an angular dev server. Navigate to `http://localhost:4200/` with the backend already running.
 

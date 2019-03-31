@@ -7,6 +7,8 @@ import {AppComponent} from './app.component';
 import {NavModule} from './nav/nav.module';
 import {DataService} from './services/data.service';
 import {FakeDataService} from './services/data.service.fake';
+import {MutateService} from './services/mutate.service';
+import {FakeMutateService} from './services/mutate.service.fake';
 
 describe('AppComponent', () => {
   beforeEach(async(() => {
@@ -19,7 +21,8 @@ describe('AppComponent', () => {
                AppComponent
              ],
              providers: [
-               {provide: DataService, useClass: FakeDataService}
+               {provide: DataService, useClass: FakeDataService},
+               {provide: MutateService, useClass: FakeMutateService}
              ]
            })
         .compileComponents();

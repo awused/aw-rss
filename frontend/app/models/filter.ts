@@ -74,6 +74,14 @@ export class DataFilter {
   }
 
   keepExistingCategory = (c: Category): boolean => {
+    if (this.f.categoryName !== undefined) {
+      if (this.f.categoryName === c.name) {
+        this.categoryId = c.id;
+        return true;
+      }
+      return false;
+    }
+
     if (this.keepExisting) {
       return true;
     }
@@ -101,6 +109,14 @@ export class DataFilter {
   }
 
   keepExistingFeed = (f: Feed): boolean => {
+    if (this.categoryId !== undefined && f.categoryId !== this.categoryId) {
+      return false;
+    }
+
+    if (this.excludedCategories.has(f.categoryId)) {
+      return false;
+    }
+
     if (this.keepExisting) {
       this.includedFeedIds.add(f.id);
       return true;
@@ -110,6 +126,9 @@ export class DataFilter {
   }
 
   addNewFeed = (f: Feed): boolean => {
+    if (f.id === 130) {
+      //debugger;
+    }
     if (this.f.feedId !== undefined) {
       if (this.f.feedId === f.id) {
         this.includedFeedIds.add(f.id);
@@ -136,6 +155,11 @@ export class DataFilter {
   }
 
   keepExistingItem = (i: Item): boolean => {
+    if ((this.includedFeedIds.size !== 0 || this.categoryId !== undefined) &&
+        !this.includedFeedIds.has(i.feedId)) {
+      return false;
+    }
+
     if (this.keepExisting) {
       return true;
     }

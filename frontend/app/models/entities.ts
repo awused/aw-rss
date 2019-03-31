@@ -13,6 +13,8 @@ export interface Category {
   readonly title: string;
 }
 
+export const CATEGORY_NAME_REGEX = /^[a-z][a-z0-9-]+$/;
+
 export interface Feed {
   readonly categoryId?: number;
   readonly commitTimestamp: number;

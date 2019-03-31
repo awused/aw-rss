@@ -168,7 +168,8 @@ SET
 	usertitle = ?,
 	title = ?,
 	siteurl = ?,
-	categoryid = ?,
+	categoryid = (
+			SELECT categories.id FROM categories WHERE id = ? AND disabled = 0),
 	failing_since = ?,
 	commit_timestamp = CURRENT_TIMESTAMP
 WHERE
@@ -237,6 +238,47 @@ func FeedMergeGofeed(gfe *gofeed.Feed) func(*Feed) EntityUpdate {
 		if newF.title == f.title && newF.siteURL == f.siteURL {
 			return noopEntityUpdate(&newF)
 		}
+		return newF.update()
+	}
+}
+
+// FeedEdit represents new values for a feed from a user edit
+type FeedEdit struct {
+	CategoryID    *int64  `json:"categoryId"`
+	ClearCategory bool    `json:"clearCategory"`
+	Disabled      *bool   `json:"disabled"`
+	UserTitle     *string `json:"userTitle"`
+}
+
+// ApplyFeedEdit returns a mutation function that applies the given edit
+func ApplyFeedEdit(edit FeedEdit) func(*Feed) EntityUpdate {
+	return func(f *Feed) EntityUpdate {
+		noop := true
+		newF := *f
+
+		if edit.CategoryID != nil &&
+			(f.categoryID == nil || *f.categoryID != *edit.CategoryID) {
+			noop = false
+			newF.categoryID = edit.CategoryID
+		} else if edit.ClearCategory && f.categoryID != nil {
+			noop = false
+			newF.categoryID = nil
+		}
+
+		if edit.Disabled != nil && f.disabled != *edit.Disabled {
+			noop = false
+			newF.disabled = *edit.Disabled
+		}
+
+		if edit.UserTitle != nil && f.userTitle != *edit.UserTitle {
+			noop = false
+			newF.userTitle = *edit.UserTitle
+		}
+
+		if noop {
+			return noopEntityUpdate(&newF)
+		}
+
 		return newF.update()
 	}
 }

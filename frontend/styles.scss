@@ -28,6 +28,16 @@ mat-sidenav>.mat-drawer-inner-container {
   display: none !important;
 }
 
-awrss-nav .mat-expansion-panel-body {
-  padding: 0 0 0 8px;
+awrss-nav {
+  .mat-expansion-panel-body {
+    padding: 0 0 0 8px;
+  }
+
+  .active .mat-expansion-indicator::after {
+    color: black;
+  }
+
+  .mat-expansion-indicator {
+    margin-left: 16px;
+  }
 }

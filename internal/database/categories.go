@@ -5,8 +5,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// AddCategoryRequest contains the information needed to create a category
+type AddCategoryRequest struct {
+	Name       string `json:"name"`
+	Title      string `json:"title"`
+	HiddenNav  bool   `json:"hiddenNav"`
+	HiddenMain bool   `json:"hiddenMain"`
+}
+
 // InsertNewCategory creates and inserts a new category
-func (d *Database) InsertNewCategory(name string, title string) (
+func (d *Database) InsertNewCategory(req AddCategoryRequest) (
 	*structs.Category, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -16,10 +24,13 @@ func (d *Database) InsertNewCategory(name string, title string) (
 		return nil, err
 	}
 
-	log.Infof("Adding new category [%s, %s]", name, title)
+	log.Infof("Adding new category [%s, %s]", req.Name, req.Title)
 
-	sql := `INSERT INTO categories(name, title) VALUES (?, ?);`
-	res, err := d.db.Exec(sql, name, title)
+	sql := `
+			INSERT INTO
+					categories(name, title, hidden_nav, hidden_main)
+			VALUES (?, ?, ?, ?);`
+	res, err := d.db.Exec(sql, req.Name, req.Title, req.HiddenNav, req.HiddenMain)
 	if err != nil {
 		return nil, err
 	}
