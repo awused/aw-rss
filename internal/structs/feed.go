@@ -8,10 +8,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
+	"github.com/awused/aw-rss/internal/quirks"
 	"github.com/mmcdole/gofeed"
 	log "github.com/sirupsen/logrus"
 )
@@ -117,33 +117,6 @@ func ScanFeeds(rows *sql.Rows) ([]*Feed, error) {
 	return feeds, nil
 }
 
-// "MangaDex RSS" is a terrible title for every per-series feed
-const mangadexItemRegexp = `^(.+) - [^-]+$`
-
-var mdire = regexp.MustCompile(mangadexItemRegexp)
-
-const mangadexSeriesRegexp = `^https://mangadex\.org/rss/[0-9a-z]+/manga_id/[0-9]+`
-
-var mdsre = regexp.MustCompile(mangadexSeriesRegexp)
-
-func getFeedTitle(f *Feed, gfe *gofeed.Feed) string {
-	if gfe.Title != "MangaDex RSS" {
-		return gfe.Title
-	}
-
-	if gfe.Items == nil || len(gfe.Items) == 0 || !mdsre.MatchString(f.url) {
-		return gfe.Title
-	}
-
-	groups := mdire.FindStringSubmatch(gfe.Items[0].Title)
-	if groups == nil {
-		return gfe.Title
-	}
-
-	log.Tracef("Overriding Mangadex RSS title with [%s]", groups[1])
-	return groups[1]
-}
-
 func (f *Feed) String() string {
 	title := f.title
 	if f.userTitle != "" {
@@ -224,10 +197,11 @@ func FeedSetFetchSuccess(f *Feed) EntityUpdate {
 func FeedMergeGofeed(gfe *gofeed.Feed) func(*Feed) EntityUpdate {
 	return func(f *Feed) EntityUpdate {
 		newF := *f
-		newF.title = getFeedTitle(f, gfe)
+
+		newF.title = quirks.GetFeedTitle(f, gfe)
 
 		if gfe.Link != "" {
-			newF.siteURL = gfe.Link
+			newF.siteURL = quirks.GetFeedLink(f, gfe)
 		} else {
 			if newF.siteURL == "" && !strings.HasPrefix(newF.url, "!") {
 				// Default to the feed URL if it's a URL, only log f once

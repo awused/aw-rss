@@ -37,11 +37,11 @@ func (d *Database) MutateFeed(
 		log.Error(err)
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	f, err := getFeed(tx, id)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -54,21 +54,18 @@ func (d *Database) MutateFeed(
 	err = updateEntity(tx, update)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	newF, err := getFeed(tx, id)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 

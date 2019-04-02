@@ -369,11 +369,11 @@ func (d *Database) upgradeTo(version int, oldVersion int, sql string) {
 	if err != nil {
 		log.Panic(err)
 	}
+	defer tx.Rollback()
 
 	_, err = tx.Exec(sql)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		panic(err)
 	}
 
@@ -381,7 +381,6 @@ func (d *Database) upgradeTo(version int, oldVersion int, sql string) {
 
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		panic(err)
 	}
 

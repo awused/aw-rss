@@ -26,11 +26,11 @@ func (d *Database) MutateItem(
 		log.Error(err)
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	it, err := getItem(tx, id)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -43,21 +43,18 @@ func (d *Database) MutateItem(
 	err = updateEntity(tx, update)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	newIt, err := getItem(tx, id)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -101,18 +98,17 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 		log.Error(err)
 		return err
 	}
+	defer tx.Rollback()
 
 	_, err = tx.Exec(strings.Repeat(sql, len(items)), binds...)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return err
 	}
 
@@ -201,14 +197,13 @@ func (d *Database) GetItems(
 	tx, err := d.db.Begin()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	resp.Items, err = getItemsFor(tx, req)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -222,7 +217,6 @@ func (d *Database) GetItems(
 	err = tx.Commit()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 	return &resp, nil

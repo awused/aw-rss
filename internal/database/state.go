@@ -55,35 +55,31 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	cs.Timestamp, err = getTransactionTimestamp(tx)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Categoriess, err = getCurrentCategories(tx)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Feeds, err = getCurrentFeeds(tx)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	cs.Items, err = getCurrentItems(tx)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -92,14 +88,12 @@ func (d *Database) GetCurrentState() (*CurrentState, error) {
 	cs.NewestTimestamps, err = getNewestTimestamps(tx)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 	return cs, err
@@ -220,14 +214,13 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	up.Timestamp, err = getTransactionTimestamp(tx)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -237,7 +230,6 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 		err = tx.Commit()
 		if err != nil {
 			log.Error(err)
-			tx.Rollback()
 			return nil, err
 		}
 		return up, nil
@@ -246,28 +238,24 @@ func (d *Database) GetUpdates(t time.Time) (*Updates, error) {
 	up.Categories, err = getUpdatedCategories(tx, tstr)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	up.Feeds, err = getUpdatedFeeds(tx, tstr)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	up.Items, err = getUpdatedItems(tx, tstr)
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		log.Error(err)
-		tx.Rollback()
 		return nil, err
 	}
 	return up, err
