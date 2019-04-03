@@ -35,7 +35,7 @@ type webserver struct {
 func NewWebServer(c config.Config) (WebServer, error) {
 	web := webserver{conf: c}
 
-	db, err := database.NewDatabase(web.conf.Database)
+	db, err := database.NewDatabase(web.conf)
 	if err != nil {
 		log.Error(err)
 		return nil, err

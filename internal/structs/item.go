@@ -211,7 +211,8 @@ commit_timestamp`
 // ItemInsertPlaceholders are the placeholders used at insertion time
 const ItemInsertPlaceholders string = "?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP"
 
-// InsertValues returns the values to be inserted into the database
+// InsertValues returns the values to be inserted into the database, except for
+// "read" which depends on a config setting.
 func (it *Item) InsertValues() []interface{} {
 	return []interface{}{
 		it.feedID,
@@ -243,6 +244,9 @@ func (it *Item) update() EntityUpdate {
 
 // ID returns the ID
 func (it *Item) ID() int64 { return it.id }
+
+// URL returns the URL
+func (it *Item) URL() string { return it.url }
 
 // ItemSetRead returns a mutation function that sets an item as read
 func ItemSetRead(read bool) func(*Item) EntityUpdate {

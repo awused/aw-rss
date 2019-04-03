@@ -13,6 +13,7 @@ type Config struct {
 	Port              int
 	LogFile           string
 	LogLevel          string
+	Dedupe            bool
 	CloudflareDomains []string
 }
 

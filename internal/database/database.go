@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/awused/aw-rss/internal/config"
 	log "github.com/sirupsen/logrus"
 
 	// Imported for side effects
@@ -25,6 +26,7 @@ type dbOrTx interface {
 
 // Database is the database for storing all persistent data for aw-rss
 type Database struct {
+	conf      config.Config
 	db        *sql.DB
 	lock      sync.RWMutex // sqlite3 should be generally threadsafe but don't take chances
 	closed    bool
@@ -32,19 +34,21 @@ type Database struct {
 }
 
 // NewDatabase creates a new database instances around the provided sqlite3 DB
-func NewDatabase(dbfile string) (d *Database, err error) {
+func NewDatabase(c config.Config) (dbase *Database, err error) {
+	d := Database{conf: c}
+
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(error)
 		}
 	}()
 
-	log.Infof("Using database %s", dbfile)
-	if dbfile == ":memory:" {
+	log.Infof("Using database %s", d.conf.Database)
+	if d.conf.Database == ":memory:" {
 		log.Warning("Using in-memory database, state will not persist between runs")
 	}
 
-	db, err := sql.Open("sqlite3", dbfile)
+	db, err := sql.Open("sqlite3", d.conf.Database)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -54,12 +58,11 @@ func NewDatabase(dbfile string) (d *Database, err error) {
 		log.Panic(err)
 	}
 
-	var dbase Database
-	dbase.db = db
+	d.db = db
 
-	dbase.init()
+	d.init()
 
-	return &dbase, nil
+	return &d, nil
 }
 
 // Close closes the database, freeing all resources
@@ -350,6 +353,9 @@ func (d *Database) upgradeFrom(version int) {
 	d.upgradeTo(14, version, `
 				CREATE INDEX categories_disabled_index ON categories(disabled);
 				CREATE INDEX categories_commit_index ON categories(commit_timestamp);`)
+
+	d.upgradeTo(15, version, `
+				CREATE INDEX items_url_index ON items(url);`)
 
 	if version < 13 {
 		_, err := d.db.Exec("VACUUM")

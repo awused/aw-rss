@@ -82,13 +82,27 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 		return err
 	}
 
-	sql := insertSQL("items", structs.ItemInsertColumns, structs.ItemInsertPlaceholders)
+	insertColumns := structs.ItemInsertColumns
+	insertPlaceholders := structs.ItemInsertPlaceholders
+
+	if d.conf.Dedupe {
+		insertColumns += ", read"
+		insertPlaceholders += `,
+				(SELECT EXISTS (SELECT url FROM items WHERE url = ?))`
+	}
+
+	sql := insertSQL("items", insertColumns, insertPlaceholders)
 	binds := []interface{}{}
 
 	for _, i := range items {
 		// TODO -- ON CONFLICT UPDATE if we want to handle updates
 		log.Tracef("Attempting to insert [%s]", i)
-		binds = append(binds, i.InsertValues()...)
+		insertValues := i.InsertValues()
+		if d.conf.Dedupe {
+			insertValues = append(insertValues, i.URL())
+		}
+
+		binds = append(binds, insertValues...)
 	}
 
 	log.Debugf("Inserting %d potentially new items", len(items))
