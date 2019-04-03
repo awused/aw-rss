@@ -5,6 +5,7 @@ import {RouterTestingModule} from '@angular/router/testing';
 
 import {AppComponent} from './app.component';
 import {NavModule} from './nav/nav.module';
+import {PipesModule} from './pipes/pipes.module';
 import {DataService} from './services/data.service';
 import {FakeDataService} from './services/data.service.fake';
 import {MutateService} from './services/mutate.service';
@@ -16,6 +17,7 @@ describe('AppComponent', () => {
              imports: [
                RouterTestingModule,
                NavModule,
+               PipesModule,
              ],
              declarations: [
                AppComponent

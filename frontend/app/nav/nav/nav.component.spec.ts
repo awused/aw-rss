@@ -4,6 +4,7 @@ import {async,
         TestBed} from '@angular/core/testing';
 import {RouterTestingModule} from '@angular/router/testing';
 import {MaterialModule} from 'frontend/app/material/material.module';
+import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
 import {MutateService} from 'frontend/app/services/mutate.service';
@@ -22,7 +23,8 @@ describe('NavComponent', () => {
              imports: [
                RouterTestingModule,
                DragDropModule,
-               MaterialModule
+               MaterialModule,
+               PipesModule,
              ],
              declarations: [
                NavComponent,

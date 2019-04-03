@@ -7,8 +7,9 @@ import {DirectivesModule} from '../directives/directives.module';
 import {MaterialModule} from '../material/material.module';
 import {PipesModule} from '../pipes/pipes.module';
 
-import {ItemComponent} from './components/item/item.component';
-import {MainViewComponent} from './components/main-view/main-view.component';
+import {ItemComponent} from './item/item.component';
+import {MainViewHeaderComponent} from './main-view/header.component';
+import {MainViewComponent} from './main-view/main-view.component';
 
 
 // TODO -- trying to load a disabled category dumps the user back to the root
@@ -34,7 +35,7 @@ const routes: Routes = [
     PipesModule,
     DirectivesModule,
   ],
-  declarations: [ItemComponent, MainViewComponent],
+  declarations: [ItemComponent, MainViewComponent, MainViewHeaderComponent],
   exports: [RouterModule]
 })
 export class MainViewModule {

@@ -5,10 +5,11 @@ import {FormsModule,
         ReactiveFormsModule} from '@angular/forms';
 import {RouterModule} from '@angular/router';
 
+import {AdminModule} from '../admin/admin.module';
 import {DirectivesModule} from '../directives/directives.module';
 import {MaterialModule} from '../material/material.module';
+import {PipesModule} from '../pipes/pipes.module';
 
-import {AddDialogComponent} from './add-dialog/add-dialog.component';
 import {FeedComponent} from './feed/feed.component';
 import {NavComponent} from './nav/nav.component';
 
@@ -19,11 +20,12 @@ import {NavComponent} from './nav/nav.component';
     RouterModule,
     DragDropModule,
     DirectivesModule,
+    PipesModule,
     FormsModule,
     ReactiveFormsModule,
+    AdminModule,
   ],
-  declarations: [NavComponent, FeedComponent, AddDialogComponent],
-  entryComponents: [AddDialogComponent],
+  declarations: [NavComponent, FeedComponent],
   exports: [NavComponent],
 })
 export class NavModule {

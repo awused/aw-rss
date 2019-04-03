@@ -9,4 +9,8 @@ export class LoadingService {
   public startLoading() {}
 
   public finishLoading() {}
+
+  public isLoading(): boolean {
+    return false;
+  }
 }

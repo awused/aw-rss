@@ -16,8 +16,6 @@ import {Subject} from 'rxjs';
 import {filter,
         takeUntil} from 'rxjs/operators';
 
-import {Updates} from '../../../models/data';
-
 @Component({
   selector: 'awrss-item',
   templateUrl: './item.component.html',

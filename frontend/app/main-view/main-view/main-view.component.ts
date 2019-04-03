@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Component,
+  Input,
   OnDestroy,
   OnInit
 } from '@angular/core';
@@ -23,8 +24,10 @@ import {EmptyFilters,
         PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
 import {ErrorService} from 'frontend/app/services/error.service';
+import {MobileService} from 'frontend/app/services/mobile.service';
 import {ParamService} from 'frontend/app/services/param.service';
-import {Subject} from 'rxjs';
+import {Observable,
+        Subject} from 'rxjs';
 import {
   filter,
   map,
@@ -44,13 +47,15 @@ export class MainViewComponent implements OnInit, OnDestroy {
   public category?: Category;
   public feed?: Feed;
   public sortedItems: Item[] = [];
+  public mobile: Observable<boolean>;
 
   constructor(
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly dataService: DataService,
       private readonly errorService: ErrorService,
-      private readonly paramService: ParamService) {}
+      private readonly paramService: ParamService,
+      private readonly mobileService: MobileService) {}
 
   ngOnInit() {
     this.dataService.updates()
@@ -58,9 +63,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
         .subscribe((u: Updates) => {
           let changed;
           const oldItemLength = this.filteredData.items.length;
-          console.log(u);
           [this.filteredData, changed] = this.filteredData.merge(u);
-          console.log(this.filteredData);
           if (changed) {
             // Fast path
             if (!u.refresh &&
@@ -106,6 +109,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
             // This one will prevent mangling state strangely
             takeUntil(this.onDestroy$))
         .subscribe((fd: FilteredData) => this.handleNewFilteredData(fd));
+
+    this.mobile = this.mobileService.mobile();
   }
 
   public getFeed(id: number): Feed {

@@ -7,9 +7,9 @@
      draggable="false"
      ondragstart="return false;">
     <div class="title"
-         matTooltip="{{fd.feed.userTitle || fd.feed.title || fd.feed.siteUrl || fd.feed.url}}"
+         matTooltip="{{fd.feed | feedTitle}}"
          matTooltipPosition="right">
-      {{fd.feed.userTitle || fd.feed.title || fd.feed.siteUrl || fd.feed.url}}
+      {{fd.feed | feedTitle}}
     </div>
     <div class="spacer"></div>
     <div class="time"

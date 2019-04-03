@@ -6,9 +6,6 @@ mat-sidenav-container {
   margin-top: 56px;
 }
 
-mat-sidenav>* {
-  //scrollbar-width: none;
-}
 
 mat-toolbar {
   position: fixed;
@@ -25,9 +22,19 @@ h1 {
 }
 
 .title {
+  color: white;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: unset;
+
+  .mat-icon {
+    font-size: 20px;
+  }
+}
+
+a.title:hover {
+  text-decoration: underline;
 }
 
 .spacer {

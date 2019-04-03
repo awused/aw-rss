@@ -16,12 +16,12 @@ const mangadexSeriesRegexp = `^https://mangadex\.org/rss/[0-9a-z]+/manga_id/([0-
 
 var mdsre = regexp.MustCompile(mangadexSeriesRegexp)
 
-type Feed interface {
+type feed interface {
 	URL() string
 }
 
 // GetFeedTitle overrides the feed title, if necessary
-func GetFeedTitle(f Feed, gfe *gofeed.Feed) string {
+func GetFeedTitle(f feed, gfe *gofeed.Feed) string {
 	if gfe.Title != "MangaDex RSS" {
 		return gfe.Title
 	}
@@ -39,7 +39,7 @@ func GetFeedTitle(f Feed, gfe *gofeed.Feed) string {
 }
 
 // GetFeedLink overrides the feed link, if necessary
-func GetFeedLink(f Feed, gfe *gofeed.Feed) string {
+func GetFeedLink(f feed, gfe *gofeed.Feed) string {
 	if gfe.Link == "https://mangadex.org/" {
 		groups := mdsre.FindStringSubmatch(f.URL())
 		if groups != nil {

@@ -1,11 +1,10 @@
 import {MediaMatcher} from '@angular/cdk/layout';
 import {Component,
-        HostListener,
-        NgZone,
-        OnDestroy,
-        ViewChild} from '@angular/core';
+        HostListener} from '@angular/core';
 import {Title} from '@angular/platform-browser';
+import {Observable} from 'rxjs';
 
+import {MobileService} from './services/mobile.service';
 import {RefreshService} from './services/refresh.service';
 
 @Component({
@@ -13,27 +12,22 @@ import {RefreshService} from './services/refresh.service';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent implements OnDestroy {
-  public mobileQuery: MediaQueryList;
+export class AppComponent {
+  public mobile: Observable<boolean>;
   public openNav = false;
   public unread = 0;
   public title = 'Aw-RSS';
-
-  private mobileQueryListener: () => void;
+  public link?: string;
 
   constructor(
-      private readonly zone: NgZone,
-      private readonly media: MediaMatcher,
+      private readonly mobileService: MobileService,
       private readonly titleService: Title,
       private readonly refreshService: RefreshService) {
-    this.mobileQuery = media.matchMedia('(max-width: 768px)');
-    // NgZone is the only option that doesn't break regular change detection
-    this.mobileQueryListener = () => zone.run(() => true);
-    this.mobileQuery.addEventListener('change', this.mobileQueryListener);
     // Uncertain if I actually want to update the page's title constantly,
     // or just the bar at the top
     this.titleService.setTitle(this.title);
 
+    this.mobile = mobileService.mobile();
     // TODO -- Auto close sidenav on navigation
   }
 
@@ -54,10 +48,5 @@ export class AppComponent implements OnDestroy {
 
   public isRefreshing(): boolean {
     return this.refreshService.isRefreshing();
-  }
-
-  ngOnDestroy(): void {
-    // This should never actually run
-    this.mobileQuery.removeEventListener('change', this.mobileQueryListener);
   }
 }

@@ -1,0 +1,16 @@
+<div class="header primary-dark-bg">
+  <h2 *ngIf="!mobile"
+      class="title">
+    <a *ngIf="feed && feed.siteUrl"
+       class="site-link"
+       [href]="feed.siteUrl | urlSanitize"
+       rel="noopener"
+       target="_blank">
+      {{feed | feedTitle}}
+      <mat-icon>launch</mat-icon>
+    </a>
+    <div *ngIf="(feed && !feed.siteUrl) || category">
+      {{ feed && (feed | feedTitle) || category.title }}
+    </div>
+  </h2>
+</div>

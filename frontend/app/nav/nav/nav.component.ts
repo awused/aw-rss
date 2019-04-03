@@ -12,6 +12,7 @@ import {MatDialog} from '@angular/material';
 import {ActivatedRoute,
         ParamMap,
         Router} from '@angular/router';
+import {AddDialogComponent} from 'frontend/app/admin/add-dialog/add-dialog.component';
 import {EmptyFilteredData,
         FilteredData,
         Updates} from 'frontend/app/models/data';
@@ -21,11 +22,10 @@ import {Category,
         Item} from 'frontend/app/models/entities';
 import {DataService} from 'frontend/app/services/data.service';
 import {ErrorService} from 'frontend/app/services/error.service';
+import {MobileService} from 'frontend/app/services/mobile.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {ParamService} from 'frontend/app/services/param.service';
 import {RefreshService} from 'frontend/app/services/refresh.service';
-
-import {AddDialogComponent} from '../add-dialog/add-dialog.component';
 
 
 
@@ -57,6 +57,7 @@ interface NavCategory {
 export class NavComponent {
   // This controller will never be destroyed
   constructor(
+      private readonly mobileService: MobileService,
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly refreshService: RefreshService,
@@ -81,14 +82,18 @@ export class NavComponent {
               .subscribe(
                   (q: ParamMap) => this.showAll = q.get('all') === 'true');
         });
+
+    this.mobileService.mobile()
+        .subscribe((mobile: boolean) => this.isMobile = mobile);
   }
-  @Input()
-  public isMobile: boolean;
   @Output()
   public unreadCount = new EventEmitter<number>();
   @Output()
   public pageTitle = new EventEmitter<string>();
+  @Output()
+  public titleLink = new EventEmitter<string|void>();
 
+  public isMobile: boolean;
   public selectedCategoryName?: string;
   public selectedFeed?: number;
   public navCategories: NavCategory[];
@@ -470,18 +475,22 @@ export class NavComponent {
         this.categoriesByName.get(this.selectedCategoryName));
     if (cd) {
       this.pageTitle.emit(cd.category.title);
+      this.titleLink.emit();
       this.unreadCount.emit(cd.unread);
       return;
     }
 
     const fd = this.unreadByFeed.get(this.selectedFeed);
     if (fd) {
-      this.pageTitle.emit(fd.feed.title);
+      this.pageTitle.emit(
+          fd.feed.userTitle || fd.feed.title || fd.feed.siteUrl || fd.feed.url);
+      this.titleLink.emit(fd.feed.siteUrl || fd.feed.url);
       this.unreadCount.emit(fd.unread.size);
       return;
     }
 
     this.pageTitle.emit('Aw-RSS');
+    this.titleLink.emit();
     this.unreadCount.emit(this.mainUnread);
   }
 

@@ -1,0 +1,19 @@
+.item-list {
+  //height: calc(100% - 52px);
+  height: 100%;
+
+  &.mobile {
+    height: 100%;
+  }
+}
+
+awrss-item {
+  position: relative;
+}
+
+.header {
+
+  &.fixed {
+    z-index: 2;
+  }
+}

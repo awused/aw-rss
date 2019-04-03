@@ -13,6 +13,7 @@ import {DirectivesModule} from './directives/directives.module';
 import {MainViewModule} from './main-view/main-view.module';
 import {MaterialModule} from './material/material.module';
 import {NavModule} from './nav/nav.module';
+import {PipesModule} from './pipes/pipes.module';
 
 @NgModule({
   declarations: [
@@ -25,6 +26,7 @@ import {NavModule} from './nav/nav.module';
     BrowserAnimationsModule,
     MainViewModule,
     NavModule,
+    PipesModule,
     AppRoutingModule,  // last
     MaterialModule,
     DirectivesModule,

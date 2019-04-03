@@ -1,14 +1,23 @@
 <div class="mat-typography"
-     [class.fixed-layout]="!mobileQuery.matches">
+     [class.fixed-layout]="!(mobile | async)">
   <mat-toolbar class="awrss-toolbar"
-               *ngIf="mobileQuery.matches">
+               *ngIf="mobile | async">
     <button (click)="openNav = !openNav"
             aria-label="Toggle menu"
             mat-icon-button>
       <mat-icon>menu</mat-icon>
     </button>
     <h1 class="header">
-      <div class="title">{{title}}</div>
+      <div *ngIf="!link"
+           class="title">{{title}}</div>
+      <a *ngIf="link"
+         [href]="link | urlSanitize"
+         rel="noopener"
+         target="_blank"
+         class="title external-link">
+        {{title}}
+        <mat-icon>launch</mat-icon>
+      </a>
       <div class="spacer"></div>
       <div class="unread"
            *ngIf="unread">
@@ -25,14 +34,14 @@
   <mat-sidenav-container (backdropClick)="openNav = false"
                          fullscreen>
     <mat-sidenav #snav
-                 [opened]="!mobileQuery.matches || openNav"
-                 [mode]="mobileQuery.matches ? 'over' : 'side'"
-                 [fixedTopGap]="mobileQuery.matches ? 56 : 0"
+                 [opened]="!(mobile | async) || openNav"
+                 [mode]="(mobile | async) ? 'over' : 'side'"
+                 [fixedTopGap]="(mobile | async)  ? 56 : 0"
                  fixedInViewport
                  disableClose>
-      <awrss-nav [isMobile]="mobileQuery.matches"
-                 (unreadCount)="unread = $event"
-                 (pageTitle)="title = $event">
+      <awrss-nav (unreadCount)="unread = $event"
+                 (pageTitle)="title = $event"
+                 (titleLink)="link = $event">
       </awrss-nav>
     </mat-sidenav>
     <mat-sidenav-content>

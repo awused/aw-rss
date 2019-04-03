@@ -318,7 +318,6 @@ export class DataService {
         }
 
         if (oldFeed.categoryId !== f.categoryId) {
-          console.log('must replay');
           mustReplay = true;
           // if (this.sub && (!this.sub.id || f.categoryId == this.sub.id)) {
           // Check for missing time ranges in category subscriptions
@@ -335,7 +334,16 @@ export class DataService {
               f,
               isBackfill || f.createTimestamp >= this.timestamp,
               f.createTimestamp >= this.timestamp));
-      if (!f.disabled && !isBackfill && f.createTimestamp < this.timestamp) {
+      if (f.disabled) {
+        return;
+      }
+
+      if (f.categoryId !== undefined) {
+        // Catch the case where a feed is both created and hidden
+        mustReplay = true;
+      }
+
+      if (!isBackfill && f.createTimestamp < this.timestamp) {
         // Do Fetches
         backfillUnread.add(f.id);
 
