@@ -58,6 +58,10 @@
   }
 }
 
+.category-link {
+  max-width: 50%;
+}
+
 .category-link.category-pad {
   margin-right: 12px;
 }
@@ -71,6 +75,7 @@
 .header {
   display: block;
   margin: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

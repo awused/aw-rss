@@ -1,16 +1,28 @@
-<div class="header primary-dark-bg">
+<div class="header primary-dark-bg"
+     [class.mobile]="mobile">
   <h2 *ngIf="!mobile"
       class="title">
     <a *ngIf="feed && feed.siteUrl"
        class="site-link"
        [href]="feed.siteUrl | urlSanitize"
+       matTooltip="{{feed | feedTitle}}"
        rel="noopener"
        target="_blank">
-      {{feed | feedTitle}}
+      <div class="feed-title">
+        {{feed | feedTitle}}
+      </div>
       <mat-icon>launch</mat-icon>
     </a>
     <div *ngIf="(feed && !feed.siteUrl) || category">
       {{ feed && (feed | feedTitle) || category.title }}
     </div>
   </h2>
+  <div class="spacer"></div>
+  <button class="edit-button"
+          (click)="edit()"
+          *ngIf="feed || category"
+          matTooltip="edit {{feed && (feed | feedTitle) || category.title}}"
+          mat-icon-button>
+    <mat-icon>edit</mat-icon>
+  </button>
 </div>

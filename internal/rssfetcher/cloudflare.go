@@ -214,7 +214,7 @@ func (cf *cloudflare) getNewCookie(
 
 func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 	out, err :=
-		exec.Command("python3", "-c", cookieScript, feedURL).CombinedOutput()
+		exec.Command("python2", "-c", cookieScript, feedURL).CombinedOutput()
 	str := string(out)
 	if err != nil {
 		cf.setInvalid(h)

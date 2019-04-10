@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/awused/aw-rss/internal/quirks"
 	"github.com/mmcdole/gofeed"
 	log "github.com/sirupsen/logrus"
 )
@@ -132,9 +133,8 @@ func createNewItem(gfi *gofeed.Item, f *Feed) *Item {
 	item.feedID = f.ID()
 	item.key = getKey(gfi)
 	item.title = gfi.Title
-	if gfi.Link != "" {
-		item.url = gfi.Link
-	} else {
+	item.url = quirks.GetItemURL(f, gfi)
+	if item.url == "" {
 		log.Infof("No link present in gofeed.Item %+v\n", gfi)
 	}
 	// So few feeds actually populate their full Content that it is not useful
@@ -244,6 +244,9 @@ func (it *Item) update() EntityUpdate {
 
 // ID returns the ID
 func (it *Item) ID() int64 { return it.id }
+
+// FeedID returns the associated Feed's ID
+func (it *Item) FeedID() int64 { return it.feedID }
 
 // URL returns the URL
 func (it *Item) URL() string { return it.url }

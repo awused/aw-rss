@@ -8,6 +8,7 @@ import {FakeDataService} from 'frontend/app/services/data.service.fake';
 
 import {ItemComponent} from '../item/item.component';
 
+import {MainViewHeaderComponent} from './header.component';
 import {MainViewComponent} from './main-view.component';
 
 describe('MainViewComponent', () => {
@@ -21,6 +22,7 @@ describe('MainViewComponent', () => {
                PipesModule
              ],
              declarations: [
+               MainViewHeaderComponent,
                MainViewComponent,
                ItemComponent
              ],

@@ -7,6 +7,10 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
+type feed interface {
+	URL() string
+}
+
 // "MangaDex RSS" is a terrible title for every per-series feed
 const mangadexItemRegexp = `^(.+) - [^-]+$`
 
@@ -16,9 +20,9 @@ const mangadexSeriesRegexp = `^https://mangadex\.org/rss/[0-9a-z]+/manga_id/([0-
 
 var mdsre = regexp.MustCompile(mangadexSeriesRegexp)
 
-type feed interface {
-	URL() string
-}
+const konachanRegexp = `^https?://konachan\.com/post/piclens\?tags?=(.*)$`
+
+var konare = regexp.MustCompile(konachanRegexp)
 
 // GetFeedTitle overrides the feed title, if necessary
 func GetFeedTitle(f feed, gfe *gofeed.Feed) string {
@@ -44,6 +48,11 @@ func GetFeedLink(f feed, gfe *gofeed.Feed) string {
 		groups := mdsre.FindStringSubmatch(f.URL())
 		if groups != nil {
 			return "https://mangadex.org/title/" + groups[1]
+		}
+	} else if gfe.Link == "http://konachan.com/" {
+		groups := konare.FindStringSubmatch(f.URL())
+		if groups != nil {
+			return "https://konachan.com/post?tags=" + groups[1]
 		}
 	} else if strings.HasPrefix(gfe.Link, "https://www.royalroad.com/fiction") {
 		return strings.Replace(gfe.Link, "syndication/", "", 1)

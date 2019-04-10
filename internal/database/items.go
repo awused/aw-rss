@@ -86,9 +86,12 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 	insertPlaceholders := structs.ItemInsertPlaceholders
 
 	if d.conf.Dedupe {
+		// Allow duplicates within the same feed
+		// The unhandled corner case is where multiple feeds have 'legitimate'
+		// duplicates, but I don't think it's worth the effort to handle.
 		insertColumns += ", read"
 		insertPlaceholders += `,
-				(SELECT EXISTS (SELECT url FROM items WHERE url = ?))`
+				(SELECT EXISTS (SELECT url FROM items WHERE url = ? AND feedid != ?))`
 	}
 
 	sql := insertSQL("items", insertColumns, insertPlaceholders)
@@ -99,7 +102,7 @@ func (d *Database) InsertItems(items []*structs.Item) error {
 		log.Tracef("Attempting to insert [%s]", i)
 		insertValues := i.InsertValues()
 		if d.conf.Dedupe {
-			insertValues = append(insertValues, i.URL())
+			insertValues = append(insertValues, i.URL(), i.FeedID())
 		}
 
 		binds = append(binds, insertValues...)

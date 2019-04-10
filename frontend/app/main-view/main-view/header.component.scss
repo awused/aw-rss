@@ -1,12 +1,43 @@
 .header {
-  height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  padding: 0 8px;
+
+  &.mobile {
+
+    height: 52px;
+    padding: 6px 8px;
+  }
+}
+
+.title {
+  overflow: hidden;
+}
+
+.site-link {
+  display: flex;
+
+  .feed-title {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
 }
 
 .title,
 .site-link {
   color: white;
+  margin: 0;
+}
+
+.site-link {
+  margin-top: 4px;
 }
 
 .site-link .mat-icon {
-  font-size: 20px;
+  font-size: 22px;
+}
+
+.spacer {
+  flex: 1 1 auto;
 }
