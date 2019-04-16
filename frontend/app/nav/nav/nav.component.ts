@@ -73,7 +73,6 @@ export class NavComponent {
                       unreadOnly: true,
                     })
         .subscribe((fd: FilteredData) => {
-          // TODO -- get initial newest item times
           this.handleUpdates(fd);
 
           this.paramService.mainViewParams()

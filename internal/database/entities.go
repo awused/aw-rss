@@ -2,6 +2,7 @@ package database
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/awused/aw-rss/internal/structs"
 	log "github.com/sirupsen/logrus"
@@ -9,6 +10,12 @@ import (
 
 func entityGetSQL(table string, columns string) string {
 	return "SELECT " + columns + " FROM " + table + " WHERE id = ?;\n"
+}
+
+func entityBatchGetSQL(table string, columns string, n int) string {
+	placeholders := strings.TrimPrefix(strings.Repeat(", ?", n), ", ")
+	return "SELECT " + columns + " FROM " + table +
+		" WHERE id IN (" + placeholders + ");\n"
 }
 
 func insertSQL(table string, columns string, placeholders string) string {

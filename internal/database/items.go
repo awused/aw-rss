@@ -67,6 +67,16 @@ func getItem(dot dbOrTx, id int64) (*structs.Item, error) {
 	return structs.ScanItem(dot.QueryRow(sql, id))
 }
 
+func getItems(dot dbOrTx, ids []int64) ([]*structs.Item, error) {
+	sql := entityBatchGetSQL("items", structs.ItemSelectColumns, len(ids))
+
+	rows, err := dot.Query(sql, []interface{}{ids}...)
+	if err != nil {
+		return nil, err
+	}
+	return structs.ScanItems(rows)
+}
+
 // InsertItems inserts new items into the database if they aren't present
 func (d *Database) InsertItems(items []*structs.Item) error {
 	if len(items) == 0 {
@@ -224,6 +234,7 @@ func (d *Database) GetItems(
 		return nil, err
 	}
 
+	// TODO -- part of backfilling
 	/*resp.Feed, err = getFeedsFor(tx, req)
 	if err != nil {
 		log.Error(err)
@@ -287,4 +298,74 @@ func getItemsFor(dot dbOrTx, req GetItemsRequest) ([]*structs.Item, error) {
 	}
 
 	return structs.ScanItems(rows)
+}
+
+// MarkItemsReadByFeed marks all items up to maxID as read for the feed
+func (d *Database) MarkItemsReadByFeed(feedID int64, maxID int64) (
+	[]*structs.Item, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if err := d.checkClosed(); err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	tx, err := d.db.Begin()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// It's not really optimal to read the full items here, but it's safer
+	// to use the existing item mutation functions
+	selectSQL := `
+			SELECT ` + structs.ItemSelectColumns + `
+			FROM items
+			WHERE feedid = ? AND read = 0 AND id <= ?;`
+	rows, err := tx.Query(selectSQL, feedID, maxID)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	items, err := structs.ScanItems(rows)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	updateSQL := []string{}
+	updateBinds := []interface{}{}
+	ids := []int64{}
+
+	for _, it := range items {
+		ids = append(ids, it.ID())
+
+		update := structs.ItemSetRead(true)(it)
+		sql, binds := update.Get()
+		updateSQL = append(updateSQL, sql)
+		updateBinds = append(updateBinds, binds...)
+	}
+
+	_, err = tx.Exec(strings.Join(updateSQL, "\n"), updateBinds...)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	updatedItems, err := getItems(tx, ids)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	return updatedItems, nil
 }

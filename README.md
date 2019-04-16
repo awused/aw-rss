@@ -18,9 +18,14 @@ Aw-RSS does not handle any kind of security, authentication, or authorization so
 
 # Cloudflare
 
-I include some limited workarounds for cloudflare protected feeds using [cfscrape](https://github.com/Anorov/cloudflare-scrape). You'll need python3, node, and cfscrape installed to run it.
+<!-- I include some limited workarounds for cloudflare protected feeds using [cfscrape](https://github.com/Anorov/cloudflare-scrape). You'll need python3, node, and cfscrape installed to run it. -->
 
-As a safeguard you'll have to whitelist individual hosts in the config file to avoid running javascript you don't minimally trust.
+I include some limited workarounds for cloudflare protectected feeds. I update this as necessary, it is currently using:
+
+* python2 due to js2py incompatibilities
+* [cloudflare-scrape-js2py](https://github.com/VeNoMouS/cloudflare-scrape-js2py)
+
+As a safeguard you'll have to use HTTPS and whitelist individual hosts in the config file to avoid running javascript you don't minimally trust.
 
 # External Commands
 

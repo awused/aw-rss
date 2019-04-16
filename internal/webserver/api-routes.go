@@ -20,6 +20,7 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 
 	r.Post("/feeds/add", ws.addFeed)
 	r.Post("/feeds/edit", ws.editFeed)
+	r.Post("/feeds/{id}/read", ws.markFeedAsRead)
 
 	r.Post("/categories/add", ws.addCategory)
 
@@ -46,6 +47,7 @@ func (ws *webserver) getItems(w http.ResponseWriter, r *http.Request) {
 
 	if err = json.NewEncoder(w).Encode(resp); err != nil {
 		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -68,6 +70,7 @@ func (ws *webserver) setItemRead(readState bool) http.HandlerFunc {
 
 		if err = json.NewEncoder(w).Encode(nit); err != nil {
 			log.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
@@ -82,6 +85,7 @@ func (ws *webserver) currentState(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(cs); err != nil {
 		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -103,5 +107,50 @@ func (ws *webserver) updatesSince(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(up); err != nil {
 		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type markFeedReadRequest struct {
+	MaxItemID *int64 `json:"maxItemId"`
+}
+
+type markFeedReadResponse struct {
+	Items []*structs.Item `json:"items"`
+}
+
+func (ws *webserver) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
+	feedid, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var req markFeedReadRequest
+
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.MaxItemID == nil {
+		http.Error(w, "maxItemID is a required field", http.StatusBadRequest)
+		return
+	}
+
+	items, err := ws.db.MarkItemsReadByFeed(feedid, *req.MaxItemID)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := markFeedReadResponse{Items: items}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

@@ -46,6 +46,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
   private filteredData: FilteredData = EmptyFilteredData;
   public category?: Category;
   public feed?: Feed;
+  public maxItemId?: number;
   public sortedItems: Item[] = [];
   public mobile: Observable<boolean>;
 
@@ -73,6 +74,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
               // TODO -- remove https://github.com/angular/material2/pull/14639
               this.sortedItems = this.sortedItems.slice();
             } else {
+              this.maxItemId =
+                  this.filteredData
+                      .items[this.filteredData.items.length - 1]
+                      .id;
               this.sortedItems = this.sortItems(this.filteredData.items);
             }
 
@@ -103,8 +108,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
             filter((f?: Filters) => !!f),
             tap(() => this.filteredData = EmptyFilteredData),
             switchMap((f: Filters) => this.dataService.dataForFilters(f)),
-            // At worst, this snapshot will be a for a page the user is navigating to
-            tap(() => this.paramService.pushMainViewParams(this.route.snapshot.paramMap)),
+            // At worst, this snapshot will be a page the user is navigating to
+            tap(() =>
+                    this.paramService.pushMainViewParams(
+                        this.route.snapshot.paramMap)),
             // The first takeUntil will prevent unnecessary data requests
             // This one will prevent mangling state strangely
             takeUntil(this.onDestroy$))
@@ -139,7 +146,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
       this.category = fd.categories[0];
     }
 
-    // TODO -- if the category is disabed kick the user to /, here
+    // TODO -- if the category is disabled kick the user to /, here
     // TODO -- subscribe to the category in DataService, if it does exist
     this.filteredData = fd;
     this.sortedItems = this.sortItems(this.filteredData.items);

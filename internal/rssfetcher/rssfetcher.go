@@ -381,6 +381,7 @@ func (r *rssFetcher) fetchHTTPFeed(
 	cf, err := r.cloudflare.isCloudflareResponse(f.URL(), body)
 	if err != nil {
 		log.Errorf("Error calling isCloudflareResponse() for [%s]: %v", f, err)
+		log.Errorf("Body was: \n" + body)
 		panic(err)
 	}
 	if cf {

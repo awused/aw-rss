@@ -120,7 +120,9 @@
                          [class.hidden]="dragging"
                          *ngIf="uncategorizedReadFeeds.length">
       <mat-expansion-panel-header>
-        Read Feeds
+        <div class="mat-subheading-2 read-feeds">
+          Read Feeds
+        </div>
       </mat-expansion-panel-header>
       <ng-template matExpansionPanelContent>
         <div cdkDropList
