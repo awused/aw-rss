@@ -74,11 +74,19 @@ export class MainViewComponent implements OnInit, OnDestroy {
               // TODO -- remove https://github.com/angular/material2/pull/14639
               this.sortedItems = this.sortedItems.slice();
             } else {
+              this.sortedItems = this.sortItems(this.filteredData.items);
+            }
+
+            if (this.feed && this.filteredData.items.length) {
               this.maxItemId =
                   this.filteredData
                       .items[this.filteredData.items.length - 1]
                       .id;
-              this.sortedItems = this.sortItems(this.filteredData.items);
+              // Could do better if counting unread was moved out of NavComponent.
+              // But other work is O(n) anyway.
+              if (!this.filteredData.items.find((i) => !i.read)) {
+                this.maxItemId = undefined;
+              }
             }
 
             if (this.category) {
@@ -150,6 +158,16 @@ export class MainViewComponent implements OnInit, OnDestroy {
     // TODO -- subscribe to the category in DataService, if it does exist
     this.filteredData = fd;
     this.sortedItems = this.sortItems(this.filteredData.items);
+
+    if (this.feed && fd.items.length) {
+      this.maxItemId =
+          fd.items[this.filteredData.items.length - 1].id;
+      // Could do better if counting unread was moved out of NavComponent.
+      // But other work is O(n) anyway.
+      if (!fd.items.find((i) => !i.read)) {
+        this.maxItemId = undefined;
+      }
+    }
   }
 
   private paramsToFilters(p: ParamMap): Filters|undefined {

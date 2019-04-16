@@ -1,6 +1,5 @@
 import {Component,
-        Inject,
-        OnInit} from '@angular/core';
+        Inject} from '@angular/core';
 import {MAT_DIALOG_DATA} from '@angular/material';
 
 @Component({
@@ -8,13 +7,18 @@ import {MAT_DIALOG_DATA} from '@angular/material';
   templateUrl: './confirmation-dialog.component.html',
   styleUrls: ['./confirmation-dialog.component.scss']
 })
-export class ConfirmationDialogComponent implements OnInit {
+export class ConfirmationDialogComponent {
+  public text: string[];
+
   constructor(
       @Inject(MAT_DIALOG_DATA) public readonly data: {
         title: string,
-        text: string
-      }) {}
-
-  ngOnInit() {
+        text: string|string[]
+      }) {
+    if (typeof data.text === 'string') {
+      this.text = [data.text];
+    } else {
+      this.text = data.text;
+    }
   }
 }

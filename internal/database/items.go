@@ -69,8 +69,13 @@ func getItem(dot dbOrTx, id int64) (*structs.Item, error) {
 
 func getItems(dot dbOrTx, ids []int64) ([]*structs.Item, error) {
 	sql := entityBatchGetSQL("items", structs.ItemSelectColumns, len(ids))
+	// Ugly
+	binds := make([]interface{}, len(ids), len(ids))
+	for i, v := range ids {
+		binds[i] = v
+	}
 
-	rows, err := dot.Query(sql, []interface{}{ids}...)
+	rows, err := dot.Query(sql, binds...)
 	if err != nil {
 		return nil, err
 	}

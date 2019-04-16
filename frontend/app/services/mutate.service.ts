@@ -163,6 +163,26 @@ export class MutateService {
     this.subscribe(obs);
     return obs;
   }
+
+  public markFeedAsRead(
+      feedId: number,
+      maxItemId: number,
+      ): Observable<void> {
+    const url = `/api/feeds/${feedId}/read`;
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http.post(url, {maxItemId})
+            .pipe(
+                map((response: {items: Item[]}) =>
+                        this.dataService.pushUpdates(
+                            new Updates(false, [], [], response.items))),
+                share());
+
+    this.subscribe(obs);
+    return obs;
+  }
+
   private subscribe(
       obs: Observable<any>,
       rollback: () => void = () => undefined) {

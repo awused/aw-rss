@@ -20,6 +20,7 @@ import {Category,
         CATEGORY_NAME_REGEX,
         Feed,
         Item} from 'frontend/app/models/entities';
+import {FeedTitlePipe} from 'frontend/app/pipes/feed-title.pipe';
 import {DataService} from 'frontend/app/services/data.service';
 import {ErrorService} from 'frontend/app/services/error.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
@@ -65,7 +66,8 @@ export class NavComponent {
       private readonly mutateService: MutateService,
       private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
-      private readonly dialog: MatDialog) {
+      private readonly dialog: MatDialog,
+      private readonly feedTitlePipe: FeedTitlePipe) {
     this.dataService.updates().subscribe(
         (u: Updates) => this.handleUpdates(u));
 
@@ -115,7 +117,7 @@ export class NavComponent {
 
   // Order by: disabled, failing, has unread, alphabetically.
   // Within those buckets they're sorted alphabetically.
-  private static feedDataComparator(a: FeedData, b: FeedData): number {
+  feedDataComparator = (a: FeedData, b: FeedData): number => {
     if (a.feed.disabled && !b.feed.disabled) {
       return 1;
     } else if (!a.feed.disabled && b.feed.disabled) {
@@ -134,18 +136,14 @@ export class NavComponent {
       return 1;
     }
 
-    const aTitle =
-        a.feed.userTitle || a.feed.title || a.feed.siteUrl || a.feed.url;
-    const bTitle =
-        b.feed.userTitle || b.feed.title || b.feed.siteUrl || b.feed.url;
+    const aTitle = this.feedTitlePipe.transform(a.feed);
+    const bTitle = this.feedTitlePipe.transform(b.feed);
     return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
-  }
+  };
 
 
   public openAddDialog() {
-    this.dialog.open(AddDialogComponent, {
-      width: '400px',
-    });
+    this.dialog.open(AddDialogComponent);
   }
 
   public shouldHideCategory(c: Category): boolean {
@@ -363,7 +361,7 @@ export class NavComponent {
         }
       } else if (!fd.unread.has(it.id)) {
         // Specifically, we want to catch backfills that otherwise wouldn't
-        // trigger a resort
+        // trigger a re-sort
         if (!hadLastItem && fd.unread.size === 0) {
           mustSort = true;
         }
@@ -422,11 +420,11 @@ export class NavComponent {
       }
     });
 
-    this.uncategorizedFeeds.sort(NavComponent.feedDataComparator);
-    this.uncategorizedReadFeeds.sort(NavComponent.feedDataComparator);
+    this.uncategorizedFeeds.sort(this.feedDataComparator);
+    this.uncategorizedReadFeeds.sort(this.feedDataComparator);
 
     ncm.forEach((nc: NavCategory) => {
-      nc.fData.sort(NavComponent.feedDataComparator);
+      nc.fData.sort(this.feedDataComparator);
       this.navCategories.push(nc);
     });
 
@@ -482,7 +480,7 @@ export class NavComponent {
     const fd = this.unreadByFeed.get(this.selectedFeed);
     if (fd) {
       this.pageTitle.emit(
-          fd.feed.userTitle || fd.feed.title || fd.feed.siteUrl || fd.feed.url);
+          this.feedTitlePipe.transform(fd.feed));
       this.titleLink.emit(fd.feed.siteUrl || fd.feed.url);
       this.unreadCount.emit(fd.unread.size);
       return;

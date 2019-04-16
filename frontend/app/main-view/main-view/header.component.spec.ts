@@ -2,6 +2,8 @@ import {async,
         ComponentFixture,
         TestBed} from '@angular/core/testing';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
+import {MutateService} from 'frontend/app/services/mutate.service';
+import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
 
 import {MainViewHeaderComponent} from './header.component';
 
@@ -15,7 +17,10 @@ describe('MainViewHeaderComponent', () => {
              imports: [
                PipesModule
              ],
-             declarations: [MainViewHeaderComponent]
+             declarations: [MainViewHeaderComponent],
+             providers: [
+               {provide: MutateService, useClass: FakeMutateService}
+             ]
            })
         .compileComponents();
   }));

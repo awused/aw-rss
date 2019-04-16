@@ -1,6 +1,8 @@
 import {HttpClientModule} from '@angular/common/http';
 import {NgModule} from '@angular/core';
+import {MAT_DIALOG_DEFAULT_OPTIONS} from '@angular/material';
 import {BrowserModule,
+        HAMMER_LOADER,
         Title} from '@angular/platform-browser';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {ServiceWorkerModule} from '@angular/service-worker';
@@ -34,7 +36,22 @@ import {PipesModule} from './pipes/pipes.module';
         '/ngsw-worker.js', {enabled: environment.production})
   ],
   entryComponents: [AppComponent],
-  providers: [Title],
+  providers: [
+    Title,
+    {
+      provide: MAT_DIALOG_DEFAULT_OPTIONS,
+      useValue: {
+        width: '400px',
+        panelClass: 'mat-typography',
+        hasBackdrop: true,
+        closeOnNavigation: true,
+      }
+    },
+    {
+      provide: HAMMER_LOADER,
+      useValue: () => new Promise(() => {})
+    }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule {

@@ -5,6 +5,8 @@ import {RouterTestingModule} from '@angular/router/testing';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
+import {MutateService} from 'frontend/app/services/mutate.service';
+import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
 
 import {ItemComponent} from '../item/item.component';
 
@@ -27,7 +29,8 @@ describe('MainViewComponent', () => {
                ItemComponent
              ],
              providers: [
-               {provide: DataService, useClass: FakeDataService}
+               {provide: DataService, useClass: FakeDataService},
+               {provide: MutateService, useClass: FakeMutateService}
              ]
            })
         .compileComponents();

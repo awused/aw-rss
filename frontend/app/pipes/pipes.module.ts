@@ -15,6 +15,9 @@ import {UrlSanitizePipe} from './url-sanitize.pipe';
   exports: [
     UrlSanitizePipe,
     FeedTitlePipe
+  ],
+  providers: [
+    FeedTitlePipe
   ]
 })
 export class PipesModule {
