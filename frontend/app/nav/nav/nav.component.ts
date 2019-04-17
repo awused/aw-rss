@@ -139,7 +139,7 @@ export class NavComponent {
     const aTitle = this.feedTitlePipe.transform(a.feed);
     const bTitle = this.feedTitlePipe.transform(b.feed);
     return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
-  };
+  }
 
 
   public openAddDialog() {
@@ -180,14 +180,15 @@ export class NavComponent {
     }
   }
 
-  public dragDropped(event: CdkDragDrop<CategoryData|void, FeedData|CategoryData>) {
+  public dragDropped(
+      event: CdkDragDrop<CategoryData|void, FeedData|CategoryData>) {
     this.dragging = false;
     this.draggingCategory = undefined;
 
     // This is a really hacky workaround for Angular Material's
     // broken drag and drop.
     // It's worthless on mobile.
-    // TODO -- Implement a better workaround for Material's awful drag and drop on mobile
+    // TODO -- Implement a better workaround for Material's awful drag and drop
     if (!this.dropTarget || this.isMobile) {
       return;
     }
@@ -200,9 +201,9 @@ export class NavComponent {
     const data = event.item.data;
     if (data instanceof CategoryData) {
       if (targetCategory && data.category.id !== targetCategory.category.id) {
-        console.log(`would sort ${data.category.id} after ${targetCategory.category.id}`);
-      } else {
-        console.log(`would sort ${data.category.id} at the end`);
+        this.reorderCategories(data.category.id, targetCategory.category.id);
+      } else if (!targetCategory) {
+        this.reorderCategories(data.category.id);
       }
     }
 
@@ -217,6 +218,29 @@ export class NavComponent {
             {categoryId: targetCategory.category.id});
       }
     }
+  }
+
+  private reorderCategories(targetId: number, before?: number) {
+    const categoryIds = [];
+    this.navCategories.forEach((nc) => {
+      const id = nc.cData.category.id;
+
+      if (id === targetId) {
+        return;
+      }
+
+      if (before !== undefined && before === id) {
+        categoryIds.push(targetId);
+      }
+
+      categoryIds.push(id);
+    });
+
+    if (before === undefined) {
+      categoryIds.push(targetId);
+    }
+
+    this.mutateService.reorderCategories(categoryIds);
   }
 
   private handleParams(p: ParamMap|void) {
@@ -297,7 +321,7 @@ export class NavComponent {
           }
         }
 
-        if (oldc.sortOrder !== c.sortOrder) {
+        if (oldc.sortPosition !== c.sortPosition) {
           mustSort = true;
         }
       }
@@ -429,14 +453,14 @@ export class NavComponent {
     });
 
     this.navCategories.sort((a, b) => {
-      if (a.cData.category.sortOrder !== undefined) {
-        if (b.cData.category.sortOrder === undefined) {
+      if (a.cData.category.sortPosition !== undefined) {
+        if (b.cData.category.sortPosition === undefined) {
           return -1;
         }
 
-        return a.cData.category.sortOrder - b.cData.category.sortOrder;
+        return a.cData.category.sortPosition - b.cData.category.sortPosition;
       }
-      if (b.cData.category.sortOrder !== undefined) {
+      if (b.cData.category.sortPosition !== undefined) {
         return 1;
       }
 

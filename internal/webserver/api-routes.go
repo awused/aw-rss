@@ -23,6 +23,7 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 	r.Post("/feeds/{id}/read", ws.markFeedAsRead)
 
 	r.Post("/categories/add", ws.addCategory)
+	r.Post("/categories/reorder", ws.reorderCategories)
 
 	r.Get("/current", ws.currentState)
 	r.Get("/updates/{timestamp}", ws.updatesSince)
@@ -149,6 +150,42 @@ func (ws *webserver) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := markFeedReadResponse{Items: items}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type reorderCategoriesRequest struct {
+	CategoryIDs []int64 `json:"categoryIds"`
+}
+
+type reorderCategoriesResponse struct {
+	Categories []*structs.Category `json:"categories"`
+}
+
+func (ws *webserver) reorderCategories(w http.ResponseWriter, r *http.Request) {
+	var req reorderCategoriesRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(req.CategoryIDs) == 0 {
+		return
+	}
+
+	categories, err := ws.db.ReorderCategories(req.CategoryIDs)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := reorderCategoriesResponse{Categories: categories}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

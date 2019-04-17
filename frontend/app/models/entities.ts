@@ -9,7 +9,7 @@ export interface Category {
   // A short name consisting of alphabetic characters and hyphens
   // Used in routes
   readonly name: string;
-  readonly sortOrder?: number;
+  readonly sortPosition?: number;
   readonly title: string;
 }
 

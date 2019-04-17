@@ -72,7 +72,9 @@
       <div class="link-div"
            (click)="$event.stopPropagation()">
         <a class="link mat-subheading-2"
-           routerLink="/category/{{nc.cData.category.name}}">
+           routerLink="/category/{{nc.cData.category.name}}"
+           draggable="false"
+           ondragstart="return false;">
           <div class="title">
             {{nc.cData.category.title}}
           </div>

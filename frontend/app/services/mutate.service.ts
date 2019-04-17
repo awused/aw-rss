@@ -172,11 +172,28 @@ export class MutateService {
 
     this.loadingService.startLoading();
     const obs =
-        this.http.post(url, {maxItemId})
+        this.http.post<{items: Item[]}>(url, {maxItemId})
             .pipe(
                 map((response: {items: Item[]}) =>
                         this.dataService.pushUpdates(
                             new Updates(false, [], [], response.items))),
+                share());
+
+    this.subscribe(obs);
+    return obs;
+  }
+
+  public reorderCategories(categoryIds: number[]): Observable<void> {
+    // This is probably rare enough to not bother doing optimistically
+    const url = `/api/categories/reorder`;
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http.post<{categories: Category[]}>(url, {categoryIds})
+            .pipe(
+                map((response: {categories: Category[]}) =>
+                        this.dataService.pushUpdates(
+                            new Updates(false, response.categories))),
                 share());
 
     this.subscribe(obs);

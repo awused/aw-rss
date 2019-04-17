@@ -357,6 +357,10 @@ func (d *Database) upgradeFrom(version int) {
 	d.upgradeTo(15, version, `
 				CREATE INDEX items_url_index ON items(url);`)
 
+	d.upgradeTo(16, version, `
+				ALTER TABLE categories ADD COLUMN
+						sort_position INTEGER DEFAULT NULL;`)
+
 	if version < 13 {
 		_, err := d.db.Exec("VACUUM")
 		if err != nil {

@@ -230,6 +230,8 @@ func ApplyFeedEdit(edit FeedEdit) func(*Feed) EntityUpdate {
 		noop := true
 		newF := *f
 
+		// Category ID doesn't need to be checked for validity here, invalid IDs
+		// will be discarded by the DB.
 		if edit.CategoryID != nil &&
 			(f.categoryID == nil || *f.categoryID != *edit.CategoryID) {
 			noop = false
@@ -244,6 +246,7 @@ func ApplyFeedEdit(edit FeedEdit) func(*Feed) EntityUpdate {
 			newF.disabled = *edit.Disabled
 		}
 
+		// Any text is valid as a user title
 		if edit.UserTitle != nil && f.userTitle != *edit.UserTitle {
 			noop = false
 			newF.userTitle = *edit.UserTitle

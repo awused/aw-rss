@@ -27,7 +27,10 @@ type Category struct {
 	// that frontends are not inconvenienced. Feeds will destroy their
 	// relationships with this category.
 	// Any new categories will completely overwrite a disabled category.
-	disabled        bool
+	disabled bool
+	// Categories with nil sort positions are sorted by their IDs, after any
+	// categories with non-nil sort positions
+	sortPosition    *int64
 	commitTimestamp time.Time
 }
 
@@ -40,6 +43,7 @@ func (c *Category) MarshalJSON() ([]byte, error) {
 		Title           string `json:"title"`
 		HiddenNav       bool   `json:"hiddenNav"`
 		HiddenMain      bool   `json:"hiddenMain"`
+		SortPosition    *int64 `json:"sortPosition,omitempty"`
 		CommitTimestamp int64  `json:"commitTimestamp"`
 	}{
 		ID:              c.id,
@@ -48,6 +52,7 @@ func (c *Category) MarshalJSON() ([]byte, error) {
 		Title:           c.title,
 		HiddenNav:       c.hiddenNav,
 		HiddenMain:      c.hiddenMain,
+		SortPosition:    c.sortPosition,
 		CommitTimestamp: c.commitTimestamp.Unix(),
 	})
 }
@@ -60,6 +65,7 @@ categories.name,
 categories.title,
 categories.hidden_nav,
 categories.hidden_main,
+categories.sort_position,
 categories.commit_timestamp`
 
 func scanCategory(c *Category) []interface{} {
@@ -70,6 +76,7 @@ func scanCategory(c *Category) []interface{} {
 		&c.title,
 		&c.hiddenNav,
 		&c.hiddenMain,
+		&c.sortPosition,
 		&c.commitTimestamp}
 }
 
@@ -117,3 +124,63 @@ func (c *Category) String() string {
 	}
 	return str
 }
+
+const categoryUpdateSQL string = `
+UPDATE
+	categories
+SET
+	disabled = ?,
+	name = ?,
+	title = ?,
+	hidden_nav = ?,
+	hidden_main = ?,
+	sort_position = ?,
+	commit_timestamp = CURRENT_TIMESTAMP
+WHERE
+	id = ?;`
+
+func (c *Category) update() EntityUpdate {
+	return EntityUpdate{
+		c,
+		false,
+		categoryUpdateSQL,
+		[]interface{}{
+			c.disabled,
+			c.name,
+			c.title,
+			c.hiddenNav,
+			c.hiddenMain,
+			c.sortPosition,
+			c.id}}
+}
+
+// ID gets the ID
+func (c *Category) ID() int64 { return c.id }
+
+// CategorySetSortPosition mutates a category to change the sort position.
+func CategorySetSortPosition(c *Category, sortPos int64) EntityUpdate {
+	newC := *c
+
+	if c.sortPosition != nil && sortPos == *c.sortPosition {
+		return noopEntityUpdate(&newC)
+	}
+
+	newC.sortPosition = &sortPos
+	return newC.update()
+}
+
+// CategoryEdit represents new values for a category from a user edit.
+type CategoryEdit struct {
+	Disabled   *bool   `json:"disabled"`
+	Name       *string `json:"name"`
+	Title      *string `json:"title"`
+	HiddenNav  *bool   `json:"hiddenNav"`
+	HiddenMain *bool   `json:"hiddenMain"`
+}
+
+// CategoryApplyEdit returns a mutation function that applies the given
+// (validated CategoryEdit to a category after validating it.
+// func CategoryApplyEdit(edit CategoryEdit) (
+// 	func(*Category) EntityUpdate, error) {
+// 	return nil, nil
+// }
