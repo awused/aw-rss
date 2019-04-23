@@ -1,6 +1,20 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import {async,
+        ComponentFixture,
+        TestBed} from '@angular/core/testing';
+import {FormsModule,
+        ReactiveFormsModule} from '@angular/forms';
+import {
+  MAT_DIALOG_DATA,
+  MatDialogModule,
+  MatDialogRef
+} from '@angular/material';
+import {PipesModule} from 'frontend/app/pipes/pipes.module';
+import {DataService} from 'frontend/app/services/data.service';
+import {FakeDataService} from 'frontend/app/services/data.service.fake';
+import {MutateService} from 'frontend/app/services/mutate.service';
+import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
 
-import { EditFeedDialogComponent } from './edit-feed-dialog.component';
+import {EditFeedDialogComponent} from './edit-feed-dialog.component';
 
 describe('EditFeedDialogComponent', () => {
   let component: EditFeedDialogComponent;
@@ -8,9 +22,22 @@ describe('EditFeedDialogComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ EditFeedDialogComponent ]
-    })
-    .compileComponents();
+             imports: [
+               PipesModule,
+               ReactiveFormsModule,
+               FormsModule,
+               MatDialogModule,
+             ],
+             declarations: [EditFeedDialogComponent],
+             providers: [
+               {provide: DataService, useClass: FakeDataService},
+               // Spy on this
+               {provide: MatDialogRef, useValue: {}},
+               {provide: MAT_DIALOG_DATA, useValue: {feed: {}}},
+               {provide: MutateService, useClass: FakeMutateService},
+             ]
+           })
+        .compileComponents();
   }));
 
   beforeEach(() => {

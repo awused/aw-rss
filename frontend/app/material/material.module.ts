@@ -1,6 +1,7 @@
 import {ScrollingModule} from '@angular/cdk/scrolling';
 import {NgModule} from '@angular/core';
 import {MatButtonModule,
+        MatCheckboxModule,
         MatDialogModule,
         MatExpansionModule,
         MatFormFieldModule,
@@ -19,6 +20,7 @@ import {MatButtonModule,
  */
 @NgModule({exports: [
   MatButtonModule,
+  MatCheckboxModule,
   MatDialogModule,
   MatExpansionModule,
   MatFormFieldModule,

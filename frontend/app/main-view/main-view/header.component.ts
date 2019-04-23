@@ -32,7 +32,9 @@ export class MainViewHeaderComponent {
 
   public edit() {
     if (this.feed) {
-      this.dialog.open(EditFeedDialogComponent);
+      this.dialog.open(EditFeedDialogComponent, {
+        data: {feed: this.feed}
+      });
     } else if (this.category) {
     }
   }

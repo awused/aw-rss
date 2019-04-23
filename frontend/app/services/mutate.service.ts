@@ -101,7 +101,7 @@ export class MutateService {
     categoryId?: number,
     clearCategory?: boolean,
     disabled?: boolean,
-    usertTitle?: string
+    userTitle?: string
   }): Observable<void> {
     const url = `/api/feeds/edit`;
     const req = {
@@ -120,8 +120,8 @@ export class MutateService {
       merge.disabled = edit.disabled;
     }
 
-    if (edit.usertTitle !== undefined) {
-      merge.userTitle = edit.usertTitle;
+    if (edit.userTitle !== undefined) {
+      merge.userTitle = edit.userTitle;
     }
 
     const optimisticFeed = Object.assign({}, feed, merge);

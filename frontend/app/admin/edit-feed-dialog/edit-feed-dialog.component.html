@@ -1,3 +1,57 @@
-<p>
-  edit-feed-dialog works!
-</p>
+<h2 mat-dialog-title>
+  {{ feed | feedTitle }}
+</h2>
+<form [formGroup]="feedForm"
+      (ngSubmit)="submit(feedForm.value)"
+      autocomplete="off"
+      novalidate
+      name="feedForm">
+  <mat-dialog-content>
+    <div *ngIf="feed.title && feed.userTitle && feed.userTitle !== feed.title"
+         matTooltip="The default title specified by feed.">
+      Title: {{feed.title}}
+    </div>
+    <div>
+      URL:
+      <a class="url"
+         [href]="feed.url"
+         rel="noopener"
+         target="_blank">
+        {{feed.url}}
+      </a>
+    </div>
+    <mat-form-field>
+      <input matInput
+             name="title"
+             formControlName="userTitle"
+             placeholder="Title Override"
+             matTooltip="Override the automatically detected title of the feed. Optional.">
+    </mat-form-field>
+    <mat-form-field>
+      <mat-select formControlName="categoryId"
+                  placeholder="Category">
+        <mat-option [value]="undefined">None</mat-option>
+        <mat-option *ngFor="let category of categories"
+                    [value]="category.id">
+          {{category.title}}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-checkbox [formControl]="feedForm.get('enabled')"
+                  name="enabled"
+                  matTooltip="Disabled feeds will not be fetched and won't appear in the sidenav.">
+      Enabled
+    </mat-checkbox>
+  </mat-dialog-content>
+  <mat-dialog-actions align="right">
+    <button type="submit"
+            [disabled]="!feedForm.valid || !feedForm.dirty || isUnchanged()"
+            mat-button>
+      Submit
+    </button>
+    <button mat-button
+            mat-dialog-close>
+      Cancel
+    </button>
+  </mat-dialog-actions>
+</form>

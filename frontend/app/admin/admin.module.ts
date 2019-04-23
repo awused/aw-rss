@@ -5,6 +5,7 @@ import {FormsModule,
 
 import {DirectivesModule} from '../directives/directives.module';
 import {MaterialModule} from '../material/material.module';
+import {PipesModule} from '../pipes/pipes.module';
 
 import {AddDialogComponent} from './add-dialog/add-dialog.component';
 import {ConfirmationDialogComponent} from './confirmation-dialog/confirmation-dialog.component';
@@ -17,6 +18,7 @@ import {EditFeedDialogComponent} from './edit-feed-dialog/edit-feed-dialog.compo
     DirectivesModule,
     FormsModule,
     ReactiveFormsModule,
+    PipesModule,
   ],
   declarations: [
     AddDialogComponent,
