@@ -82,7 +82,9 @@ func getItems(dot dbOrTx, ids []int64) ([]*structs.Item, error) {
 	return structs.ScanItems(rows)
 }
 
-// InsertItems inserts new items into the database if they aren't present
+// InsertItems inserts new items into the database if they aren't present.
+// The order of the items matters, as item IDs are used to break timestamp ties
+// when sorting on the frontend.
 func (d *Database) InsertItems(items []*structs.Item) error {
 	if len(items) == 0 {
 		log.Info("InsertItems() called with empty list")

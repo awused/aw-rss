@@ -109,8 +109,8 @@ func CreateNewItems(f *Feed, gfItems []*gofeed.Item) []*Item {
 	var items []*Item
 
 	for i := range gfItems {
-		// Reverse order; if we need to fill in publication timestamps
-		// with time.Now() they'll be in the appropriate order
+		// Reverse order so that, when timestamps are the same, sorting by
+		// IDs will result in the right order.
 		gfi := gfItems[len(gfItems)-i-1]
 		items = append(items, createNewItem(gfi, f))
 	}
@@ -161,17 +161,19 @@ func getKey(gfi *gofeed.Item) string {
 }
 
 func getTimestamp(gfi *gofeed.Item) time.Time {
+	var t time.Time
+
 	if gfi.PublishedParsed != nil {
-		return gfi.PublishedParsed.UTC()
+		t = *gfi.PublishedParsed
+	} else if gfi.UpdatedParsed != nil {
+		// Use the updated timestamp in place of published iff there is no published
+		t = *gfi.UpdatedParsed
+	} else {
+		log.Tracef("No parseable date for item \"%s\"", gfi.Link)
+		t = time.Now()
 	}
 
-	// Use the updated timestamp in place of published iff there is no published
-	if gfi.UpdatedParsed != nil {
-		return gfi.UpdatedParsed.UTC()
-	}
-
-	log.Tracef("No parseable date for item \"%s\"", gfi.Link)
-	return time.Now().UTC()
+	return t.UTC().Truncate(time.Second)
 }
 
 const fictionRegexp = `^(https?://)?(www\.)(fictionpress\.com|fanfiction\.net)/`
