@@ -324,6 +324,16 @@ export class DataService {
           // Fetch if necessary
           // }
         }
+
+        if (f.categoryId !== undefined) {
+          // Handle a feed being updated and hidden
+          const cm = this.categoryMetadata.get(f.categoryId);
+          if (cm && !cm.category.disabled &&
+              (cm.category.hiddenNav || cm.category.hiddenMain)) {
+            mustReplay = true;
+          }
+        }
+
         // Check for missing global time ranges and fetch missing data
         return;
       }
@@ -340,7 +350,11 @@ export class DataService {
 
       if (f.categoryId !== undefined) {
         // Catch the case where a feed is both created and hidden
-        mustReplay = true;
+        const cm = this.categoryMetadata.get(f.categoryId);
+        if (cm && !cm.category.disabled &&
+            (cm.category.hiddenNav || cm.category.hiddenMain)) {
+          mustReplay = true;
+        }
       }
 
       if (!isBackfill && f.createTimestamp < this.timestamp) {

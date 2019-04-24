@@ -19,7 +19,7 @@ import {MutateService} from 'frontend/app/services/mutate.service';
   styleUrls: ['./edit-feed-dialog.component.scss']
 })
 export class EditFeedDialogComponent {
-  private readonly feed: Feed;
+  public readonly feed: Feed;
   public feedForm: FormGroup;
   public categories: ReadonlyArray<Category>;
 
