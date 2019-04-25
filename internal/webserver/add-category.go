@@ -3,13 +3,11 @@ package webserver
 import (
 	"encoding/json"
 	"net/http"
-	"regexp"
 
 	"github.com/awused/aw-rss/internal/database"
+	"github.com/awused/aw-rss/internal/structs"
 	log "github.com/sirupsen/logrus"
 )
-
-var categoryNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]+$`)
 
 func (ws *webserver) addCategory(w http.ResponseWriter, r *http.Request) {
 	var req database.AddCategoryRequest
@@ -21,7 +19,7 @@ func (ws *webserver) addCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !categoryNameRE.MatchString(req.Name) {
+	if !structs.CategoryNameRE.MatchString(req.Name) {
 		m := "Tried to create category with invalid name [" + req.Name + "]"
 		log.Error(m)
 		http.Error(w, m, http.StatusBadRequest)

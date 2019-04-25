@@ -3,7 +3,10 @@ package structs
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -171,16 +174,67 @@ func CategorySetSortPosition(c *Category, sortPos int64) EntityUpdate {
 
 // CategoryEdit represents new values for a category from a user edit.
 type CategoryEdit struct {
-	Disabled   *bool   `json:"disabled"`
+	// Categories can never be un-disabled
+	Disabled   bool    `json:"disabled"`
 	Name       *string `json:"name"`
 	Title      *string `json:"title"`
 	HiddenNav  *bool   `json:"hiddenNav"`
 	HiddenMain *bool   `json:"hiddenMain"`
 }
 
+// CategoryNameRE is the regular expression matching all valid category names
+var CategoryNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]+$`)
+
 // CategoryApplyEdit returns a mutation function that applies the given
-// (validated CategoryEdit to a category after validating it.
-// func CategoryApplyEdit(edit CategoryEdit) (
-// 	func(*Category) EntityUpdate, error) {
-// 	return nil, nil
-// }
+// CategoryEdit to a category after validating it.
+func CategoryApplyEdit(edit CategoryEdit) (
+	func(*Category) EntityUpdate, error) {
+	if !edit.Disabled &&
+		edit.Name != nil &&
+		!CategoryNameRE.MatchString(*edit.Name) {
+
+		m := "Tried to change category to invalid name [" + *edit.Name + "]"
+		return nil, errors.New(m)
+	}
+
+	return func(c *Category) EntityUpdate {
+		noop := true
+		newC := *c
+
+		if newC.disabled {
+			return noopEntityUpdate(&newC)
+		}
+
+		if edit.Disabled {
+			newC.disabled = true
+			newC.name = strconv.FormatInt(newC.id, 10)
+			return newC.update()
+		}
+
+		if edit.Name != nil && *edit.Name != c.name {
+			noop = false
+			newC.name = *edit.Name
+		}
+
+		if edit.Title != nil && *edit.Title != c.title {
+			noop = false
+			newC.title = *edit.Title
+		}
+
+		if edit.HiddenNav != nil && *edit.HiddenNav != c.hiddenNav {
+			noop = false
+			newC.hiddenNav = *edit.HiddenNav
+		}
+
+		if edit.HiddenMain != nil && *edit.HiddenMain != c.hiddenMain {
+			noop = false
+			newC.hiddenMain = *edit.HiddenMain
+		}
+
+		if noop {
+			return noopEntityUpdate(&newC)
+		}
+
+		return newC.update()
+	}, nil
+}

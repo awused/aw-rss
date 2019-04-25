@@ -45,6 +45,58 @@ func (d *Database) InsertNewCategory(req AddCategoryRequest) (
 	return getCategory(d.db, id)
 }
 
+// MutateCategory applies `fn` to one category in the DB and returns it
+func (d *Database) MutateCategory(
+	id int64,
+	fn func(*structs.Category) structs.EntityUpdate) (*structs.Category, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if err := d.checkClosed(); err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	tx, err := d.db.Begin()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	c, err := getCategory(tx, id)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	update := fn(c)
+	if update.Noop() {
+		err = tx.Commit()
+		return c, err
+	}
+
+	err = updateEntity(tx, update)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	newC, err := getCategory(tx, id)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	return newC, nil
+}
+
 func getCategory(dot dbOrTx, id int64) (*structs.Category, error) {
 	sql := entityGetSQL("categories", structs.CategorySelectColumns)
 
@@ -126,6 +178,3 @@ func (d *Database) ReorderCategories(ids []int64) (
 
 	return updatedCategories, nil
 }
-
-// TODO -- as part of disabling a category set its name to the ID, which is not
-// a legal name

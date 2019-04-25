@@ -19,11 +19,12 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 
 	r.Post("/feeds/add", ws.addFeed)
-	r.Post("/feeds/edit", ws.editFeed)
+	r.Post("/feeds/{id}/edit", ws.editFeed)
 	r.Post("/feeds/{id}/read", ws.markFeedAsRead)
 
 	r.Post("/categories/add", ws.addCategory)
 	r.Post("/categories/reorder", ws.reorderCategories)
+	r.Post("/categories/{id}/edit", ws.editCategory)
 
 	r.Get("/current", ws.currentState)
 	r.Get("/updates/{timestamp}", ws.updatesSince)

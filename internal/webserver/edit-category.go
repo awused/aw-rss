@@ -10,12 +10,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type editFeedRequest struct {
-	Edit structs.FeedEdit `json:"edit"`
+type editCategoryRequest struct {
+	Edit structs.CategoryEdit `json:"edit"`
 }
 
-func (ws *webserver) editFeed(w http.ResponseWriter, r *http.Request) {
-	var req editFeedRequest
+func (ws *webserver) editCategory(w http.ResponseWriter, r *http.Request) {
+	var req editCategoryRequest
 
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
@@ -31,7 +31,14 @@ func (ws *webserver) editFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := ws.db.MutateFeed(int64(id), structs.ApplyFeedEdit(req.Edit))
+	mutate, err := structs.CategoryApplyEdit(req.Edit)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	f, err := ws.db.MutateCategory(int64(id), mutate)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -42,5 +49,4 @@ func (ws *webserver) editFeed(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	ws.rss.InformFeedChanged()
 }

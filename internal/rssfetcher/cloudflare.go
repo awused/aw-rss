@@ -52,6 +52,7 @@ const cloudflareSentinelOne = "<title>Attention Required! | Cloudflare</title>"
 const cloudflareSentinelTwo = "<title>Just a moment...</title>"
 const cloudflareBadGateway = "502: Bad gateway</title>"
 const cloudflareGatewayTimeout = "504: Gateway time-out</title>"
+const cloudflareServerDown = "521: Web server is down</title>"
 const cloudflareNormal = "This process is automatic. Your browser " +
 	"will redirect to your requested content shortly."
 const cloudflareMissing = "ModuleNotFoundError: No module named 'cfscrape'"
@@ -90,7 +91,8 @@ func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, e
 	}
 
 	if strings.Contains(body[0:499], cloudflareBadGateway) ||
-		strings.Contains(body[0:499], cloudflareGatewayTimeout) {
+		strings.Contains(body[0:499], cloudflareGatewayTimeout) ||
+		strings.Contains(body[0:499], cloudflareServerDown) {
 		h, _, err := host(feedURL)
 		if err == nil {
 			cf.setInvalid(h)
