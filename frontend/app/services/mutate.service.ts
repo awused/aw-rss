@@ -103,11 +103,8 @@ export class MutateService {
     disabled?: boolean,
     userTitle?: string
   }): Observable<void> {
-    const url = `/api/feeds/edit`;
-    const req = {
-      id: feed.id,
-      edit
-    };
+    const url = `/api/feeds/${feed.id}/edit`;
+    const req = {edit};
 
     const merge: any = {};
     if (edit.categoryId !== undefined) {
