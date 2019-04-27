@@ -87,7 +87,7 @@ func getItems(dot dbOrTx, ids []int64) ([]*structs.Item, error) {
 // when sorting on the frontend.
 func (d *Database) InsertItems(items []*structs.Item) error {
 	if len(items) == 0 {
-		log.Info("InsertItems() called with empty list")
+		log.Trace("InsertItems() called with empty list")
 		return nil
 	}
 

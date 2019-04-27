@@ -5,11 +5,14 @@ import {FormControl,
         Validators} from '@angular/forms';
 import {MatDialogRef,
         MatSnackBar} from '@angular/material';
+import {FilteredData} from 'frontend/app/models/data';
+import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
+
+import {CATEGORY_NAME_PATTERN} from '../edit-category-dialog/edit-category-dialog.component';
 
 // This is just to let users know they need an HTTP/S url
 const FEED_URL_PATTERN = /^https?:\/\//i;
-const CATEGORY_NAME_PATTERN = /^[a-z][a-z0-9-]+$/;
 
 @Component({
   selector: 'awrss-add-dialog',
@@ -17,6 +20,8 @@ const CATEGORY_NAME_PATTERN = /^[a-z][a-z0-9-]+$/;
   styleUrls: ['./add-dialog.component.scss']
 })
 export class AddDialogComponent {
+  public categoryNames: ReadonlySet<string> = new Set();
+
   public feedForm = new FormGroup({
     url: new FormControl('', [
       Validators.required, Validators.pattern(FEED_URL_PATTERN)
@@ -26,7 +31,17 @@ export class AddDialogComponent {
 
   public categoryForm = new FormGroup({
     name: new FormControl('', [
-      Validators.required, Validators.pattern(CATEGORY_NAME_PATTERN)
+      Validators.required,
+      Validators.pattern(CATEGORY_NAME_PATTERN),
+      (nameControl: FormControl) => {
+        if (this.categoryNames.has(nameControl.value)) {
+          return {
+            nameTaken: {
+              valid: false
+            }
+          };
+        }
+      }
     ]),
     title: new FormControl('', [Validators.required]),
     visibility: new FormControl('')
@@ -34,8 +49,21 @@ export class AddDialogComponent {
 
   constructor(
       private readonly dialogRef: MatDialogRef<AddDialogComponent>,
+      private readonly dataService: DataService,
       private readonly mutateService: MutateService,
-      private readonly snackBar: MatSnackBar) {}
+      private readonly snackBar: MatSnackBar) {
+    // Uses take(1) internally
+    this.dataService.dataForFilters({
+                      validOnly: true,
+                      excludeFeeds: true,
+                      excludeItems: true,
+                    })
+        .subscribe(
+            (fd: FilteredData) =>
+                this.categoryNames = new Set(
+                    fd.categories
+                        .map((c) => c.name)));
+  }
 
 
   public submitFeed(formValue) {

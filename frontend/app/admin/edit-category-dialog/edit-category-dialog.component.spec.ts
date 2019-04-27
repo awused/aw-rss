@@ -3,18 +3,19 @@ import {async,
         TestBed} from '@angular/core/testing';
 import {FormsModule,
         ReactiveFormsModule} from '@angular/forms';
-import {MatDialogModule,
+import {MAT_DIALOG_DATA,
+        MatDialogModule,
         MatDialogRef} from '@angular/material';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
 
-import {AddDialogComponent} from './add-dialog.component';
+import {EditCategoryDialogComponent} from './edit-category-dialog.component';
 
-describe('AddDialogComponent', () => {
-  let component: AddDialogComponent;
-  let fixture: ComponentFixture<AddDialogComponent>;
+describe('EditCategoryDialogComponent', () => {
+  let component: EditCategoryDialogComponent;
+  let fixture: ComponentFixture<EditCategoryDialogComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -23,11 +24,12 @@ describe('AddDialogComponent', () => {
                FormsModule,
                MatDialogModule,
              ],
-             declarations: [AddDialogComponent],
+             declarations: [EditCategoryDialogComponent],
              providers: [
+               {provide: DataService, useClass: FakeDataService},
                // Spy on this
                {provide: MatDialogRef, useValue: {}},
-               {provide: DataService, useClass: FakeDataService},
+               {provide: MAT_DIALOG_DATA, useValue: {category: {}}},
                {provide: MutateService, useClass: FakeMutateService},
              ]
            })
@@ -35,7 +37,7 @@ describe('AddDialogComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(AddDialogComponent);
+    fixture = TestBed.createComponent(EditCategoryDialogComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

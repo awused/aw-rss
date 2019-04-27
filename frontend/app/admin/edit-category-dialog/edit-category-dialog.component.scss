@@ -1,0 +1,13 @@
+.mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.mat-dialog-actions {
+  flex-direction: row-reverse;
+}
+
+button {
+  margin-left: 8px;
+}

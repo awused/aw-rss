@@ -13,7 +13,8 @@
       </div>
       <mat-icon>launch</mat-icon>
     </a>
-    <div *ngIf="(feed && !feed.siteUrl) || category">
+    <div class="header-title"
+         *ngIf="(feed && !feed.siteUrl) || category">
       {{ feed && (feed | feedTitle) || category.title }}
     </div>
   </h2>

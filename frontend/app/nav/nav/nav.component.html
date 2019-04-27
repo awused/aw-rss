@@ -66,9 +66,9 @@
                        (cdkDragStarted)="dragStarted($event)">
     <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
                                 [class.primary-bg]="evenC"
+                                [class.active]="selectedCategoryName === nc.cData.category.name"
                                 [collapsedHeight]="'48px'"
-                                [expandedHeight]="'48px'"
-                                routerLinkActive="active">
+                                [expandedHeight]="'48px'">
       <div class="link-div"
            (click)="$event.stopPropagation()">
         <a class="link mat-subheading-2"

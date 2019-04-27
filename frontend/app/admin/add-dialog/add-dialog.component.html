@@ -56,6 +56,10 @@
           <mat-error *ngIf="categoryForm.controls['name'].hasError('required')">
             Name is required
           </mat-error>
+          <mat-error
+                     *ngIf="categoryForm.controls['name'].hasError('nameTaken')">
+            Name must be unique
+          </mat-error>
         </mat-form-field>
         <mat-form-field>
           <input matInput

@@ -161,6 +161,33 @@ export class MutateService {
     return obs;
   }
 
+  public editCategory(category: Category, edit: {
+    name?: string,
+    title?: string,
+    hiddenMain?: boolean,
+    hiddenNav?: boolean,
+  }): Observable<void> {
+    const url = `/api/categories/${category.id}/edit`;
+    const req = {edit};
+
+    const optimisticCategory = Object.assign({}, category, edit);
+
+    this.loadingService.startLoading();
+    this.dataService.pushUpdates(new Updates(false, [optimisticCategory]));
+    const obs =
+        this.http.post<Category>(url, req)
+            .pipe(
+                map((c: Category) =>
+                        this.dataService.pushUpdates(
+                            new Updates(false, [c]))),
+                share());
+
+    this.subscribe(
+        obs,
+        () => this.dataService.pushUpdates(new Updates(false, [category])));
+    return obs;
+  }
+
   public markFeedAsRead(
       feedId: number,
       maxItemId: number,

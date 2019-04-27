@@ -313,6 +313,15 @@ export class NavComponent {
         const oldc = cd.category;
         cd.category = c;
 
+        if (oldc.name === this.selectedCategoryName &&
+            c.name !== oldc.name) {
+          this.selectedCategoryName = c.name;
+          this.router.navigate(['category', c.name], {
+            replaceUrl: true,
+            queryParamsHandling: 'merge',
+          });
+        }
+
         if (this.isHidden(oldc) !== this.isHidden(c)) {
           if (this.isHidden(c)) {
             this.mainUnread -= cd.unread;

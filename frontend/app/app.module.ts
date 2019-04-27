@@ -41,7 +41,7 @@ import {PipesModule} from './pipes/pipes.module';
     {
       provide: MAT_DIALOG_DEFAULT_OPTIONS,
       useValue: {
-        minWidth: '400px',
+        minWidth: '460px',
         maxWidth: '800px',
         panelClass: 'mat-typography',
         hasBackdrop: true,

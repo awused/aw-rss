@@ -1,0 +1,62 @@
+<h2 mat-dialog-title>
+  {{ category.title }}
+</h2>
+<form [formGroup]="categoryForm"
+      (ngSubmit)="submit(categoryForm.value)"
+      autocomplete="off"
+      novalidate
+      name="categoryForm">
+  <mat-dialog-content>
+    <mat-form-field>
+      <input matInput
+             name="name"
+             formControlName="name"
+             placeholder="Name">
+      <mat-error *ngIf="categoryForm.controls['name'].hasError('pattern')">
+        Name must start with a letter and contain only lowercase letters,
+        numbers, and hyphens.
+      </mat-error>
+      <mat-error *ngIf="categoryForm.controls['name'].hasError('required')">
+        Name is required
+      </mat-error>
+      <mat-error *ngIf="categoryForm.controls['name'].hasError('nameTaken')">
+        Name must be unique
+      </mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput
+             name="title"
+             formControlName="title"
+             placeholder="Title">
+      <mat-error *ngIf="categoryForm.controls['title'].hasError('required')">
+        Title is required
+      </mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Visibility</mat-label>
+      <mat-select name="visibility"
+                  formControlName="visibility">
+        <mat-option value="show">Show</mat-option>
+        <mat-option value="hiddenMain"
+                    matTooltip="Items won't show up in the main list and won't count towards the overall unread number.">
+          Exclude From Main View
+        </mat-option>
+        <mat-option value="hiddenNav"
+                    matTooltip="Won't show up in the nav at all. You'll have to manually navigate to them or load the app with ?all=true">
+          Hide Completely
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+  </mat-dialog-content>
+  <mat-dialog-actions align="right">
+    <button type="submit"
+            [disabled]="!categoryForm.valid || !categoryForm.dirty || isUnchanged()"
+            mat-button>
+      Submit
+    </button>
+    <button mat-button
+            mat-dialog-close>
+      Cancel
+    </button>
+  </mat-dialog-actions>
+</form>

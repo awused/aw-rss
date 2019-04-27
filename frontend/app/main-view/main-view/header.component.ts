@@ -3,6 +3,7 @@ import {Component,
         OnInit} from '@angular/core';
 import {MatDialog} from '@angular/material';
 import {ConfirmationDialogComponent} from 'frontend/app/admin/confirmation-dialog/confirmation-dialog.component';
+import {EditCategoryDialogComponent} from 'frontend/app/admin/edit-category-dialog/edit-category-dialog.component';
 import {EditFeedDialogComponent} from 'frontend/app/admin/edit-feed-dialog/edit-feed-dialog.component';
 import {Category,
         Feed} from 'frontend/app/models/entities';
@@ -36,6 +37,9 @@ export class MainViewHeaderComponent {
         data: {feed: this.feed}
       });
     } else if (this.category) {
+      this.dialog.open(EditCategoryDialogComponent, {
+        data: {category: this.category}
+      });
     }
   }
 
