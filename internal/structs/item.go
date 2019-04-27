@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/awused/aw-rss/internal/quirks"
@@ -191,6 +192,13 @@ func handleItemQuirks(items []*Item, gfItems []*gofeed.Item, f *Feed) {
 	if fre.MatchString(f.URL()) {
 		for _, item := range items {
 			item.key = item.key + item.timestamp.String()
+		}
+	}
+
+	if strings.HasPrefix(f.URL(), "https://konachan.com") {
+		for _, item := range items {
+			// Konachan randomly sends both https and http urls
+			item.key = item.url
 		}
 	}
 }
