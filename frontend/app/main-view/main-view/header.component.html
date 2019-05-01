@@ -19,6 +19,13 @@
     </div>
   </h2>
   <div class="spacer"></div>
+  <button class="disable-button"
+          (click)="disableCategory()"
+          *ngIf="category"
+          matTooltip="Delete the {{category.title}} category"
+          mat-icon-button>
+    <mat-icon>delete_forever</mat-icon>
+  </button>
   <button class="read-button"
           (click)="markFeedAsRead()"
           *ngIf="feed && maxItemId !== undefined"

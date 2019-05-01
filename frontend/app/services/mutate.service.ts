@@ -166,6 +166,7 @@ export class MutateService {
     title?: string,
     hiddenMain?: boolean,
     hiddenNav?: boolean,
+    disabled?: boolean,
   }): Observable<void> {
     const url = `/api/categories/${category.id}/edit`;
     const req = {edit};

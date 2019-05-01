@@ -62,4 +62,23 @@ export class MainViewHeaderComponent {
           }
         });
   }
+
+  public disableCategory() {
+    this.dialog.open<any, any, boolean>(ConfirmationDialogComponent, {
+                 data: {
+                   title: 'Confirm Action',
+                   text: [
+                     `Delete category
+                     ${this.category.title}?`,
+                     `This action is irreversible.`
+                   ]
+                 }
+               })
+        .beforeClosed()
+        .subscribe((result) => {
+          if (result) {
+            this.mutateService.editCategory(this.category, {disabled: true});
+          }
+        });
+  }
 }

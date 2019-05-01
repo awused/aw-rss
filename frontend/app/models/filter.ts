@@ -98,7 +98,8 @@ export class DataFilter {
       return false;
     }
 
-    if (this.f.isMainView && (c.hiddenMain || c.hiddenNav)) {
+    if (!c.disabled &&
+        this.f.isMainView && (c.hiddenMain || c.hiddenNav)) {
       // hiddenMain categories are only included when referenced
       // directly by name
       this.excludedCategories.add(c.id);
