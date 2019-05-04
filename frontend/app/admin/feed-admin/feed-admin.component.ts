@@ -37,10 +37,7 @@ export class FeedAdminComponent implements OnInit, OnDestroy {
                       validOnly: false,
                     })
         .pipe(takeUntil(this.onDestroy$))
-        .subscribe((fd: FilteredData) => {
-          console.log(fd);
-          this.filteredData = fd;
-        });
+        .subscribe((fd: FilteredData) => this.filteredData = fd);
   }
 
   editFeed(feed: Feed) {

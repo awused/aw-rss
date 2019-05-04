@@ -511,7 +511,6 @@ export class DataService {
                this.http.get<Feed[]>(`/api/feeds/disabled`),
                this.data$.pipe(take(1)))
         .pipe(map((results) => {
-                console.log(results);
                 this.handleUpdates(new Updates(false, [], results[0]));
                 this.hasAllFeeds = true;
                 this.loadingService.finishLoading();

@@ -12,12 +12,21 @@
       Title: {{feed.title}}
     </div>
     <div>
-      URL:
+      Feed URL:
       <a class="url"
          [href]="feed.url"
          rel="noopener"
          target="_blank">
         {{feed.url}}
+      </a>
+    </div>
+    <div *ngIf="feed.siteUrl && feed.url !== feed.siteUrl">
+      Site URL:
+      <a class="url"
+         [href]="feed.siteUrl"
+         rel="noopener"
+         target="_blank">
+        {{feed.siteUrl}}
       </a>
     </div>
     <mat-form-field>
