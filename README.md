@@ -22,8 +22,8 @@ Aw-RSS does not handle any kind of security, authentication, or authorization so
 
 I include some limited workarounds for cloudflare protectected feeds. I update this as necessary, it is currently using:
 
-* python2 due to js2py incompatibilities
-* [cloudflare-scrape-js2py](https://github.com/VeNoMouS/cloudflare-scrape-js2py)
+* python3
+* [cloudscraper](https://github.com/venomous/cloudscraper)
 
 As a safeguard you'll have to use HTTPS and whitelist individual hosts in the config file to avoid running javascript you don't minimally trust.
 

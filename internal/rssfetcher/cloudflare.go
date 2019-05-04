@@ -14,11 +14,10 @@ import (
 )
 
 const cookieScript = `
-import cfscrape
+import cloudscraper
 import sys
 
-scraper = cfscrape.create_scraper()  # returns a requests.Session object
-c, ua = cfscrape.get_cookie_string(sys.argv[1])
+c, ua = cloudscraper.get_cookie_string(sys.argv[1])
 print(c)
 print(ua)
 `
@@ -218,7 +217,7 @@ func (cf *cloudflare) getNewCookie(
 
 func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 	out, err :=
-		exec.Command("python2", "-c", cookieScript, feedURL).CombinedOutput()
+		exec.Command("python3", "-c", cookieScript, feedURL).CombinedOutput()
 	str := string(out)
 	if err != nil {
 		cf.setInvalid(h)
@@ -228,6 +227,8 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 			// There are probably more errors we can put here
 			// But brokenCfscrape is permanent so we want to avoid setting it on
 			// transient errors
+			// TODO -- Instead of permanent failures, try again after an even longer
+			// time period
 			cf.failureLock.Lock()
 			cf.brokenCfscrape = true
 			cf.failureLock.Unlock()
