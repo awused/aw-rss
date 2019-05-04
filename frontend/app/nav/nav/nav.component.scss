@@ -150,8 +150,11 @@
 
 .buttons {
   display: flex;
-  flex-direction: row-reverse;
   margin-top: 8px;
+
+  .spacer {
+    flex: 1 1 auto;
+  }
 
   &.hidden {
     display: none;

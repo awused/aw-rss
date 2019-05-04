@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	"github.com/awused/aw-rss/internal/structs"
 	log "github.com/sirupsen/logrus"
@@ -40,7 +41,9 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := url.Parse(req.URL)
+	rawURL := unconditionalURLRewrite(req.URL)
+
+	u, err := url.Parse(rawURL)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -54,7 +57,7 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Force {
-		f, err := ws.db.InsertNewFeed(req.URL, req.UserTitle)
+		f, err := ws.db.InsertNewFeed(rawURL, req.UserTitle)
 		if err != nil {
 			log.Error(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -73,4 +76,20 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "Unimplemented", http.StatusBadRequest)
 	return
+}
+
+const youtubeChannelRE = `^https://www.youtube.com/channel/(UC[a-zA-Z0-9_-]+)`
+const youtubeFeedPrefix = "https://www.youtube.com/feeds/videos.xml?channel_id="
+
+var youtubeChannelRegex = regexp.MustCompile(youtubeChannelRE)
+
+// Responsible for URL rewrites that are always performed.
+// These cannot be overwritten with Force so should be very limited.
+func unconditionalURLRewrite(url string) string {
+	matches := youtubeChannelRegex.FindStringSubmatch(url)
+	if matches != nil {
+		return youtubeFeedPrefix + matches[1]
+	}
+
+	return url
 }

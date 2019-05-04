@@ -1,0 +1,13 @@
+.header {
+  box-sizing: border-box;
+  display: flex;
+  height: 40px;
+  padding: 0 8px;
+}
+
+.title {
+  margin: 4px 0 0 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}

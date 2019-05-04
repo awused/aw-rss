@@ -239,6 +239,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.onDestroy$.next();
+    this.onDestroy$.complete();
     this.paramService.pushMainViewParams();
   }
 }

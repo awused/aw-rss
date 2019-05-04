@@ -81,7 +81,37 @@ func getFeed(dot dbOrTx, id int64) (*structs.Feed, error) {
 // GetDisabledFeeds returns all disabled feeds from the database for the admin
 // page. There's no support for pagination or filtering as it's assumed the
 // number of feeds will never be prohibitively large.
-// func (d *Database) GetDisabledFeeds
+func (d *Database) GetDisabledFeeds() ([]*structs.Feed, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if err := d.checkClosed(); err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	sql := "SELECT " + structs.FeedSelectColumns + `
+			FROM
+					feeds
+			WHERE
+				 feeds.disabled = 1
+			ORDER BY feeds.id ASC`
+
+	rows, err := d.db.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	feeds, err := structs.ScanFeeds(rows)
+
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	log.Tracef("GetDisabledFeeds() retrieved %d feeds", len(feeds))
+	return feeds, nil
+
+}
 
 func getCurrentFeeds(dot dbOrTx) ([]*structs.Feed, error) {
 	sql := "SELECT " + structs.FeedSelectColumns + `

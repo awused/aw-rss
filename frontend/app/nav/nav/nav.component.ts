@@ -73,6 +73,7 @@ export class NavComponent {
 
     this.dataService.dataForFilters({
                       unreadOnly: true,
+                      doNotFetch: true,
                     })
         .subscribe((fd: FilteredData) => {
           this.handleUpdates(fd);

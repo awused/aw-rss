@@ -37,6 +37,8 @@ export interface Filters {
   readonly excludeCategories?: boolean;
   readonly excludeFeeds?: boolean;
   readonly excludeItems?: boolean;
+  // Used by components that will never request new data on their own
+  readonly doNotFetch?: boolean;
 }
 
 export interface PartialFilters extends Filters {
@@ -50,6 +52,7 @@ export interface PartialFilters extends Filters {
   excludeCategories?: boolean;
   excludeFeeds?: boolean;
   excludeItems?: boolean;
+  doNotFetch?: boolean;
 }
 
 export const EmptyFilters: Filters = {

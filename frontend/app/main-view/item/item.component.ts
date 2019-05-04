@@ -118,5 +118,6 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnDestroy() {
     this.onDestroy$.next();
+    this.onDestroy$.complete();
   }
 }

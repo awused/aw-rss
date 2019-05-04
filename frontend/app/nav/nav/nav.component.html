@@ -145,6 +145,12 @@
 
   <div class="buttons"
        [class.hidden]="dragging">
+    <a routerLink="/admin"
+       routerLinkActive="active"
+       mat-button>
+      Admin
+    </a>
+    <div class="spacer"></div>
     <button (click)="openAddDialog()"
             aria-label="Add Feed or Category"
             mat-button

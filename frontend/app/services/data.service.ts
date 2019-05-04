@@ -2,12 +2,16 @@ import {HttpClient} from '@angular/common/http';
 import {Injectable} from '@angular/core';
 import {
   BehaviorSubject,
+  forkJoin,
   Observable,
+  of,
   ReplaySubject,
   Subject
 } from 'rxjs';
 import {
+  catchError,
   filter,
+  flatMap,
   map,
   share,
   take,
@@ -143,9 +147,29 @@ export class DataService {
   }
 
   public dataForFilters(f: Filters): Observable<FilteredData> {
+    if (f.doNotFetch) {
+      return this.filteredDataForFilters(f);
+    }
+
+    const fetches = [];
+
+    if (!f.validOnly &&
+        !f.excludeFeeds &&
+        f.feedId === undefined &&
+        !this.hasAllFeeds) {
+      fetches.push(this.fetchDisabledFeeds());
+    }
     // TODO -- Handle disabled missing data synchronously
     // 1. Disabled feeds
     // 2. data from the past
+    if (fetches.length) {
+      return forkJoin(fetches)
+          .pipe(flatMap(() => this.filteredDataForFilters(f)));
+    }
+    return this.filteredDataForFilters(f);
+  }
+
+  private filteredDataForFilters(f: Filters): Observable<FilteredData> {
     return this.data$
         .pipe(
             take(1),
@@ -477,5 +501,25 @@ export class DataService {
               this.refreshService.finishRefresh();
               this.loadingService.finishLoading();
             });
+  }
+
+  private fetchDisabledFeeds(): Observable<void> {
+    this.loadingService.startLoading();
+    // forkJoin so that initial data is populated
+    // Object notation doesn't work right
+    return forkJoin(
+               this.http.get<Feed[]>(`/api/feeds/disabled`),
+               this.data$.pipe(take(1)))
+        .pipe(map((results) => {
+                console.log(results);
+                this.handleUpdates(new Updates(false, [], results[0]));
+                this.hasAllFeeds = true;
+                this.loadingService.finishLoading();
+              }),
+              catchError((error: Error) => {
+                this.errorService.showError(error);
+                this.loadingService.finishLoading();
+                return of<void>();
+              }));
   }
 }

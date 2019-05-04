@@ -18,6 +18,7 @@ func (ws *webserver) apiRoutes(r chi.Router) {
 	r.Post("/items/{id}/read", ws.setItemRead(true))
 	r.Post("/items/{id}/unread", ws.setItemRead(false))
 
+	r.Get("/feeds/disabled", ws.getDisabledFeeds)
 	r.Post("/feeds/add", ws.addFeed)
 	r.Post("/feeds/{id}/edit", ws.editFeed)
 	r.Post("/feeds/{id}/read", ws.markFeedAsRead)
@@ -74,6 +75,20 @@ func (ws *webserver) setItemRead(readState bool) http.HandlerFunc {
 			log.Error(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+	}
+}
+
+func (ws *webserver) getDisabledFeeds(w http.ResponseWriter, r *http.Request) {
+	feeds, err := ws.db.GetDisabledFeeds()
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err = json.NewEncoder(w).Encode(feeds); err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 

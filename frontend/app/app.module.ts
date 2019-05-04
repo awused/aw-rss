@@ -9,6 +9,7 @@ import {ServiceWorkerModule} from '@angular/service-worker';
 
 import {environment} from '../environments/environment';
 
+import {AdminModule} from './admin/admin.module';
 import {AppRoutingModule} from './app-routing.module';
 import {AppComponent} from './app.component';
 import {DirectivesModule} from './directives/directives.module';
@@ -26,6 +27,8 @@ import {PipesModule} from './pipes/pipes.module';
     // After BrowserModule
     HttpClientModule,
     BrowserAnimationsModule,
+    // Before MainView
+    AdminModule,
     MainViewModule,
     NavModule,
     PipesModule,
