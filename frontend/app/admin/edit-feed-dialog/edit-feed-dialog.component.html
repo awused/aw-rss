@@ -11,14 +11,19 @@
          matTooltip="The default title specified by feed.">
       Title: {{feed.title}}
     </div>
-    <div>
+    <div layout="row">
       Feed URL:
-      <a class="url"
+      <a *ngIf="!feed.url.startsWith('!')"
+         class="url"
          [href]="feed.url"
          rel="noopener"
          target="_blank">
         {{feed.url}}
       </a>
+      <div *ngIf="feed.url.startsWith('!')"
+           class="command">
+        {{feed.url}}
+      </div>
     </div>
     <div *ngIf="feed.siteUrl && feed.url !== feed.siteUrl">
       Site URL:

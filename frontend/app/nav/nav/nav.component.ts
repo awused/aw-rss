@@ -515,7 +515,11 @@ export class NavComponent {
     if (fd) {
       this.pageTitle.emit(
           this.feedTitlePipe.transform(fd.feed));
-      this.titleLink.emit(fd.feed.siteUrl || fd.feed.url);
+      let url = fd.feed.siteUrl || fd.feed.url || '';
+      if (url.startsWith('!')) {
+        url = '';
+      }
+      this.titleLink.emit(url);
       this.unreadCount.emit(fd.unread.size);
       return;
     }

@@ -16,11 +16,20 @@
 
 .site-link {
   display: flex;
+  text-decoration: unset;
 
   .feed-title {
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+  }
+
+  &:hover .feed-title {
+    text-decoration: underline;
+  }
+
+  .mat-icon {
+    font-size: 20px;
   }
 }
 
@@ -39,10 +48,6 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-}
-
-.site-link .mat-icon {
-  font-size: 22.5px;
 }
 
 .spacer {
