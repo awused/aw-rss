@@ -8,6 +8,7 @@ import {
   MatDialogModule,
   MatDialogRef
 } from '@angular/material';
+import {FeedFixtures} from 'frontend/app/models/models.fake';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
@@ -33,7 +34,7 @@ describe('EditFeedDialogComponent', () => {
                {provide: DataService, useClass: FakeDataService},
                // Spy on this
                {provide: MatDialogRef, useValue: {}},
-               {provide: MAT_DIALOG_DATA, useValue: {feed: {}}},
+               {provide: MAT_DIALOG_DATA, useValue: {feed: FeedFixtures.emptyFeed}},
                {provide: MutateService, useClass: FakeMutateService},
              ]
            })

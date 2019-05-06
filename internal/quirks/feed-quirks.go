@@ -54,7 +54,13 @@ func GetFeedLink(f feed, gfe *gofeed.Feed) string {
 		if groups != nil {
 			return "https://konachan.com/post?tags=" + groups[1]
 		}
-	} else if strings.HasPrefix(gfe.Link, "https://www.royalroad.com/fiction") {
+	}
+
+	if gfe.Link == "https://www.novelupdates.com/favicon.ico" {
+		return "https://www.novelupdates.com/reading-list/"
+	}
+
+	if strings.HasPrefix(gfe.Link, "https://www.royalroad.com/fiction") {
 		return strings.Replace(gfe.Link, "syndication/", "", 1)
 	}
 

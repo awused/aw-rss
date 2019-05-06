@@ -30,6 +30,8 @@ import {ErrorService} from './error.service';
 import {LoadingService} from './loading.service';
 import {RefreshService} from './refresh.service';
 
+const READ_ITEMS_PAGE_SIZE = 100;
+
 interface CurrentState {
   timestamp: number;
   feeds?: Feed[];
@@ -75,14 +77,22 @@ class FeedMetadata {
       private readAfter?: Date) {}
 
   public setReadAfter(d: Date) {
-    if (d <= new Date(this.feed.createTimestamp + '000')) {
+    if (d >= this.readAfter) {
+      return;
+    }
+
+    if (d <= new Date(this.feed.createTimestamp * 1000)) {
       this.allRead = true;
     }
     this.readAfter = d;
   }
 
-  public hasReadAfter(d: Date) {
+  public hasReadAfter(d: Date): boolean {
     return this.allRead || this.readAfter >= d;
+  }
+
+  public hasRead(): boolean {
+    return this.allRead || this.readAfter !== undefined;
   }
 }
 
@@ -159,6 +169,14 @@ export class DataService {
         !this.hasAllFeeds) {
       fetches.push(this.fetchDisabledFeeds());
     }
+
+    if (!f.unreadOnly) {
+      fetches.push(
+          this.waitForInitialFetch()
+              .pipe(
+                  flatMap(() => this.fetchReadForFilters(f))));
+    }
+
     // TODO -- Handle disabled missing data synchronously
     // 1. Disabled feeds
     // 2. data from the past
@@ -167,6 +185,25 @@ export class DataService {
           .pipe(flatMap(() => this.filteredDataForFilters(f)));
     }
     return this.filteredDataForFilters(f);
+  }
+
+  private fetchReadForFilters(f: Filters): Observable<void> {
+    const fetches = [];
+
+    if (f.feedId !== undefined) {
+      const fd = this.feedMetadata.get(f.feedId);
+      if (fd && !fd.hasRead()) {
+        fetches.push(this.getItems({
+          feedIds: [f.feedId],
+          readBefore: new Date(this.timestamp * 1000)
+        }));
+      }
+    }
+
+    if (!fetches.length) {
+      return of(undefined);
+    }
+    return forkJoin(fetches).pipe(map(() => {}));
   }
 
   private filteredDataForFilters(f: Filters): Observable<FilteredData> {
@@ -396,6 +433,7 @@ export class DataService {
     return [mustReplay, backfillUnread, backfillRead];
   }
 
+  // TODO -- needs more than just IDs for read
   private maybeBackfill(unread: Set<number>, read: Set<number>) {
     if (!unread.size && !read.size) {
       return;
@@ -405,9 +443,10 @@ export class DataService {
     const unreadOnly = [...unread].filter((x) => !read.has(x));
     if (unreadOnly.length) {
       this.getItems({
-        feedIds: [...unreadOnly],
-        unread: true,
-      });
+            feedIds: [...unreadOnly],
+            unread: true,
+          })
+          .subscribe();
     }
     if (read.size) {
       // TODO
@@ -415,18 +454,48 @@ export class DataService {
     }
   }
 
-  private getItems(req: GetItemsRequest) {
+  private getItems(req: GetItemsRequest): Observable<void> {
+    if (req.readBefore && !req.readBeforeCount) {
+      req.readBeforeCount = READ_ITEMS_PAGE_SIZE;
+    }
+
     this.loadingService.startLoading();
-    this.http.post<GetItemsResponse>('/api/items', req)
-        .subscribe(
-            (resp: GetItemsResponse) => {
+    // forkJoin so that initial data is populated
+    // Object notation doesn't work right
+    return forkJoin(
+               this.http.post<GetItemsResponse>('/api/items', req),
+               this.waitForInitialFetch())
+        .pipe(
+            map((results) => {
+              const resp = results[0];
               const u = new Updates(false, [], resp.feeds, resp.items);
+              let allRead = false;
+              let minRead;
+              if (req.readBefore) {
+                minRead = req.readBefore;
+
+                const pageSize = req.readBeforeCount;
+                if (resp.items.length < pageSize) {
+                  // It's possible for some feeds inside a category to have
+                  // allRead but for this to be false, but that's fine.
+                  allRead = true;
+                } else {
+                  resp.items.forEach((item: Item) => {
+                    if (item.read && item.timestamp < minRead) {
+                      minRead = item.timestamp;
+                    }
+                  });
+                }
+              }
               // We don't trigger backfills from backfills
               // There is a bug where this can cause missing items if a user
               // updates a previously disabled feed to switch its categories
               // between a refresh and when the backfill completes, but that is
               // simply not worth handling.
               const mustReplay = this.mergeMetadata(u, req.unread)[0];
+              // TODO -- Also handle updating category metadata
+              // including feeds in those categories
+
               req.feedIds.forEach((fid: number) => {
                 const fm = this.feedMetadata.get(fid);
                 if (!fm) {
@@ -436,8 +505,20 @@ export class DataService {
                 if (req.unread) {
                   fm.hasUnread = true;
                 }
-                // TODO -- fill in time ranges here
+
+                if (allRead) {
+                  fm.allRead = true;
+                } else {
+                  if (req.readAfter) {
+                    fm.setReadAfter(req.readAfter);
+                  }
+                  if (minRead) {
+                    fm.setReadAfter(minRead);
+                  }
+                }
               });
+              // TODO -- if all the feeds in a category have allRead,
+              // that category has allRead
               const replayed = this.handleUpdates(u);
               if (mustReplay && !replayed) {
                 this.updates$.next(
@@ -447,12 +528,14 @@ export class DataService {
                         this.data.feeds,
                         this.data.items));
               }
-            },
-            (error: Error) => {
+
+              this.loadingService.finishLoading();
+            }),
+            catchError((error: Error) => {
               this.errorService.showError(error);
               this.loadingService.finishLoading();
-            },
-            () => this.loadingService.finishLoading());
+              return of(undefined);
+            }));
   }
 
   private getInitialState() {
@@ -509,7 +592,7 @@ export class DataService {
     // Object notation doesn't work right
     return forkJoin(
                this.http.get<Feed[]>(`/api/feeds/disabled`),
-               this.data$.pipe(take(1)))
+               this.waitForInitialFetch())
         .pipe(map((results) => {
                 this.handleUpdates(new Updates(false, [], results[0]));
                 this.hasAllFeeds = true;
@@ -518,7 +601,11 @@ export class DataService {
               catchError((error: Error) => {
                 this.errorService.showError(error);
                 this.loadingService.finishLoading();
-                return of<void>();
+                return of(undefined);
               }));
+  }
+
+  private waitForInitialFetch(): Observable<void> {
+    return this.data$.pipe(take(1), map(() => {}));
   }
 }

@@ -78,6 +78,21 @@ func getFeed(dot dbOrTx, id int64) (*structs.Feed, error) {
 	return structs.ScanFeed(dot.QueryRow(sql, id))
 }
 
+func getFeeds(dot dbOrTx, ids []int64) ([]*structs.Feed, error) {
+	sql := entityBatchGetSQL("feeds", structs.FeedSelectColumns, len(ids))
+	// Ugly
+	binds := make([]interface{}, len(ids), len(ids))
+	for i, v := range ids {
+		binds[i] = v
+	}
+
+	rows, err := dot.Query(sql, binds...)
+	if err != nil {
+		return nil, err
+	}
+	return structs.ScanFeeds(rows)
+}
+
 // GetDisabledFeeds returns all disabled feeds from the database for the admin
 // page. There's no support for pagination or filtering as it's assumed the
 // number of feeds will never be prohibitively large.

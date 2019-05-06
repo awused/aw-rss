@@ -196,7 +196,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
       f.categoryName = cname;
     }
 
-    // TODO -- translate route params into filters
     return <Filters>f;
   }
 

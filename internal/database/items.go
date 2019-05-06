@@ -161,7 +161,7 @@ type GetItemsRequest struct {
 	FeedIDs []int64 `json:"feedIds"`
 	// Include feeds specified by FeedIDs in the response
 	// Does not work for categories
-	IncludeFeeds bool `json:"includeFeed"`
+	IncludeFeeds bool `json:"includeFeeds"`
 
 	// If true fetch all unread items
 	Unread bool `json:"unread"`
@@ -190,10 +190,12 @@ type GetItemsResponse struct {
 func (d *Database) GetItems(
 	req GetItemsRequest) (*GetItemsResponse, error) {
 	var err error
+	resp := GetItemsResponse{
+		Items: []*structs.Item{}}
 
 	if !req.Unread && req.ReadAfter == nil && req.ReadBefore == nil {
 		log.Info("GetItems() called with empty request")
-		return nil, nil
+		return &resp, nil
 	}
 
 	if len(req.FeedIDs) != 0 && req.CategoryID != nil {
@@ -204,8 +206,16 @@ func (d *Database) GetItems(
 		return nil, errors.New("Can't request unread except by feeds")
 	}
 
-	if (req.ReadAfter != nil) != (req.ReadBefore != nil) {
-		return nil, errors.New("Must specify both ReadBefore and ReadAfter")
+	if (req.ReadAfter != nil) && (req.ReadBefore != nil) {
+		return nil, errors.New("Must not specify both ReadBefore and ReadAfter")
+	}
+
+	if req.ReadAfter != nil {
+		*req.ReadAfter = req.ReadAfter.UTC().Truncate(time.Second)
+	}
+
+	if req.ReadBefore != nil {
+		*req.ReadBefore = req.ReadBefore.UTC().Truncate(time.Second)
 	}
 
 	d.lock.RLock()
@@ -215,8 +225,6 @@ func (d *Database) GetItems(
 		log.Error(err)
 		return nil, err
 	}
-
-	resp := GetItemsResponse{}
 
 	if !req.IncludeFeeds {
 		resp.Items, err = getItemsFor(d.db, req)
@@ -241,13 +249,14 @@ func (d *Database) GetItems(
 		return nil, err
 	}
 
-	// TODO -- part of backfilling
-	/*resp.Feed, err = getFeedsFor(tx, req)
-	if err != nil {
-		log.Error(err)
-		tx.Rollback()
-		return nil, err
-	}*/
+	if req.IncludeFeeds && req.FeedIDs != nil {
+		resp.Feeds, err = getFeeds(tx, req.FeedIDs)
+		if err != nil {
+			log.Error(err)
+			tx.Rollback()
+			return nil, err
+		}
+	}
 
 	err = tx.Commit()
 	if err != nil {
@@ -258,8 +267,8 @@ func (d *Database) GetItems(
 }
 
 func getItemsFor(dot dbOrTx, req GetItemsRequest) ([]*structs.Item, error) {
+	selectSQL := `SELECT ` + structs.ItemSelectColumns
 	sql := `
-			SELECT ` + structs.ItemSelectColumns + `
 			FROM
 					feeds CROSS JOIN items on items.feedid = feeds.id
 			WHERE `
@@ -282,24 +291,63 @@ func getItemsFor(dot dbOrTx, req GetItemsRequest) ([]*structs.Item, error) {
 	}
 
 	if req.ReadAfter != nil && req.ReadBefore != nil {
-		where := ""
-		if true {
-			// TODO
-			return nil, errors.New("unimplemented")
-		}
+		// Pretty sure this is unnecessary
+		return nil, errors.New("unimplemented")
+	} else if req.ReadAfter != nil {
+		where := "items.read = 1 AND items.timestamp >= ?"
+		binds = append(binds, req.ReadAfter)
 
 		if req.Unread {
 			where = "((" + where + ") OR items.read = 0)"
 		}
 		sql += ` AND ` + where + ` `
-		// Also handle Unread being true at the same time for more efficient backfills
+	} else if req.ReadBefore != nil {
+		count := req.ReadBeforeCount
+		if count <= 0 {
+			count = 100
+		}
+
+		// Timestamps are truncacted to the second for consistency, so it's
+		// entirely possible to have many at the same timestamp, especially
+		// from feeds that do not provide timestamps.
+		// Ensure there are no gaps by fetching 'count' items, getting the
+		// timestamp, then using that.
+		// This _can_ be done in one sql statement, but it's unwieldly
+		timestampSQL := `
+				SELECT MIN(timestamp)
+				FROM (SELECT items.timestamp ` + sql + `
+						AND items.read = 1 AND items.timestamp < ?
+				ORDER BY items.timestamp DESC
+				LIMIT ?)`
+		timestampBinds := append(binds, req.ReadBefore, count)
+
+		row := dot.QueryRow(timestampSQL, timestampBinds...)
+		var b []uint8
+		err := row.Scan(&b)
+		if err != nil {
+			log.Error(err)
+			// Couldn't get a minimum timestamp -> there are no read items
+			// TODO -- If we need to handle ReadBefore and Unread, change this
+			return []*structs.Item{}, nil
+		}
+		minTimestamp := string(b)
+
+		where := "items.read = 1 AND items.timestamp < ? AND items.timestamp >= ?"
+		binds = append(binds, req.ReadBefore, minTimestamp)
+
+		if req.Unread {
+			// This shouldn't be necessary
+			return nil, errors.New("unimplemented")
+		}
+
+		sql += ` AND ` + where
 	} else {
 		sql += ` AND items.read = 0 `
 	}
 
 	sql += ` ORDER BY items.id ASC;`
 
-	rows, err := dot.Query(sql, binds...)
+	rows, err := dot.Query(selectSQL+sql, binds...)
 	if err != nil {
 		return nil, err
 	}
