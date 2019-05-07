@@ -44,8 +44,8 @@ import {
   styleUrls: ['./main-view.component.scss']
 })
 export class MainViewComponent implements OnInit, OnDestroy {
-  //@ViewChild('itemScroll')
-  //public itemScroll: CdkVirtualScrollViewport;
+  // @ViewChild('itemScroll')
+  // public itemScroll: CdkVirtualScrollViewport;
 
   private readonly onDestroy$: Subject<void> = new Subject();
   private filteredData: FilteredData = EmptyFilteredData;

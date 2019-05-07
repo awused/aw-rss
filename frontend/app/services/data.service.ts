@@ -479,9 +479,10 @@ export class DataService {
     // forkJoin so that initial data is populated
     // Object notation doesn't work right
     const obs =
-        forkJoin(
-            this.http.post<GetItemsResponse>('/api/items', req),
-            this.waitForInitialFetch())
+        forkJoin([
+          this.http.post<GetItemsResponse>('/api/items', req),
+          this.waitForInitialFetch()
+        ])
             .pipe(
                 map((results) => {
                   const resp = results[0];
@@ -612,9 +613,10 @@ export class DataService {
     // forkJoin so that initial data is populated
     // Object notation doesn't work right
     const obs =
-        forkJoin(
-            this.http.get<Feed[]>(`/api/feeds/disabled`),
-            this.waitForInitialFetch())
+        forkJoin([
+          this.http.get<Feed[]>(`/api/feeds/disabled`),
+          this.waitForInitialFetch()
+        ])
             .pipe(map((results) => {
                     this.handleUpdates(new Updates(false, [], results[0]));
                     this.hasAllFeeds = true;

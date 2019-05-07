@@ -10,7 +10,7 @@ Run `npm install` and `npm run-script prod` in the project root to build and com
 
 Copy `aw-rss.toml.sample` to `~/.config/aw-rss/aw-rss.toml` or `~/.aw-rss.toml` and fill it out according to the instructions.
 
-Run `aw-rss` and navigate to `http://localhost:9092` or the port you configured to access the application. The process will shut down cleanly if killed with SIGINT.
+Run `aw-rss` and navigate to `http://localhost:9092` or the port you configured to access the application. The process will shut down cleanly if killed with ctrl-C/SIGINT.
 
 ## Remote Access
 
