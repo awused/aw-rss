@@ -81,9 +81,6 @@ class FeedMetadata {
       return;
     }
 
-    if (d <= new Date(this.feed.createTimestamp * 1000)) {
-      this.allRead = true;
-    }
     this.readAfter = d;
   }
 
