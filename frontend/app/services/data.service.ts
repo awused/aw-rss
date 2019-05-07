@@ -74,7 +74,7 @@ class FeedMetadata {
       public allRead: boolean,
       // We have all read items after this timestamp for this feed
       // If readAfter <= feed.createTimestamp, then we have all read items
-      private readAfter?: Date) {}
+      public readAfter?: Date) {}
 
   public setReadAfter(d: Date) {
     if (d >= this.readAfter) {
@@ -193,10 +193,8 @@ export class DataService {
     if (f.feedId !== undefined) {
       const fd = this.feedMetadata.get(f.feedId);
       if (fd && !fd.hasRead()) {
-        fetches.push(this.getItems({
-          feedIds: [f.feedId],
-          readBefore: new Date(this.timestamp * 1000)
-        }));
+        fetches.push(
+            this.fetchMoreReadForFeed(f.feedId));
       }
     }
 
@@ -214,6 +212,19 @@ export class DataService {
               return new FilteredData(
                   data.filter(f), f);
             }));
+  }
+
+  public fetchMoreReadForFeed(id: number): Observable<void> {
+    const fd = this.feedMetadata.get(id);
+    if (!fd || fd.allRead) {
+      return of(undefined);
+    }
+
+    const readBefore = fd.readAfter || new Date(this.timestamp * 1000);
+    return this.getItems({
+      feedIds: [id],
+      readBefore
+    });
   }
 
   public updates(): Observable<Updates> {
@@ -238,6 +249,11 @@ export class DataService {
     return this.feedMetadata.get(id).feed;
   }
 
+  // TODO -- Feed | Category | all
+  public hasAllRead(feed: Feed): boolean {
+    const fd = this.feedMetadata.get(feed.id);
+    return fd.allRead;
+  }
 
   public getInitialTimestampForFeed(id: number): string|undefined {
     return this.initialNewestTimestamps[id];
@@ -462,80 +478,85 @@ export class DataService {
     this.loadingService.startLoading();
     // forkJoin so that initial data is populated
     // Object notation doesn't work right
-    return forkJoin(
-               this.http.post<GetItemsResponse>('/api/items', req),
-               this.waitForInitialFetch())
-        .pipe(
-            map((results) => {
-              const resp = results[0];
-              const u = new Updates(false, [], resp.feeds, resp.items);
-              let allRead = false;
-              let minRead;
-              if (req.readBefore) {
-                minRead = req.readBefore;
+    const obs =
+        forkJoin(
+            this.http.post<GetItemsResponse>('/api/items', req),
+            this.waitForInitialFetch())
+            .pipe(
+                map((results) => {
+                  const resp = results[0];
+                  const u = new Updates(false, [], resp.feeds, resp.items);
+                  let allRead = false;
+                  let minRead;
+                  if (req.readBefore) {
+                    minRead = req.readBefore;
 
-                const pageSize = req.readBeforeCount;
-                if (resp.items.length < pageSize) {
-                  // It's possible for some feeds inside a category to have
-                  // allRead but for this to be false, but that's fine.
-                  allRead = true;
-                } else {
-                  resp.items.forEach((item: Item) => {
-                    if (item.read && item.timestamp < minRead) {
-                      minRead = item.timestamp;
+                    const pageSize = req.readBeforeCount;
+                    if (resp.items.length < pageSize) {
+                      // It's possible for some feeds inside a category to have
+                      // allRead but for this to be false, but that's fine.
+                      allRead = true;
+                    } else {
+                      resp.items.forEach((item: Item) => {
+                        if (item.read && new Date(item.timestamp) < minRead) {
+                          minRead = new Date(item.timestamp);
+                        }
+                      });
+                    }
+                  }
+                  // We don't trigger backfills from backfills
+                  // There is a bug where this can cause missing items if a user
+                  // updates a previously disabled feed to switch its categories
+                  // between a refresh and when the backfill completes, but that is
+                  // simply not worth handling.
+                  const mustReplay = this.mergeMetadata(u, req.unread)[0];
+                  // TODO -- Also handle updating category metadata
+                  // including feeds in those categories
+
+                  req.feedIds.forEach((fid: number) => {
+                    const fm = this.feedMetadata.get(fid);
+                    if (!fm) {
+                      return;
+                    }
+
+                    if (req.unread) {
+                      fm.hasUnread = true;
+                    }
+
+                    if (allRead) {
+                      fm.allRead = true;
+                    } else {
+                      if (req.readAfter) {
+                        fm.setReadAfter(req.readAfter);
+                      }
+                      if (minRead) {
+                        fm.setReadAfter(minRead);
+                      }
                     }
                   });
-                }
-              }
-              // We don't trigger backfills from backfills
-              // There is a bug where this can cause missing items if a user
-              // updates a previously disabled feed to switch its categories
-              // between a refresh and when the backfill completes, but that is
-              // simply not worth handling.
-              const mustReplay = this.mergeMetadata(u, req.unread)[0];
-              // TODO -- Also handle updating category metadata
-              // including feeds in those categories
-
-              req.feedIds.forEach((fid: number) => {
-                const fm = this.feedMetadata.get(fid);
-                if (!fm) {
-                  return;
-                }
-
-                if (req.unread) {
-                  fm.hasUnread = true;
-                }
-
-                if (allRead) {
-                  fm.allRead = true;
-                } else {
-                  if (req.readAfter) {
-                    fm.setReadAfter(req.readAfter);
+                  // TODO -- if all the feeds in a category have allRead,
+                  // that category has allRead
+                  const replayed = this.handleUpdates(u);
+                  if (mustReplay && !replayed) {
+                    this.updates$.next(
+                        new Updates(
+                            false,
+                            this.data.categories,
+                            this.data.feeds,
+                            this.data.items));
                   }
-                  if (minRead) {
-                    fm.setReadAfter(minRead);
-                  }
-                }
-              });
-              // TODO -- if all the feeds in a category have allRead,
-              // that category has allRead
-              const replayed = this.handleUpdates(u);
-              if (mustReplay && !replayed) {
-                this.updates$.next(
-                    new Updates(
-                        false,
-                        this.data.categories,
-                        this.data.feeds,
-                        this.data.items));
-              }
 
-              this.loadingService.finishLoading();
-            }),
-            catchError((error: Error) => {
-              this.errorService.showError(error);
-              this.loadingService.finishLoading();
-              return of(undefined);
-            }));
+                  this.loadingService.finishLoading();
+                }),
+                catchError((error: Error) => {
+                  this.errorService.showError(error);
+                  this.loadingService.finishLoading();
+                  return of(undefined);
+                }),
+                share());
+
+    obs.subscribe();
+    return obs;
   }
 
   private getInitialState() {
@@ -590,19 +611,24 @@ export class DataService {
     this.loadingService.startLoading();
     // forkJoin so that initial data is populated
     // Object notation doesn't work right
-    return forkJoin(
-               this.http.get<Feed[]>(`/api/feeds/disabled`),
-               this.waitForInitialFetch())
-        .pipe(map((results) => {
-                this.handleUpdates(new Updates(false, [], results[0]));
-                this.hasAllFeeds = true;
-                this.loadingService.finishLoading();
-              }),
-              catchError((error: Error) => {
-                this.errorService.showError(error);
-                this.loadingService.finishLoading();
-                return of(undefined);
-              }));
+    const obs =
+        forkJoin(
+            this.http.get<Feed[]>(`/api/feeds/disabled`),
+            this.waitForInitialFetch())
+            .pipe(map((results) => {
+                    this.handleUpdates(new Updates(false, [], results[0]));
+                    this.hasAllFeeds = true;
+                    this.loadingService.finishLoading();
+                  }),
+                  catchError((error: Error) => {
+                    this.errorService.showError(error);
+                    this.loadingService.finishLoading();
+                    return of(undefined);
+                  }),
+                  share());
+
+    obs.subscribe();
+    return obs;
   }
 
   private waitForInitialFetch(): Observable<void> {

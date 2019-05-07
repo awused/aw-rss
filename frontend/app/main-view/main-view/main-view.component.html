@@ -6,7 +6,8 @@
                         [maxItemId]="maxItemId">
 </awrss-main-view-header>
 
-<cdk-virtual-scroll-viewport itemSize="52"
+<cdk-virtual-scroll-viewport #itemScroll
+                             itemSize="52"
                              class="item-list"
                              [class.mobile]="mobile | async">
   <!-- <awrss&#45;main&#45;view&#45;header *ngIf="mobile | async" -->
@@ -23,15 +24,20 @@
               [class.primary-bg]="odd"
               [class.secondary-bg]="even">
   </awrss-item>
+
+  <div class="show-more primary-dark-bg"
+       *ngIf="feed && !hasAllRead">
+    <button [disabled]="loadingMore"
+            *ngIf="!hasRead"
+            (click)="showRead()"
+            mat-button>
+      Show Read
+    </button>
+    <button [disabled]="loadingMore"
+            *ngIf="hasRead"
+            (click)="showMoreRead()"
+            mat-button>
+      Show More
+    </button>
+  </div>
 </cdk-virtual-scroll-viewport>
-
-
-<!-- real scrolling is slow, but it allows for browser searching. Use with date ranges? -->
-<!-- <div class="item&#45;list"> -->
-<!--   <awrss&#45;item *ngFor="let item of sortedItems; let even = even; let odd = odd" -->
-<!--               [item]="item" -->
-<!--               [showFeed]="!feed" -->
-<!--               [class.primary&#45;bg]="odd" -->
-<!--               [class.secondary&#45;bg]="even"> -->
-<!--   </awrss&#45;item> -->
-<!-- </div> -->

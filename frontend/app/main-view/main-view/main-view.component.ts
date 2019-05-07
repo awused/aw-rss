@@ -3,7 +3,7 @@ import {
   Component,
   Input,
   OnDestroy,
-  OnInit
+  OnInit,
 } from '@angular/core';
 import {ActivatedRoute,
         ParamMap,
@@ -30,8 +30,10 @@ import {Observable,
         Subject} from 'rxjs';
 import {
   filter,
+  last,
   map,
   switchMap,
+  take,
   takeUntil,
   tap
 } from 'rxjs/operators';
@@ -42,6 +44,9 @@ import {
   styleUrls: ['./main-view.component.scss']
 })
 export class MainViewComponent implements OnInit, OnDestroy {
+  //@ViewChild('itemScroll')
+  //public itemScroll: CdkVirtualScrollViewport;
+
   private readonly onDestroy$: Subject<void> = new Subject();
   private filteredData: FilteredData = EmptyFilteredData;
   public category?: Category;
@@ -49,6 +54,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
   public maxItemId?: number;
   public sortedItems: Item[] = [];
   public mobile: Observable<boolean>;
+
+  public loadingMore = false;
+  public hasRead = false;
+  public hasAllRead = false;
 
   constructor(
       private readonly route: ActivatedRoute,
@@ -114,7 +123,12 @@ export class MainViewComponent implements OnInit, OnDestroy {
             takeUntil(this.onDestroy$),
             map((p: ParamMap) => this.paramsToFilters(p)),
             filter((f?: Filters) => !!f),
-            tap(() => this.filteredData = EmptyFilteredData),
+            tap(() => {
+              this.filteredData = EmptyFilteredData;
+              this.loadingMore = false;
+              this.hasRead = false;
+              this.hasAllRead = false;
+            }),
             switchMap((f: Filters) => this.dataService.dataForFilters(f)),
             // At worst, this snapshot will be a page the user is navigating to
             tap(() =>
@@ -126,15 +140,66 @@ export class MainViewComponent implements OnInit, OnDestroy {
         .subscribe((fd: FilteredData) => this.handleNewFilteredData(fd));
 
     this.mobile = this.mobileService.mobile();
+
+    // TODO -- maybe control if show-more is visible to reduce jank
+    /*
+    this.itemScroll.renderedRangeStream
+      .pipe(takeUntil(this.onDestroy$))
+      .subscribe((lr: ListRange) => {
+      });
+     */
   }
 
   public getFeed(id: number): Feed {
     return this.dataService.getFeed(id);
   }
 
+  public showRead() {
+    if (!this.feed) {
+      // TODO
+      return;
+    }
+
+    const initialFilters = this.filteredData.filters;
+    const newFilters =
+        Object.assign({}, initialFilters, {unreadOnly: false});
+
+    this.loadingMore = true;
+    this.dataService.dataForFilters(newFilters)
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe((fd: FilteredData) => {
+          if (initialFilters === this.filteredData.filters) {
+            this.hasRead = true;
+            this.hasAllRead = this.dataService.hasAllRead(this.feed);
+            this.handleNewFilteredData(fd);
+          }
+        }, () => this.loadingMore = false);
+  }
+
+  public showMoreRead() {
+    if (!this.feed) {
+      // TODO
+      return;
+    }
+
+
+    this.loadingMore = true;
+    this.dataService.fetchMoreReadForFeed(this.feed.id)
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe(() => {
+          this.loadingMore = false;
+          this.hasAllRead = this.dataService.hasAllRead(this.feed);
+        }, () => this.loadingMore = false);
+  }
+
   private handleNewFilteredData(fd: FilteredData) {
     this.category = undefined;
     this.feed = undefined;
+    this.loadingMore = false;
+    if (fd.filters.unreadOnly) {
+      this.hasRead = false;
+      this.hasAllRead = false;
+    }
 
     if (fd.filters.feedId !== undefined) {
       if (fd.feeds.length !== 1) {
