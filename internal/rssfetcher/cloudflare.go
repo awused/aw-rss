@@ -61,6 +61,7 @@ const cloudflareBroken = "Cloudflare may have changed their technique," +
 type cloudflare struct {
 	cookies    map[string]string
 	userAgents map[string]string
+	lastFetch  map[string]time.Time
 	cookieLock sync.RWMutex
 	pythonLock sync.Mutex
 	closeChan  <-chan struct{}
@@ -79,6 +80,7 @@ func newCloudflare(conf config.Config, closeChan <-chan struct{}) *cloudflare {
 	return &cloudflare{
 		cookies:      make(map[string]string),
 		userAgents:   make(map[string]string),
+		lastFetch:    make(map[string]time.Time),
 		closeChan:    closeChan,
 		invalidUntil: make(map[string]time.Time),
 	}
@@ -216,6 +218,13 @@ func (cf *cloudflare) getNewCookie(
 }
 
 func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
+	lastFetch, ok := cf.lastFetch[h]
+	if ok && time.Now().Before(lastFetch.Add(time.Minute*10)) {
+		return "", "", errCloudflareBroken
+	}
+
+	cf.lastFetch[h] = time.Now()
+
 	out, err :=
 		exec.Command("python3", "-c", cookieScript, feedURL).CombinedOutput()
 	str := string(out)
@@ -239,7 +248,7 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 		return "", "", errCloudflareCaptcha
 	}
 
-	lines := strings.Split(string(out), "\n")
+	lines := strings.Split(str, "\n")
 
 	if len(lines) < 2 {
 		log.Errorf("Missing cloudflare cookie or user agent for " + feedURL)
