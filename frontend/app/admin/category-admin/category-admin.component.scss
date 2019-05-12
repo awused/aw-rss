@@ -1,0 +1,23 @@
+.categories {
+  padding: 0;
+}
+
+.title,
+.url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: white;
+}
+
+.disabled {
+  opacity: .5;
+}
+
+.url {
+  margin-left: 12px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}

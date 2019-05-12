@@ -561,13 +561,6 @@ func (r *rssFetcher) restartFailedRoutine(fe feedError) {
 	go r.restartRoutine(feed, r.routines[id], backoff)
 }
 
-/*func charsetReader(charset string, r io.Reader) (io.Reader, error) {
-	if charset == "ISO-8859-1" || charset == "iso-8859-1" {
-		return r, nil
-	}
-	return nil, fmt.Errorf("Unsupported character set encoding: %s", charset)
-}*/
-
 func host(feedURL string) (string, string, error) {
 	u, err := url.Parse(feedURL)
 	if err != nil {

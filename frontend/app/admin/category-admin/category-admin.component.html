@@ -1,0 +1,29 @@
+<awrss-admin-header>
+  Categories
+</awrss-admin-header>
+
+<awrss-admin-body>
+  <mat-list class="categories">
+    <mat-list-item class="category"
+                   *ngFor="let cat of filteredData.categories; let even = even; let odd = odd;"
+                   [class.primary-bg]="odd"
+                   [class.secondary-bg]="even">
+      <a class="title"
+         [matTooltip]="cat.title"
+         routerLink="/category/{{cat.name}}">
+        {{cat.title}}
+      </a>
+      <div class="spacer"></div>
+      <button class="disable-button"
+              (click)="disableCategory(cat)"
+              matTooltip="Delete the {{cat.title}} category"
+              mat-icon-button>
+        <mat-icon>delete_forever</mat-icon>
+      </button>
+      <button (click)="editCategory(cat)"
+              mat-icon-button>
+        <mat-icon>edit</mat-icon>
+      </button>
+    </mat-list-item>
+  </mat-list>
+</awrss-admin-body>
