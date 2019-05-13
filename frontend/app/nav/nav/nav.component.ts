@@ -380,7 +380,6 @@ export class NavComponent {
       }
 
       const fd = this.unreadByFeed.get(it.feedId);
-      const hadLastItem = !!fd.lastItem;
       if (!fd.lastItem || new Date(it.timestamp) > fd.lastItem) {
         fd.lastItem = new Date(it.timestamp);
         fd.lastItemString = this.timeAgoString(fd.lastItem);
@@ -394,9 +393,10 @@ export class NavComponent {
           return;
         }
       } else if (!fd.unread.has(it.id)) {
-        // Specifically, we want to catch backfills that otherwise wouldn't
-        // trigger a re-sort
-        if (!hadLastItem && fd.unread.size === 0) {
+        // Don't re-sort within the same visible list, but do re-sort from
+        // "Read Feeds" to the unread feeds section.
+        const inCategory = this.unreadByCategory.has(fd.feed.categoryId);
+        if (!inCategory && fd.unread.size === 0) {
           mustSort = true;
         }
         fd.unread.add(it.id);
