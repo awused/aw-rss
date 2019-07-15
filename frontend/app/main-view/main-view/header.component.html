@@ -29,7 +29,7 @@
   <button class="edit-button"
           (click)="edit()"
           *ngIf="feed || category"
-          matTooltip="edit {{feed && (feed | feedTitle) || category.title}}"
+          matTooltip="Edit {{feed && (feed | feedTitle) || category.title}}"
           mat-icon-button>
     <mat-icon>edit</mat-icon>
   </button>
