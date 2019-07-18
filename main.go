@@ -42,7 +42,7 @@ func main() {
 	}()
 
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGUSR1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGUSR1, syscall.SIGTERM)
 
 Loop:
 	for {
@@ -54,6 +54,8 @@ Loop:
 			log.Fatalf("webserver.Run() exited unexpectedly")
 		case sig := <-sigs:
 			switch sig {
+			case syscall.SIGTERM:
+				break Loop
 			case syscall.SIGINT:
 				break Loop
 			case syscall.SIGUSR1:
@@ -61,7 +63,7 @@ Loop:
 			}
 		}
 	}
-	signal.Reset(syscall.SIGINT)
+	signal.Reset(syscall.SIGINT, syscall.SIGTERM)
 
 	log.Info("SIGINT caught, exiting")
 	server.Close()

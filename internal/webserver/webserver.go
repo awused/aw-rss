@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/awused/aw-rss/internal/config"
@@ -27,6 +28,7 @@ type webserver struct {
 	listener  net.Listener
 	closed    bool
 	closeLock sync.Mutex
+	running   bool
 	rss       rssfetcher.RssFetcher
 	rssError  error
 }
@@ -72,24 +74,37 @@ func (w *webserver) close(rssError error) error {
 
 	// Close and kill the main routine
 	w.closed = true
+	defer log.Info("Close() completed")
+
+	if !w.running {
+		log.Info("Close() called before Run()")
+	}
 	w.rssError = rssError
 	w.listener.Close()
 
-	defer log.Info("Close() completed")
 	// rss.Close() also closes the database
 	return w.rss.Close()
 }
 
 func (w *webserver) Run() (err error) {
-	go w.runRss()
-
 	log.Info("Webserver.Run() started")
 
 	addr := "localhost:" + strconv.Itoa(w.conf.Port)
 
+	w.closeLock.Lock()
+	if w.closed {
+		log.Errorf("Tried to run webserver that has already been closed")
+		w.closeLock.Unlock()
+		return errors.New("Closed")
+	}
+
+	go w.runRss()
+	w.running = true
 	w.listener, err = net.Listen("tcp", addr)
+	w.closeLock.Unlock()
 	if err != nil {
 		log.Errorf("Failed to open listening socket on %s: %s", addr, err)
+		return err
 	}
 	log.Infof("Listening for connections on %s", addr)
 
