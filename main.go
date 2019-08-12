@@ -42,7 +42,7 @@ func main() {
 	}()
 
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGUSR1, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 Loop:
 	for {
@@ -58,8 +58,6 @@ Loop:
 				break Loop
 			case syscall.SIGINT:
 				break Loop
-			case syscall.SIGUSR1:
-				log.Info("SIGUSR1")
 			}
 		}
 	}
