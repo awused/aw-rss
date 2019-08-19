@@ -142,7 +142,6 @@ export class NavComponent {
     return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
   }
 
-
   public openAddDialog() {
     this.dialog.open(AddDialogComponent);
   }
