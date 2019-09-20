@@ -317,6 +317,13 @@ func (d *Database) upgradeFrom(version int) {
 						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
 
 				ALTER TABLE feeds RENAME TO feeds_old;
+				ALTER TABLE items RENAME TO items_old;
+
+				DROP INDEX items_read_feed_index;
+				DROP INDEX feeds_disabled_index;
+				DROP INDEX items_commit_index;
+				DROP INDEX feeds_commit_index;
+				DROP INDEX items_feed_timestamp_index;
 
 				CREATE TABLE feeds(
 						id INTEGER PRIMARY KEY,
@@ -330,16 +337,33 @@ func (d *Database) upgradeFrom(version int) {
 						failing_since TIMESTAMP DEFAULT NULL,
 						categoryid INTEGER DEFAULT NULL,
 						FOREIGN KEY(categoryid) REFERENCES categories(id));
+				CREATE TABLE items(
+						id INTEGER PRIMARY KEY,
+						feedid INTEGER NOT NULL,
+						key TEXT NOT NULL,
+						title TEXT NOT NULL,
+						url TEXT NOT NULL,
+						content TEXT NOT NULL,
+						timestamp TIMESTAMP NOT NULL,
+						read INT NOT NULL DEFAULT 0,
+						commit_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						UNIQUE(feedid, key),
+						FOREIGN KEY(feedid) REFERENCES feeds(id));
 
 				INSERT INTO feeds
 						SELECT
 								*, NULL
 						FROM feeds_old;
+				INSERT INTO items SELECT * FROM items_old;
 
+				DROP TABLE items_old;
 				DROP TABLE feeds_old;
 
+				CREATE INDEX items_read_feed_index ON items(read, feedid);
 				CREATE INDEX feeds_disabled_index ON feeds(disabled);
+				CREATE INDEX items_commit_index ON items(commit_timestamp);
 				CREATE INDEX feeds_commit_index ON feeds(commit_timestamp);
+				CREATE INDEX items_feed_timestamp_index ON items(feedid, timestamp);
 
 				PRAGMA foreign_key_check;`)
 		_, err = d.db.Exec(`
