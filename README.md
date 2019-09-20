@@ -41,6 +41,16 @@ You'll have to edit proxy.conf.json to match the port you configured the backend
 
 Run `ng serve --aot` for an angular dev server. Navigate to `http://localhost:4200/` with the backend already running.
 
+# Shortcuts
+
+Shortcut | Action
+---------| ----------
+`Middle Click` | Opens an item while marking it as read at the same time.
+`Right Click` | Marks an unread item as read or a read item as unread.
+`R` | Refresh.
+`N` | Open the add new Feed/Category dialog.
+`A` | Open the admin page.
+
 # Why
 
 I built this because I did not like any of the RSS readers, free or paid, I tried after Google Reader died.
