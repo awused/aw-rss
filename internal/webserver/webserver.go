@@ -89,7 +89,11 @@ func (w *webserver) close(rssError error) error {
 func (w *webserver) Run() (err error) {
 	log.Info("Webserver.Run() started")
 
-	addr := "localhost:" + strconv.Itoa(w.conf.Port)
+	host := "localhost"
+	if w.conf.Host != "" {
+		host = w.conf.Host
+	}
+	addr := host + ":" + strconv.Itoa(w.conf.Port)
 
 	w.closeLock.Lock()
 	if w.closed {

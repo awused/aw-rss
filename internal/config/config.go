@@ -11,6 +11,7 @@ type Config struct {
 	Database          string
 	DistDir           string
 	Port              int
+	Host              string
 	LogFile           string
 	LogLevel          string
 	Dedupe            bool

@@ -11,9 +11,15 @@ Database = "/path/to/rss.db"
 DistDir = "/your/gopath/src/github.com/awused/aw-rss/dist"
 
 # Port to listen on.
-# Aw-rss always listens on IPv4 localhost (127.0.0.1). This is not configurable
-# since aw-rss does not perform any authentication, authorization, or security.
 Port = 9092
+
+# Host to listen on.
+# Do not change this unless you understand the security implications.
+# Aw-rss is an unsecured web server; it performs no authentication or
+# authorization. If you want to expose aw-rss for remote access it should be
+# done using a reverse proxy with basic authentication support such as nginx.
+# Change this your own risk.
+# Host = "127.0.0.1"
 
 # Log file, leave blank to log to stdout
 # Aw-rss does not clear or rotate this log file.
