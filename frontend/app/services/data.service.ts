@@ -253,7 +253,7 @@ export class DataService {
   }
 
   public getInitialTimestampForFeed(id: number): string|undefined {
-    return this.initialNewestTimestamps[id];
+    return this.initialNewestTimestamps && this.initialNewestTimestamps[id];
   }
 
   public getCategory(id: number): Category|undefined {
