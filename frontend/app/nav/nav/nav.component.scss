@@ -113,8 +113,20 @@
   }
 
   .mat-expansion-panel-header {
+    &.failing .unread {
+      color: mat-color($warn, darker);
+    }
+
     &.active {
       background-color: white;
+
+      &.failing {
+        background-color: mat-color($warn, darker);
+
+        .unread {
+          color: black;
+        }
+      }
 
       .link {
         color: black;

@@ -42,7 +42,8 @@ export class FeedData {
 class CategoryData {
   constructor(
       public category: Category,
-      public unread: number = 0) {}
+      public unread: number = 0,
+      public failing: Set<number> = new Set()) {}
 }
 
 interface NavCategory {
@@ -349,11 +350,17 @@ export class NavComponent {
         }
       }
 
+      const cd = this.unreadByCategory.get(f.categoryId);
       const oldf = fd.feed;
       fd.feed = f;
 
       if (f.failingSince) {
         fd.failingSinceString = this.timeAgoString(new Date(f.failingSince));
+        if (cd) {
+          cd.failing.add(f.id);
+        }
+      } else if (cd) {
+        cd.failing.delete(f.id);
       }
 
       if (f.disabled !== oldf.disabled) {
@@ -364,6 +371,11 @@ export class NavComponent {
       if (f.categoryId !== oldf.categoryId) {
         mustSort = true;
         recalculate = true;
+
+        const ocd = this.unreadByCategory.get(oldf.categoryId);
+        if (ocd) {
+          ocd.failing.delete(f.id);
+        }
       }
 
       if (f.title !== oldf.title ||

@@ -67,6 +67,7 @@
     <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
                                 [class.primary-bg]="evenC"
                                 [class.active]="selectedCategoryName === nc.cData.category.name"
+                                [class.failing]="nc.cData.failing.size !== 0"
                                 [collapsedHeight]="'48px'"
                                 [expandedHeight]="'48px'">
       <div class="link-div"
@@ -82,6 +83,10 @@
           <div class="unread"
                *ngIf="nc.cData.unread">
             ({{nc.cData.unread}})
+          </div>
+          <div class="unread"
+               *ngIf="!nc.cData.unread && nc.cData.failing.size !== 0">
+            !!
           </div>
         </a>
       </div>
