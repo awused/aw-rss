@@ -265,12 +265,13 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 			panic(err)
 		}
 
-		f, err = r.db.MutateFeed(
+		newF, err = r.db.MutateFeed(
 			f.ID(), structs.FeedMergeGofeed(feed))
 		if err != nil {
 			log.Errorf("Error updating feed [%s]: %v", f, err)
 			panic(err)
 		}
+		f = newF
 
 		err = r.db.InsertItems(structs.CreateNewItems(f, feed.Items))
 		if err != nil {
@@ -278,12 +279,13 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 			panic(err)
 		}
 
-		f, err = r.db.MutateFeed(
+		newF, err = r.db.MutateFeed(
 			f.ID(), structs.FeedSetFetchSuccess)
 		if err != nil {
 			log.Errorf("Error updating feed [%s]: %v", f, err)
 			panic(err)
 		}
+		f = newF
 
 		/*
 			TODO -- Do this
