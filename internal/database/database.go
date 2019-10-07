@@ -2,7 +2,7 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
 	"strconv"
 	"sync"
 
@@ -442,9 +442,11 @@ func (d *Database) init() {
 	log.Trace("init() completed")
 }
 
+var ErrClosed = errors.New("Database already closed")
+
 func (d *Database) checkClosed() error {
 	if d.closed {
-		err := fmt.Errorf("Database already closed")
+		err := ErrClosed
 		log.Error(err)
 		return err
 	}

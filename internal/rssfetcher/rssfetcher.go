@@ -1,6 +1,8 @@
 package rssfetcher
 
 import (
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -19,6 +21,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrClosed = errors.New("RssFetcher already closed")
+
 const dbPollPeriod = time.Duration(time.Minute * 5)
 
 // TODO -- make this configurable, along with a maxPollPeriod
@@ -29,7 +33,10 @@ const startupRateLimit = 250 * time.Millisecond
 // RssFetcher is responsible for reading fetching feeds and storing them in the
 // database
 type RssFetcher interface {
+	// Run begins fetching RSS feeds and only stops when closed or when
+	// encountering an unrecoverable error.
 	Run() error
+	// Close stops a running RssFetcher and cleans up.
 	Close() error
 	// InformFeedChanged informs the fetcher that a feed has changed
 	InformFeedChanged()
@@ -106,7 +113,8 @@ func (r *rssFetcher) Close() error {
 		log.Warning("Tried to close rssFetcher that has already been closed")
 		return nil
 	}
-	// Close and kill the main routine last
+	// Kill the main routine, though Run() will not return until after
+	// Close() releases the lock.
 	close(r.closeChan)
 	r.closed = true
 
@@ -141,6 +149,13 @@ func (r *rssFetcher) Run() (err error) {
 		}
 	}()
 
+	r.closeLock.Lock()
+	if r.closed {
+		r.closeLock.Unlock()
+		return ErrClosed
+	}
+	r.closeLock.Unlock()
+
 	forcePoll := false
 
 	log.Info("rssFetcher started running")
@@ -151,8 +166,19 @@ func (r *rssFetcher) Run() (err error) {
 			forcePoll = false
 
 			newFeedsArray, err := r.db.GetCurrentFeeds()
-			if err != nil {
-				// Close unconditionally on DB error
+			if err == database.ErrClosed {
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+
+				if r.closed {
+					// The database was closed in the brief window between the last time
+					// closeChan was checked and when the DB was polled. No error.
+					return nil
+				} else {
+					return fmt.Errorf("Database unexpectedly closed")
+				}
+			} else if err != nil {
+				// Close unconditionally on unexpected DB error.
 				_ = r.Close()
 				return err
 			}
@@ -190,6 +216,9 @@ func (r *rssFetcher) Run() (err error) {
 			// TODO -- handle an update from fe.f
 		case <-r.closeChan:
 			log.Info("rssFetcher closed, exiting")
+			// Acquire the lock so Run() does not return before Close() completes
+			r.closeLock.Lock()
+			r.closeLock.Unlock()
 			return nil
 		case <-time.After(dbPollPeriod - time.Since(r.lastPolled)):
 			// This polling is the last line of defense against out of band edits
