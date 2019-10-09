@@ -59,18 +59,13 @@ func (w *webserver) Close() error {
 }
 
 func (w *webserver) close(rssError error) error {
-	if w.closed {
-		log.Info("Tried to close webserver that has already been closed")
-		return nil
-	}
-	log.Info("Closing webserver")
-
 	w.closeLock.Lock()
 	defer w.closeLock.Unlock()
 	if w.closed {
 		log.Warning("Tried to close webserver that has already been closed")
 		return nil
 	}
+	log.Info("Closing webserver")
 
 	// Close and kill the main routine
 	w.closed = true

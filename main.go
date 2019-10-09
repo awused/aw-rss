@@ -49,9 +49,9 @@ Loop:
 		select {
 		case err = <-serverChan:
 			if err != nil {
-				log.Fatalf("webserver.Run() exited unexpectedly with [%v]", err)
+				log.Panicf("webserver.Run() exited unexpectedly with [%v]", err)
 			}
-			log.Fatalf("webserver.Run() exited unexpectedly")
+			log.Panicf("webserver.Run() exited unexpectedly")
 		case sig := <-sigs:
 			switch sig {
 			case syscall.SIGTERM:
