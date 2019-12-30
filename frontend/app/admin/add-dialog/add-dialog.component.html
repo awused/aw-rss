@@ -10,7 +10,8 @@
           <input matInput
                  name="url"
                  formControlName="url"
-                 placeholder="URL">
+                 placeholder="URL"
+                 autofocus>
           <mat-error *ngIf="feedForm.controls['url'].hasError('pattern')">
             URL must be HTTP or HTTPS
           </mat-error>
