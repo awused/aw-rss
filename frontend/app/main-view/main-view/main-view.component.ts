@@ -65,7 +65,9 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly dataService: DataService,
       private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
-      private readonly mobileService: MobileService) {}
+      private readonly mobileService: MobileService) {
+    this.mobile = this.mobileService.mobile();
+  }
 
   ngOnInit() {
     this.dataService.updates()
@@ -101,7 +103,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
             if (this.category) {
               this.category = this.dataService.getCategory(this.category.id);
 
-              if (u.refresh && this.category.disabled) {
+              if (!this.category || u.refresh && this.category.disabled) {
                 this.router.navigate(['/'], {replaceUrl: true});
               }
             }
@@ -122,7 +124,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
         .pipe(
             takeUntil(this.onDestroy$),
             map((p: ParamMap) => this.paramsToFilters(p)),
-            filter((f?: Filters) => !!f),
+            filter((f?: Filters): f is Filters => Boolean(f)),
             tap(() => {
               this.filteredData = EmptyFilteredData;
               this.loadingMore = false;
@@ -138,8 +140,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
             // This one will prevent mangling state strangely
             takeUntil(this.onDestroy$))
         .subscribe((fd: FilteredData) => this.handleNewFilteredData(fd));
-
-    this.mobile = this.mobileService.mobile();
 
     // TODO -- maybe control if show-more is visible to reduce jank
     /*
@@ -160,6 +160,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const f = this.feed;
     const initialFilters = this.filteredData.filters;
     const newFilters =
         Object.assign({}, initialFilters, {unreadOnly: false});
@@ -168,6 +169,11 @@ export class MainViewComponent implements OnInit, OnDestroy {
     this.dataService.dataForFilters(newFilters)
         .pipe(takeUntil(this.onDestroy$))
         .subscribe((fd: FilteredData) => {
+          if (!this.feed || this.feed.id !== f.id) {
+            this.loadingMore = false;
+            return;
+          }
+
           if (initialFilters === this.filteredData.filters) {
             this.hasRead = true;
             this.hasAllRead = this.dataService.hasAllRead(this.feed);
@@ -182,13 +188,18 @@ export class MainViewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const f = this.feed;
 
     this.loadingMore = true;
     this.dataService.fetchMoreReadForFeed(this.feed.id)
         .pipe(takeUntil(this.onDestroy$))
         .subscribe(() => {
           this.loadingMore = false;
-          this.hasAllRead = this.dataService.hasAllRead(this.feed);
+          if (!this.feed || this.feed.id !== f.id) {
+            return;
+          }
+
+          this.hasAllRead = this.dataService.hasAllRead(f);
         }, () => this.loadingMore = false);
   }
 
@@ -243,8 +254,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
       keepUnlessRefresh: true,
     };
 
-    if (p.has('feedId')) {
-      const fid = p.get('feedId');
+    const fid = p.get('feedId');
+    if (fid) {
       if (!/^\d+$/.test(fid)) {
         // The nav service will log and redirect users
         return;
@@ -252,8 +263,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
       f.feedId = parseInt(fid, 10);
     }
 
-    if (p.has('categoryName')) {
-      const cname = p.get('categoryName');
+    const cname = p.get('categoryName');
+    if (cname) {
       if (!CATEGORY_NAME_REGEX.test(cname)) {
         // The nav service will log and redirect users
         return;

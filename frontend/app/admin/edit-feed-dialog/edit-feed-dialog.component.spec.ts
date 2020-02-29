@@ -7,7 +7,7 @@ import {
   MAT_DIALOG_DATA,
   MatDialogModule,
   MatDialogRef
-} from '@angular/material';
+} from '@angular/material/dialog';
 import {FeedFixtures} from 'frontend/app/models/models.fake';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';

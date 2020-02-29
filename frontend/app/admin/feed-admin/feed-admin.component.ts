@@ -1,7 +1,7 @@
 import {Component,
         OnDestroy,
         OnInit} from '@angular/core';
-import {MatDialog} from '@angular/material';
+import {MatDialog} from '@angular/material/dialog';
 import {EmptyFilteredData,
         FilteredData,
         Updates} from 'frontend/app/models/data';

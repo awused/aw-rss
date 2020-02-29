@@ -11,7 +11,7 @@ import {FeedData} from '../nav/nav.component';
 })
 export class FeedComponent {
   @Input()
-  public fd: FeedData;
+  public fd!: FeedData;
 
   constructor() {}
 }

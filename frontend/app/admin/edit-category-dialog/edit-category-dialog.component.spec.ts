@@ -5,7 +5,7 @@ import {FormsModule,
         ReactiveFormsModule} from '@angular/forms';
 import {MAT_DIALOG_DATA,
         MatDialogModule,
-        MatDialogRef} from '@angular/material';
+        MatDialogRef} from '@angular/material/dialog';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
 import {MutateService} from 'frontend/app/services/mutate.service';

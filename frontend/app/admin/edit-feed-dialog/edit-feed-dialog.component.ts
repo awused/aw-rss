@@ -4,8 +4,8 @@ import {Component,
 import {FormControl,
         FormGroup} from '@angular/forms';
 import {MAT_DIALOG_DATA,
-        MatDialogRef,
-        MatSnackBar} from '@angular/material';
+        MatDialogRef} from '@angular/material/dialog';
+import {MatSnackBar} from '@angular/material/snack-bar';
 import {FilteredData} from 'frontend/app/models/data';
 import {Category,
         Feed} from 'frontend/app/models/entities';
@@ -21,7 +21,7 @@ import {MutateService} from 'frontend/app/services/mutate.service';
 export class EditFeedDialogComponent {
   public readonly feed: Feed;
   public feedForm: FormGroup;
-  public categories: ReadonlyArray<Category>;
+  public categories: ReadonlyArray<Category> = [];
 
   // This controller will never be reused
   constructor(
@@ -51,24 +51,23 @@ export class EditFeedDialogComponent {
   }
 
   public isUnchanged(): boolean {
-    if (this.feed.userTitle !==
-        (this.feedForm.get('userTitle').value || undefined)) {
+    if (this.feed.userTitle !== this.feedForm.get('userTitle')?.value) {
       return false;
     }
 
-    if (this.feedForm.get('categoryId').dirty &&
-        this.feed.categoryId !== this.feedForm.get('categoryId').value) {
+    if (this.feedForm.get('categoryId')?.dirty &&
+        this.feed.categoryId !== this.feedForm.get('categoryId')?.value) {
       return false;
     }
 
-    if (this.feed.disabled !== !this.feedForm.get('enabled').value) {
+    if (this.feed.disabled !== !this.feedForm.get('enabled')?.value) {
       return false;
     }
 
     return true;
   }
 
-  public submit(formValue) {
+  public submit(formValue: any) {
     const edit: any = {};
 
     if (this.feed.userTitle !== (formValue.userTitle || undefined)) {

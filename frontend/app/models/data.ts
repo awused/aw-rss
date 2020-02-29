@@ -37,8 +37,8 @@ export class Data {
   private static mergeEntities<T extends Entity>(
       dEntities: ReadonlyArray<T>,
       uEntities: ReadonlyArray<T>,
-      keepExisting: (T) => boolean,
-      addNew: (T) => boolean,
+      keepExisting: (x: T) => boolean,
+      addNew: (x: T) => boolean,
       df: DataFilter): [ReadonlyArray<T>, boolean] {
     // Most merges are a relatively small number of updates into a larger list,
     // and tend to be newer items rather than older ones.

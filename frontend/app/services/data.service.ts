@@ -77,7 +77,7 @@ class FeedMetadata {
       public readAfter?: Date) {}
 
   public setReadAfter(d: Date) {
-    if (d >= this.readAfter) {
+    if (this.readAfter && d >= this.readAfter) {
       return;
     }
 
@@ -85,7 +85,7 @@ class FeedMetadata {
   }
 
   public hasReadAfter(d: Date): boolean {
-    return this.allRead || this.readAfter >= d;
+    return this.allRead || (this.readAfter && this.readAfter >= d) || false;
   }
 
   public hasRead(): boolean {
@@ -95,8 +95,6 @@ class FeedMetadata {
 
 // Data about what is present in the cache for this category
 class CategoryMetadata {
-  public readonly feedIds: Set<number>;
-
   constructor(
       public category: Category) {}
 }
@@ -128,7 +126,7 @@ export class DataService {
   private feedMetadata: Map<number, FeedMetadata> = new Map();
   private categoryMetadata: Map<number, CategoryMetadata> = new Map();
   // For now it's enough to just do this at initial load
-  private initialNewestTimestamps: {[x: number]: string};
+  private initialNewestTimestamps: {[x: number]: string} = {};
 
   constructor(
       private readonly http: HttpClient,
@@ -196,7 +194,7 @@ export class DataService {
     }
 
     if (!fetches.length) {
-      return of(undefined);
+      return of (undefined);
     }
     return forkJoin(fetches).pipe(map(() => {}));
   }
@@ -214,7 +212,7 @@ export class DataService {
   public fetchMoreReadForFeed(id: number): Observable<void> {
     const fd = this.feedMetadata.get(id);
     if (!fd || fd.allRead) {
-      return of(undefined);
+      return of (undefined);
     }
 
     const readBefore = fd.readAfter || new Date(this.timestamp * 1000);
@@ -243,13 +241,13 @@ export class DataService {
       this.errorService.showError(e);
       throw e;
     }
-    return this.feedMetadata.get(id).feed;
+    return (this.feedMetadata.get(id) as FeedMetadata).feed;
   }
 
   // TODO -- Feed | Category | all
   public hasAllRead(feed: Feed): boolean {
     const fd = this.feedMetadata.get(feed.id);
-    return fd.allRead;
+    return Boolean(fd?.allRead);
   }
 
   public getInitialTimestampForFeed(id: number): string|undefined {
@@ -260,7 +258,7 @@ export class DataService {
     if (!this.categoryMetadata.has(id)) {
       return;
     }
-    return this.categoryMetadata.get(id).category;
+    return (this.categoryMetadata.get(id) as CategoryMetadata).category;
   }
 
   public pushUpdates(u: Updates) {
@@ -336,7 +334,7 @@ export class DataService {
 
     u.categories.forEach((c) => {
       if (this.categoryMetadata.has(c.id)) {
-        const m = this.categoryMetadata.get(c.id);
+        const m = this.categoryMetadata.get(c.id) as CategoryMetadata;
         if (m.category.commitTimestamp > c.commitTimestamp) {
           return;
         }
@@ -367,7 +365,7 @@ export class DataService {
 
     u.feeds.forEach((f) => {
       if (this.feedMetadata.has(f.id)) {
-        const m = this.feedMetadata.get(f.id);
+        const m = this.feedMetadata.get(f.id) as FeedMetadata;
         if (isBackfill) {
           m.hasUnread = true;
         }
@@ -485,18 +483,20 @@ export class DataService {
                   const resp = results[0];
                   const u = new Updates(false, [], resp.feeds, resp.items);
                   let allRead = false;
-                  let minRead;
+                  let minRead: Date|undefined;
                   if (req.readBefore) {
                     minRead = req.readBefore;
 
-                    const pageSize = req.readBeforeCount;
+                    const pageSize = req.readBeforeCount ||
+                        READ_ITEMS_PAGE_SIZE;
                     if (resp.items.length < pageSize) {
                       // It's possible for some feeds inside a category to have
                       // allRead but for this to be false, but that's fine.
                       allRead = true;
                     } else {
                       resp.items.forEach((item: Item) => {
-                        if (item.read && new Date(item.timestamp) < minRead) {
+                        if (item.read &&
+                            (!minRead || new Date(item.timestamp) < minRead)) {
                           minRead = new Date(item.timestamp);
                         }
                       });
@@ -511,7 +511,7 @@ export class DataService {
                   // TODO -- Also handle updating category metadata
                   // including feeds in those categories
 
-                  req.feedIds.forEach((fid: number) => {
+                  req.feedIds && req.feedIds.forEach((fid: number) => {
                     const fm = this.feedMetadata.get(fid);
                     if (!fm) {
                       return;
@@ -549,7 +549,7 @@ export class DataService {
                 catchError((error: Error) => {
                   this.errorService.showError(error);
                   this.loadingService.finishLoading();
-                  return of(undefined);
+                  return of (undefined);
                 }),
                 share());
 
@@ -563,7 +563,7 @@ export class DataService {
         .subscribe(
             (state: CurrentState) => {
               this.timestamp = state.timestamp;
-              this.initialNewestTimestamps = state.newestTimestamps;
+              this.initialNewestTimestamps = state.newestTimestamps || [];
               this.data = new Data(
                   state.categories,
                   state.feeds,
@@ -622,7 +622,7 @@ export class DataService {
                   catchError((error: Error) => {
                     this.errorService.showError(error);
                     this.loadingService.finishLoading();
-                    return of(undefined);
+                    return of (undefined);
                   }),
                   share());
 

@@ -12,12 +12,12 @@ import {debounceTime} from 'rxjs/operators';
 })
 export class ParamService {
   private readonly mainViewParams$: Subject<ParamMap|void> =
-      new BehaviorSubject(undefined);
+      new BehaviorSubject<ParamMap|void>(undefined);
 
   constructor() {}
 
 
-  public pushMainViewParams(p: ParamMap|void) {
+  public pushMainViewParams(p?: ParamMap) {
     this.mainViewParams$.next(p);
   }
 

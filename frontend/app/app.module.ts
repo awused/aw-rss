@@ -1,6 +1,6 @@
 import {HttpClientModule} from '@angular/common/http';
 import {NgModule} from '@angular/core';
-import {MAT_DIALOG_DEFAULT_OPTIONS} from '@angular/material';
+import {MAT_DIALOG_DEFAULT_OPTIONS} from '@angular/material/dialog';
 import {BrowserModule,
         HAMMER_LOADER,
         Title} from '@angular/platform-browser';

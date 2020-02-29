@@ -1,7 +1,7 @@
 import {Component,
         Input,
         OnInit} from '@angular/core';
-import {MatDialog} from '@angular/material';
+import {MatDialog} from '@angular/material/dialog';
 import {ConfirmationDialogComponent} from 'frontend/app/admin/confirmation-dialog/confirmation-dialog.component';
 import {EditCategoryDialogComponent} from 'frontend/app/admin/edit-category-dialog/edit-category-dialog.component';
 import {EditFeedDialogComponent} from 'frontend/app/admin/edit-feed-dialog/edit-feed-dialog.component';
@@ -21,7 +21,7 @@ export class MainViewHeaderComponent {
   @Input()
   public category?: Category;
   @Input()
-  public mobile: boolean;
+  public mobile: boolean = false;
 
   @Input()
   public maxItemId?: number;
@@ -45,6 +45,13 @@ export class MainViewHeaderComponent {
 
 
   public markFeedAsRead() {
+    if (!this.feed || !this.maxItemId) {
+      return;
+    }
+
+    const feed = this.feed;
+    const maxItemId = this.maxItemId;
+
     this.dialog.open<any, any, boolean>(ConfirmationDialogComponent, {
                  data: {
                    title: 'Confirm Action',
@@ -58,7 +65,7 @@ export class MainViewHeaderComponent {
         .beforeClosed()
         .subscribe((result) => {
           if (result) {
-            this.mutateService.markFeedAsRead(this.feed.id, this.maxItemId);
+            this.mutateService.markFeedAsRead(feed.id, maxItemId);
           }
         });
   }

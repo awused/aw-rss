@@ -125,7 +125,8 @@ export class DataFilter {
       return false;
     }
 
-    if (this.excludedCategories.has(f.categoryId)) {
+    if (f.categoryId !== undefined &&
+        this.excludedCategories.has(f.categoryId)) {
       return false;
     }
 
@@ -150,7 +151,8 @@ export class DataFilter {
       return false;
     }
 
-    if (this.excludedCategories.has(f.categoryId)) {
+    if (f.categoryId !== undefined &&
+        this.excludedCategories.has(f.categoryId)) {
       return false;
     }
 

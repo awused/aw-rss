@@ -1,10 +1,13 @@
 import {Component,
         OnInit} from '@angular/core';
-import {FormControl,
-        FormGroup,
-        Validators} from '@angular/forms';
-import {MatDialogRef,
-        MatSnackBar} from '@angular/material';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  Validators
+} from '@angular/forms';
+import {MatDialogRef} from '@angular/material/dialog';
+import {MatSnackBar} from '@angular/material/snack-bar';
 import {FilteredData} from 'frontend/app/models/data';
 import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
@@ -33,7 +36,7 @@ export class AddDialogComponent {
     name: new FormControl('', [
       Validators.required,
       Validators.pattern(CATEGORY_NAME_PATTERN),
-      (nameControl: FormControl) => {
+      (nameControl: AbstractControl) => {
         if (this.categoryNames.has(nameControl.value)) {
           return {
             nameTaken: {
@@ -41,6 +44,7 @@ export class AddDialogComponent {
             }
           };
         }
+        return null;
       }
     ]),
     title: new FormControl('', [Validators.required]),
@@ -66,7 +70,7 @@ export class AddDialogComponent {
   }
 
 
-  public submitFeed(formValue) {
+  public submitFeed(formValue: any) {
     this.mutateService
         .newFeed(formValue.url, formValue.title, true)
         .subscribe(() => {
@@ -78,7 +82,7 @@ export class AddDialogComponent {
   }
 
 
-  public submitCategory(formValue) {
+  public submitCategory(formValue: any) {
     const req = {
       name: formValue.name,
       title: formValue.title,

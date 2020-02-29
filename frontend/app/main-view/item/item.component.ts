@@ -23,11 +23,11 @@ import {filter,
 })
 export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   @Input()
-  public item: Item;
+  public item!: Item;
   @Input()
-  public showFeed: boolean;
+  public showFeed: boolean = false;
   @Input()
-  public showCategory: boolean;
+  public showCategory: boolean = false;
 
   @HostBinding('class.read')
   get read() {
@@ -40,8 +40,8 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   public itemHover = true;
-  public feed: Feed;
-  public category: Category;
+  public feed: Feed|undefined;
+  public category: Category|undefined;
   public disabled = false;
 
   private readonly onDestroy$: Subject<void> = new Subject();

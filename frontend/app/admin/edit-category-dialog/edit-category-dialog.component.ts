@@ -1,12 +1,15 @@
 import {Component,
         Inject,
         OnInit} from '@angular/core';
-import {FormControl,
-        FormGroup,
-        Validators} from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  Validators
+} from '@angular/forms';
 import {MAT_DIALOG_DATA,
-        MatDialogRef,
-        MatSnackBar} from '@angular/material';
+        MatDialogRef} from '@angular/material/dialog';
+import {MatSnackBar} from '@angular/material/snack-bar';
 import {FilteredData} from 'frontend/app/models/data';
 import {Category} from 'frontend/app/models/entities';
 import {DataService} from 'frontend/app/services/data.service';
@@ -47,7 +50,7 @@ export class EditCategoryDialogComponent {
       name: new FormControl(this.category.name, [
         Validators.required,
         Validators.pattern(CATEGORY_NAME_PATTERN),
-        (nameControl: FormControl) => {
+        (nameControl: AbstractControl) => {
           if (this.categoryNames.has(nameControl.value)) {
             return {
               nameTaken: {
@@ -55,6 +58,7 @@ export class EditCategoryDialogComponent {
               }
             };
           }
+          return null;
         }
       ]),
       title: new FormControl(this.category.title, [Validators.required]),
@@ -76,22 +80,22 @@ export class EditCategoryDialogComponent {
   }
 
   public isUnchanged(): boolean {
-    if (this.category.name !== this.categoryForm.get('name').value) {
+    if (this.category.name !== this.categoryForm.get('name')?.value) {
       return false;
     }
 
-    if (this.category.title !== this.categoryForm.get('title').value) {
+    if (this.category.title !== this.categoryForm.get('title')?.value) {
       return false;
     }
 
-    if (this.initialVisibility !== this.categoryForm.get('visibility').value) {
+    if (this.initialVisibility !== this.categoryForm.get('visibility')?.value) {
       return false;
     }
 
     return true;
   }
 
-  public submit(formValue) {
+  public submit(formValue: any) {
     const edit: any = {};
 
 

@@ -8,7 +8,7 @@ import {BehaviorSubject,
 })
 export class LoadingService {
   private loadingSem = 0;
-  private loading$: Subject<boolean> = new BehaviorSubject(false);
+  private loading$: Subject<boolean> = new BehaviorSubject<boolean>(false);
 
   constructor() {}
 

@@ -8,7 +8,7 @@ import {Component,
         Input,
         OnInit,
         Output} from '@angular/core';
-import {MatDialog} from '@angular/material';
+import {MatDialog} from '@angular/material/dialog';
 import {ActivatedRoute,
         ParamMap,
         Router} from '@angular/router';
@@ -80,7 +80,7 @@ export class NavComponent {
           this.handleUpdates(fd);
 
           this.paramService.mainViewParams()
-              .subscribe((p: ParamMap) => this.handleParams(p));
+              .subscribe((p: ParamMap|void) => p && this.handleParams(p));
           this.route.queryParamMap
               .subscribe(
                   (q: ParamMap) => this.showAll = q.get('all') === 'true');
@@ -96,12 +96,12 @@ export class NavComponent {
   @Output()
   public titleLink = new EventEmitter<string|void>();
 
-  public isMobile: boolean;
+  public isMobile: boolean = false;
   public selectedCategoryName?: string;
   public selectedFeed?: number;
-  public navCategories: NavCategory[];
+  public navCategories: NavCategory[] = [];
   // Contains uncategorized feeds that have unread items or are failing
-  public uncategorizedFeeds: FeedData[];
+  public uncategorizedFeeds: FeedData[] = [];
   // Contains only successful uncategorized feeds with no unread items
   // that are not failing
   public uncategorizedReadFeeds: FeedData[] = [];
@@ -156,7 +156,8 @@ export class NavComponent {
       return false;
     }
 
-    const fd = this.unreadByFeed.get(this.selectedFeed);
+    const fd = this.selectedFeed !== undefined &&
+        this.unreadByFeed.get(this.selectedFeed);
     if (fd && fd.feed.categoryId === c.id) {
       return false;
     }
@@ -251,8 +252,8 @@ export class NavComponent {
       return;
     }
 
-    if (p.has('feedId')) {
-      const fid = p.get('feedId');
+    const fid = p.get('feedId');
+    if (fid) {
       if (!/^\d+$/.test(fid)) {
         this.errorService.showError('Invalid feed ID: ' + fid);
         this.router.navigate(['/'], {replaceUrl: true});
@@ -266,8 +267,8 @@ export class NavComponent {
       }
     }
 
-    if (p.has('categoryName')) {
-      const cname = p.get('categoryName');
+    const cname = p.get('categoryName');
+    if (cname) {
       if (!CATEGORY_NAME_REGEX.test(cname)) {
         this.errorService.showError('Invalid category name: ' + cname);
         this.router.navigate(['/'], {replaceUrl: true});
@@ -275,7 +276,8 @@ export class NavComponent {
       }
       this.selectedCategoryName = cname;
 
-      const cd = this.unreadByCategory.get(this.categoriesByName.get(cname));
+      const cid = this.categoriesByName.get(cname);
+      const cd = cid !== undefined && this.unreadByCategory.get(cid);
       // Redirect for disabled categories or categories that have been renamed
       if (!cd || cd.category.disabled || cd.category.name !== cname) {
         this.errorService.showError('Invalid category name: ' + cname);
@@ -310,7 +312,7 @@ export class NavComponent {
           mustSort = true;
         }
       } else {
-        const cd = this.unreadByCategory.get(c.id);
+        const cd = this.unreadByCategory.get(c.id) as CategoryData;
         const oldc = cd.category;
         cd.category = c;
 
@@ -350,7 +352,8 @@ export class NavComponent {
         }
       }
 
-      const cd = this.unreadByCategory.get(f.categoryId);
+      const cd = f.categoryId !== undefined &&
+          this.unreadByCategory.get(f.categoryId);
       const oldf = fd.feed;
       fd.feed = f;
 
@@ -372,7 +375,8 @@ export class NavComponent {
         mustSort = true;
         recalculate = true;
 
-        const ocd = this.unreadByCategory.get(oldf.categoryId);
+        const ocd = oldf.categoryId !== undefined &&
+            this.unreadByCategory.get(oldf.categoryId);
         if (ocd) {
           ocd.failing.delete(f.id);
         }
@@ -390,7 +394,7 @@ export class NavComponent {
         return;
       }
 
-      const fd = this.unreadByFeed.get(it.feedId);
+      const fd = this.unreadByFeed.get(it.feedId) as FeedData;
       if (!fd.lastItem || new Date(it.timestamp) > fd.lastItem) {
         fd.lastItem = new Date(it.timestamp);
         fd.lastItemString = this.timeAgoString(fd.lastItem);
@@ -406,7 +410,8 @@ export class NavComponent {
       } else if (!fd.unread.has(it.id)) {
         // Don't re-sort within the same visible list, but do re-sort from
         // "Read Feeds" to the unread feeds section.
-        const inCategory = this.unreadByCategory.has(fd.feed.categoryId);
+        const inCategory = fd.feed.categoryId !== undefined &&
+            this.unreadByCategory.has(fd.feed.categoryId);
         if (!inCategory && fd.unread.size === 0) {
           mustSort = true;
         }
@@ -419,7 +424,8 @@ export class NavComponent {
       if (fd.feed.disabled) {
         return;
       }
-      const cd = this.unreadByCategory.get(fd.feed.categoryId);
+      const cd = fd.feed.categoryId !== undefined &&
+          this.unreadByCategory.get(fd.feed.categoryId);
       if (cd) {
         cd.unread += change;
         if (!this.isHidden(cd.category)) {
@@ -456,8 +462,8 @@ export class NavComponent {
       ncm.set(cd.category.id, {cData: cd, fData: []});
     });
     this.unreadByFeed.forEach((fd: FeedData) => {
-      if (ncm.has(fd.feed.categoryId)) {
-        ncm.get(fd.feed.categoryId).fData.push(fd);
+      if (fd.feed.categoryId !== undefined && ncm.has(fd.feed.categoryId)) {
+        (ncm.get(fd.feed.categoryId) as NavCategory).fData.push(fd);
       } else if (fd.unread.size || fd.feed.failingSince) {
         this.uncategorizedFeeds.push(fd);
       } else {
@@ -513,8 +519,11 @@ export class NavComponent {
   }
 
   private emit() {
-    const cd = this.unreadByCategory.get(
-        this.categoriesByName.get(this.selectedCategoryName));
+    const cid = this.selectedCategoryName &&
+            this.categoriesByName.get(this.selectedCategoryName) ||
+        undefined;
+    const cd = cid !== undefined &&
+        this.unreadByCategory.get(cid);
     if (cd) {
       this.pageTitle.emit(cd.category.title);
       this.titleLink.emit();
@@ -522,7 +531,8 @@ export class NavComponent {
       return;
     }
 
-    const fd = this.unreadByFeed.get(this.selectedFeed);
+    const fd = this.selectedFeed !== undefined &&
+        this.unreadByFeed.get(this.selectedFeed);
     if (fd) {
       this.pageTitle.emit(
           this.feedTitlePipe.transform(fd.feed));
@@ -549,7 +559,8 @@ export class NavComponent {
         return;
       }
 
-      const cd = this.unreadByCategory.get(fd.feed.categoryId);
+      const cd = fd.feed.categoryId !== undefined &&
+          this.unreadByCategory.get(fd.feed.categoryId);
       if (cd) {
         cd.unread += fd.unread.size;
       }
