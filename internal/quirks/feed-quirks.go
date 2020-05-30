@@ -8,6 +8,7 @@ import (
 )
 
 type feed interface {
+	Title() string
 	URL() string
 }
 
@@ -26,20 +27,25 @@ var konare = regexp.MustCompile(konachanRegexp)
 
 // GetFeedTitle overrides the feed title, if necessary
 func GetFeedTitle(f feed, gfe *gofeed.Feed) string {
-	if gfe.Title != "MangaDex RSS" {
-		return gfe.Title
+	if gfe.Title == "MangaDex RSS" {
+		title := gfe.Title
+		if f.Title() != "" && f.Title() != title {
+			title = f.Title()
+		}
+
+		if gfe.Items == nil || len(gfe.Items) == 0 || !mdsre.MatchString(f.URL()) {
+			return title
+		}
+
+		groups := mdire.FindStringSubmatch(gfe.Items[0].Title)
+		if groups == nil {
+			return title
+		}
+
+		return groups[1]
 	}
 
-	if gfe.Items == nil || len(gfe.Items) == 0 || !mdsre.MatchString(f.URL()) {
-		return gfe.Title
-	}
-
-	groups := mdire.FindStringSubmatch(gfe.Items[0].Title)
-	if groups == nil {
-		return gfe.Title
-	}
-
-	return groups[1]
+	return gfe.Title
 }
 
 // GetFeedLink overrides the feed link, if necessary

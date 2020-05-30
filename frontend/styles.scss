@@ -12,6 +12,10 @@
   text-transform: uppercase;
 }
 
+[matTooltip] {
+  touch-action: auto !important;
+}
+
 // These must be globall scoped
 // https://github.com/angular/material2/issues/13983
 mat-sidenav>.mat-drawer-inner-container {

@@ -166,6 +166,9 @@ func (f *Feed) update() EntityUpdate {
 // ID gets the ID
 func (f *Feed) ID() int64 { return f.id }
 
+// Title gets the Title
+func (f *Feed) Title() string { return f.title }
+
 // URL gets the URL
 func (f *Feed) URL() string { return f.url }
 

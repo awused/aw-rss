@@ -5,8 +5,8 @@ import {RefreshService} from './refresh.service';
 
 describe('RefreshService', () => {
   let service: RefreshService;
-  let start;
-  let finish;
+  let start: jasmine.Spy;
+  let finish: jasmine.Spy;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
