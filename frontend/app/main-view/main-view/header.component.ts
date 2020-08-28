@@ -21,7 +21,7 @@ export class MainViewHeaderComponent {
   @Input()
   public category?: Category;
   @Input()
-  public mobile: boolean = false;
+  public mobile = false;
 
   @Input()
   public maxItemId?: number;

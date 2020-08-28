@@ -7,6 +7,7 @@ import {RouterLinkWithHref} from '@angular/router';
   // TODO -- Decide how this feels and selectively disable it when necessary
   // See https://github.com/angular/angular/issues/12664
   // Use [queryParamsHandling]="''" to disable it
+  // tslint:disable directive-selector
   selector: 'a[routerLink]:not([queryParamsHandling])'
 })
 export class PreserveParamsDirective {

@@ -9,7 +9,7 @@ describe('MutateService', () => {
   }));
 
   it('should be created', () => {
-    const service: MutateService = TestBed.get(MutateService);
+    const service: MutateService = TestBed.inject(MutateService);
     expect(service).toBeTruthy();
   });
 });

@@ -96,7 +96,7 @@ export class NavComponent {
   @Output()
   public titleLink = new EventEmitter<string|void>();
 
-  public isMobile: boolean = false;
+  public isMobile = false;
   public selectedCategoryName?: string;
   public selectedFeed?: number;
   public navCategories: NavCategory[] = [];

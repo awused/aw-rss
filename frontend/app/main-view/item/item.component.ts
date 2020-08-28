@@ -25,9 +25,9 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   @Input()
   public item!: Item;
   @Input()
-  public showFeed: boolean = false;
+  public showFeed = false;
   @Input()
-  public showCategory: boolean = false;
+  public showCategory = false;
 
   @HostBinding('class.read')
   get read() {

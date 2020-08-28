@@ -12,7 +12,7 @@ describe('RefreshService', () => {
     TestBed.configureTestingModule({
       providers: [RefreshService]
     });
-    service = TestBed.get(RefreshService);
+    service = TestBed.inject(RefreshService);
 
     start = jasmine.createSpy('start');
     finish = jasmine.createSpy('finish');

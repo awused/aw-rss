@@ -14,4 +14,4 @@ platformBrowserDynamic().bootstrapModule(AppModule).catch(err => console.log(err
 //
 // import {AppComponent} from './app/app.component';
 //
-//renderComponent(AppComponent);
+// renderComponent(AppComponent);

@@ -9,7 +9,7 @@ describe('UrlSanitizePipe', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
 
-    pipe = new UrlSanitizePipe(TestBed.get(DomSanitizer));
+    pipe = new UrlSanitizePipe(TestBed.inject(DomSanitizer));
   });
 
   it('create an instance', () => {

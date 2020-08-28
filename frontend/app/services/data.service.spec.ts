@@ -12,11 +12,11 @@ describe('DataService', () => {
       imports: [HttpClientTestingModule],
     });
 
-    httpMock = TestBed.get(HttpTestingController);
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
   it('should be created', () => {
-    const service: DataService = TestBed.get(DataService);
+    const service: DataService = TestBed.inject(DataService);
     expect(service).toBeTruthy();
   });
 });

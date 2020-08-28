@@ -38,7 +38,7 @@ describe('AppComponent', () => {
 
   it(`should initially set the title`, async(() => {
        const fixture = TestBed.createComponent(AppComponent);
-       const title: Title = TestBed.get(Title);
+       const title: Title = TestBed.inject(Title);
        expect(title.getTitle()).toEqual('Aw-RSS');
      }));
 });

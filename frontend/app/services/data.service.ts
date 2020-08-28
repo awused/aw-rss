@@ -11,8 +11,8 @@ import {
 import {
   catchError,
   filter,
-  flatMap,
   map,
+  mergeMap,
   share,
   take,
 } from 'rxjs/operators';
@@ -169,7 +169,7 @@ export class DataService {
       fetches.push(
           this.waitForInitialFetch()
               .pipe(
-                  flatMap(() => this.fetchReadForFilters(f))));
+                  mergeMap(() => this.fetchReadForFilters(f))));
     }
 
     // TODO -- Handle disabled missing data synchronously
@@ -177,7 +177,7 @@ export class DataService {
     // 2. data from the past
     if (fetches.length) {
       return forkJoin(fetches)
-          .pipe(flatMap(() => this.filteredDataForFilters(f)));
+          .pipe(mergeMap(() => this.filteredDataForFilters(f)));
     }
     return this.filteredDataForFilters(f);
   }
@@ -194,7 +194,7 @@ export class DataService {
     }
 
     if (!fetches.length) {
-      return of (undefined);
+      return of(undefined);
     }
     return forkJoin(fetches).pipe(map(() => {}));
   }
@@ -212,7 +212,7 @@ export class DataService {
   public fetchMoreReadForFeed(id: number): Observable<void> {
     const fd = this.feedMetadata.get(id);
     if (!fd || fd.allRead) {
-      return of (undefined);
+      return of(undefined);
     }
 
     const readBefore = fd.readAfter || new Date(this.timestamp * 1000);
@@ -511,27 +511,29 @@ export class DataService {
                   // TODO -- Also handle updating category metadata
                   // including feeds in those categories
 
-                  req.feedIds && req.feedIds.forEach((fid: number) => {
-                    const fm = this.feedMetadata.get(fid);
-                    if (!fm) {
-                      return;
-                    }
-
-                    if (req.unread) {
-                      fm.hasUnread = true;
-                    }
-
-                    if (allRead) {
-                      fm.allRead = true;
-                    } else {
-                      if (req.readAfter) {
-                        fm.setReadAfter(req.readAfter);
+                  if (req.feedIds) {
+                    req.feedIds.forEach((fid: number) => {
+                      const fm = this.feedMetadata.get(fid);
+                      if (!fm) {
+                        return;
                       }
-                      if (minRead) {
-                        fm.setReadAfter(minRead);
+
+                      if (req.unread) {
+                        fm.hasUnread = true;
                       }
-                    }
-                  });
+
+                      if (allRead) {
+                        fm.allRead = true;
+                      } else {
+                        if (req.readAfter) {
+                          fm.setReadAfter(req.readAfter);
+                        }
+                        if (minRead) {
+                          fm.setReadAfter(minRead);
+                        }
+                      }
+                    });
+                  }
                   // TODO -- if all the feeds in a category have allRead,
                   // that category has allRead
                   const replayed = this.handleUpdates(u);
@@ -549,7 +551,7 @@ export class DataService {
                 catchError((error: Error) => {
                   this.errorService.showError(error);
                   this.loadingService.finishLoading();
-                  return of (undefined);
+                  return of(undefined);
                 }),
                 share());
 
@@ -622,7 +624,7 @@ export class DataService {
                   catchError((error: Error) => {
                     this.errorService.showError(error);
                     this.loadingService.finishLoading();
-                    return of (undefined);
+                    return of(undefined);
                   }),
                   share());
 
