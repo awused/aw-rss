@@ -357,7 +357,7 @@ export class NavComponent {
       const oldf = fd.feed;
       fd.feed = f;
 
-      if (f.failingSince) {
+      if (!f.disabled && f.failingSince) {
         fd.failingSinceString = this.timeAgoString(new Date(f.failingSince));
         if (cd) {
           cd.failing.add(f.id);
