@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/awused/aw-rss/internal/structs"
 	log "github.com/sirupsen/logrus"
@@ -81,14 +82,27 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 const youtubeChannelRE = `^https://www.youtube.com/channel/(UC[a-zA-Z0-9_-]+)`
 const youtubeFeedPrefix = "https://www.youtube.com/feeds/videos.xml?channel_id="
 
+// Unconditionally drop parameters mangadex feeds to prevent duplicates.
+// As of 2020-08 the only parameter is h and not specifying it is, at least
+// currently, equivalent to h=1.
+const mangadexRE = `^https://mangadex.org/([^?])+`
+
 var youtubeChannelRegex = regexp.MustCompile(youtubeChannelRE)
+var mangadexRegex = regexp.MustCompile(mangadexRE)
 
 // Responsible for URL rewrites that are always performed.
 // These cannot be overwritten with Force so should be very limited.
 func unconditionalURLRewrite(url string) string {
+	url = strings.TrimSpace(url)
+
 	matches := youtubeChannelRegex.FindStringSubmatch(url)
 	if matches != nil {
 		return youtubeFeedPrefix + matches[1]
+	}
+
+	matches = mangadexRegex.FindStringSubmatch(url)
+	if matches != nil {
+		return matches[0]
 	}
 
 	return url
