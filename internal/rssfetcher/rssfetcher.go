@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// ErrClosed is returned when attempting to start a closed RssFetcher
 var ErrClosed = errors.New("RssFetcher already closed")
 
 const dbPollPeriod = time.Duration(time.Minute * 5)
@@ -174,9 +175,8 @@ func (r *rssFetcher) Run() (err error) {
 					// The database was closed in the brief window between the last time
 					// closeChan was checked and when the DB was polled. No error.
 					return nil
-				} else {
-					return fmt.Errorf("Database unexpectedly closed")
 				}
+				return fmt.Errorf("Database unexpectedly closed")
 			} else if err != nil {
 				// Close unconditionally on unexpected DB error.
 				_ = r.Close()
@@ -395,11 +395,12 @@ func (r *rssFetcher) fetchHTTPFeed(
 	lock.Lock()
 	defer lock.Unlock()
 
-	// Check if we've been killed while acquiring the lock
+	// Check if we've been killed while acquiring the lock.
+	// Otherwise wait a second to ensure no single host (Mangadex) is overwhelmed.
 	select {
 	case <-kill:
 		return ""
-	default:
+	case <-time.After(time.Second):
 	}
 
 	c, ua, err := r.cloudflare.getCookie(f.URL())
