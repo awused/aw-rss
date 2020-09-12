@@ -396,11 +396,19 @@ func (r *rssFetcher) fetchHTTPFeed(
 	defer lock.Unlock()
 
 	// Check if we've been killed while acquiring the lock.
-	// Otherwise wait a second to ensure no single host (Mangadex) is overwhelmed.
 	select {
 	case <-kill:
 		return ""
-	case <-time.After(time.Second):
+	default:
+	}
+
+	dur, shouldDelay := quirks.MaybeGetHostDelay(h)
+	if shouldDelay {
+		select {
+		case <-kill:
+			return ""
+		case <-time.After(dur):
+		}
 	}
 
 	c, ua, err := r.cloudflare.getCookie(f.URL())
@@ -450,6 +458,9 @@ func (r *rssFetcher) fetchHTTPBody(
 	if err != nil {
 		log.Panic(err)
 	}
+
+	// Workaround for dolphinemu.org, but doesn't seem to break any other feeds.
+	req.Header.Add("Cache-Control", "no-cache")
 
 	if cookie != "" {
 		req.Header.Add("Cookie", cookie)
