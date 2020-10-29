@@ -17,7 +17,9 @@
     "updateMode": "prefetch",
     "resources": {
       "files": [
-        "/assets/**"
+        "/assets/**",
+        "https://fonts.googleapis.com/**",
+        "https://fonts.gstatic.com/**"
       ]
     }
   }]
