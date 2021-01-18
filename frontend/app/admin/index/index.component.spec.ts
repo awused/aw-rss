@@ -1,6 +1,8 @@
-import {async,
-        ComponentFixture,
-        TestBed} from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  waitForAsync
+} from '@angular/core/testing';
 
 import {AdminBodyComponent} from '../admin-body/admin-body.component';
 import {AdminHeaderComponent} from '../admin-header/admin-header.component';
@@ -11,7 +13,7 @@ describe('IndexComponent', () => {
   let component: IndexComponent;
   let fixture: ComponentFixture<IndexComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
              declarations: [
                IndexComponent,

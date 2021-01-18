@@ -1,6 +1,8 @@
-import {async,
-        ComponentFixture,
-        TestBed} from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  waitForAsync
+} from '@angular/core/testing';
 import {RouterTestingModule} from '@angular/router/testing';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
@@ -16,7 +18,7 @@ describe('CategoryAdminComponent', () => {
   let component: CategoryAdminComponent;
   let fixture: ComponentFixture<CategoryAdminComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
              imports: [
                RouterTestingModule,

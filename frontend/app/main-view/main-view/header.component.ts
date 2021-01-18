@@ -1,6 +1,8 @@
 import {Component,
+        EventEmitter,
         Input,
-        OnInit} from '@angular/core';
+        OnInit,
+        Output} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
 import {ConfirmationDialogComponent} from 'frontend/app/admin/confirmation-dialog/confirmation-dialog.component';
 import {EditCategoryDialogComponent} from 'frontend/app/admin/edit-category-dialog/edit-category-dialog.component';
@@ -8,6 +10,7 @@ import {EditFeedDialogComponent} from 'frontend/app/admin/edit-feed-dialog/edit-
 import {Category,
         Feed} from 'frontend/app/models/entities';
 import {FeedTitlePipe} from 'frontend/app/pipes/feed-title.pipe';
+import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
 @Component({
@@ -15,7 +18,7 @@ import {MutateService} from 'frontend/app/services/mutate.service';
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss']
 })
-export class MainViewHeaderComponent {
+export class MainViewHeaderComponent implements OnInit {
   @Input()
   public feed?: Feed;
   @Input()
@@ -26,10 +29,18 @@ export class MainViewHeaderComponent {
   @Input()
   public maxItemId?: number;
 
+  @Output()
+  public fuzzyFilterString = new EventEmitter<string>();
+  public fuzzyString: string;
+
+
   constructor(
       private readonly dialog: MatDialog,
       private readonly feedTitle: FeedTitlePipe,
-      private readonly mutateService: MutateService) {}
+      private readonly mutateService: MutateService,
+      public readonly fuzzyFilterService: FuzzyFilterService) {
+    this.fuzzyString = this.fuzzyFilterService.getFuzzyFilterString();
+  }
 
   public edit() {
     if (this.feed) {
@@ -68,5 +79,14 @@ export class MainViewHeaderComponent {
             this.mutateService.markFeedAsRead(feed.id, maxItemId);
           }
         });
+  }
+
+  handleFuzzy(value: string) {
+    this.fuzzyString = value;
+    this.fuzzyFilterService.pushFuzzyFilterString(value);
+  }
+
+  ngOnInit() {
+    this.fuzzyFilterString.emit(this.fuzzyString);
   }
 }

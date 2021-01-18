@@ -1,11 +1,12 @@
 import {
   ChangeDetectorRef,
   Component,
-  Input,
   OnDestroy,
   OnInit,
+  SimpleChanges,
 } from '@angular/core';
 import {ActivatedRoute,
+        NavigationEnd,
         ParamMap,
         Router} from '@angular/router';
 import {Data,
@@ -24,8 +25,10 @@ import {EmptyFilters,
         PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
 import {ErrorService} from 'frontend/app/services/error.service';
+import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
 import {ParamService} from 'frontend/app/services/param.service';
+import Fuse from 'fuse.js';
 import {Observable,
         Subject} from 'rxjs';
 import {
@@ -47,12 +50,43 @@ export class MainViewComponent implements OnInit, OnDestroy {
   // @ViewChild('itemScroll')
   // public itemScroll: CdkVirtualScrollViewport;
 
+  public fuzzyFilterString?: string;
+
   private readonly onDestroy$: Subject<void> = new Subject();
   private filteredData: FilteredData = EmptyFilteredData;
+
+  private sortedItems: Item[] = [];
+  private fuzzyFilter?: Fuse<Item>;
+  private fuzzyOptions: Fuse.IFuseOptions<Item> = {
+    findAllMatches: true,
+    ignoreLocation: true,
+    ignoreFieldNorm: true,
+    useExtendedSearch: true,
+    keys: [
+      'title',
+      {name: 'feed', weight: 0.5},
+      {name: 'category', weight: 0.3}
+    ],
+    getFn: (item: Item, path: string|string[]) => {
+      path = Array.isArray(path) ? path[0] : path;
+      switch (path) {
+        case 'title':
+          return item.title;
+        case 'feed':
+          return this.dataService.getFeed(item.feedId).title;
+        case 'category':
+          const cid = this.dataService.getFeed(item.feedId).categoryId;
+          return cid !== undefined && this.dataService.getCategory(cid)?.title || '';
+        default:
+          return '';
+      }
+    },
+  };
+
   public category?: Category;
   public feed?: Feed;
   public maxItemId?: number;
-  public sortedItems: Item[] = [];
+  public fuzzyItems: Item[] = [];
   public mobile: Observable<boolean>;
 
   public loadingMore = false;
@@ -65,8 +99,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly dataService: DataService,
       private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
-      private readonly mobileService: MobileService) {
+      private readonly mobileService: MobileService,
+      private readonly fuzzyFilterService: FuzzyFilterService) {
     this.mobile = this.mobileService.mobile();
+    this.handleFuzzy(this.fuzzyFilterService.getFuzzyFilterString());
   }
 
   ngOnInit() {
@@ -86,6 +122,15 @@ export class MainViewComponent implements OnInit, OnDestroy {
               this.sortedItems = this.sortedItems.slice();
             } else {
               this.sortedItems = this.sortItems(this.filteredData.items);
+            }
+
+            if (this.fuzzyFilter && this.fuzzyFilterString) {
+              this.fuzzyFilter.setCollection(this.sortedItems);
+              this.fuzzyItems = this.fuzzyFilter
+                                    .search(this.fuzzyFilterString)
+                                    .map(x => x.item);
+            } else {
+              this.fuzzyItems = this.sortedItems;
             }
 
             if (this.feed && this.filteredData.items.length) {
@@ -140,6 +185,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
             // This one will prevent mangling state strangely
             takeUntil(this.onDestroy$))
         .subscribe((fd: FilteredData) => this.handleNewFilteredData(fd));
+
+    this.fuzzyFilterService.fuzzyFilterString()
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe((s: string) => this.handleFuzzy(s));
 
     // TODO -- maybe control if show-more is visible to reduce jank
     /*
@@ -203,6 +252,22 @@ export class MainViewComponent implements OnInit, OnDestroy {
         }, () => this.loadingMore = false);
   }
 
+  private handleFuzzy(filterString: string) {
+    this.fuzzyFilterString = filterString;
+    if (this.fuzzyFilterString) {
+      if (!this.fuzzyFilter) {
+        this.fuzzyFilter = new Fuse<Item>(this.sortedItems, this.fuzzyOptions);
+      }
+      this.fuzzyItems =
+          this.fuzzyFilter
+              .search(this.fuzzyFilterString)
+              .map(x => x.item);
+    } else {
+      this.fuzzyFilter = undefined;
+      this.fuzzyItems = this.sortedItems;
+    }
+  }
+
   private handleNewFilteredData(fd: FilteredData) {
     this.category = undefined;
     this.feed = undefined;
@@ -234,6 +299,15 @@ export class MainViewComponent implements OnInit, OnDestroy {
     // TODO -- subscribe to the category in DataService, if it does exist
     this.filteredData = fd;
     this.sortedItems = this.sortItems(this.filteredData.items);
+
+    if (this.fuzzyFilter && this.fuzzyFilterString) {
+      this.fuzzyFilter.setCollection(this.sortedItems);
+      this.fuzzyItems = this.fuzzyFilter
+                            .search(this.fuzzyFilterString)
+                            .map(x => x.item);
+    } else {
+      this.fuzzyItems = this.sortedItems;
+    }
 
     if (this.feed && fd.items.length) {
       this.maxItemId =

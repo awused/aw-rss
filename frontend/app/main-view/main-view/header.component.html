@@ -19,6 +19,11 @@
     </div>
   </h2>
   <div class="spacer"></div>
+  <mat-form-field>
+    <input matInput
+           [value]="fuzzyString"
+           (input)="handleFuzzy($event.target.value)">
+  </mat-form-field>
   <button class="read-button"
           (click)="markFeedAsRead()"
           *ngIf="feed && maxItemId !== undefined"

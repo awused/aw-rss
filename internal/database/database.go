@@ -442,6 +442,7 @@ func (d *Database) init() {
 	log.Trace("init() completed")
 }
 
+// ErrClosed is returned when trying to take actions on a closed Database
 var ErrClosed = errors.New("Database already closed")
 
 func (d *Database) checkClosed() error {

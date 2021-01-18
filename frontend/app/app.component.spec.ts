@@ -1,5 +1,7 @@
-import {async,
-        TestBed} from '@angular/core/testing';
+import {
+  TestBed,
+  waitForAsync
+} from '@angular/core/testing';
 import {Title} from '@angular/platform-browser';
 import {RouterTestingModule} from '@angular/router/testing';
 
@@ -12,7 +14,7 @@ import {MutateService} from './services/mutate.service';
 import {FakeMutateService} from './services/mutate.service.fake';
 
 describe('AppComponent', () => {
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
              imports: [
                RouterTestingModule,
@@ -30,13 +32,13 @@ describe('AppComponent', () => {
         .compileComponents();
   }));
 
-  it('should create the app', async(() => {
+  it('should create the app', waitForAsync(() => {
        const fixture = TestBed.createComponent(AppComponent);
        const app = fixture.debugElement.componentInstance;
        expect(app).toBeTruthy();
      }));
 
-  it(`should initially set the title`, async(() => {
+  it(`should initially set the title`, waitForAsync(() => {
        const fixture = TestBed.createComponent(AppComponent);
        const title: Title = TestBed.inject(Title);
        expect(title.getTitle()).toEqual('Aw-RSS');

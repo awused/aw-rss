@@ -1,16 +1,18 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import {ComponentFixture,
+        TestBed,
+        waitForAsync} from '@angular/core/testing';
 
-import { AdminHeaderComponent } from './admin-header.component';
+import {AdminHeaderComponent} from './admin-header.component';
 
 describe('AdminHeaderComponent', () => {
   let component: AdminHeaderComponent;
   let fixture: ComponentFixture<AdminHeaderComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [ AdminHeaderComponent ]
-    })
-    .compileComponents();
+             declarations: [AdminHeaderComponent]
+           })
+        .compileComponents();
   }));
 
   beforeEach(() => {

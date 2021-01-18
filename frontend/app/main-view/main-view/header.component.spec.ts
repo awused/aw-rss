@@ -1,6 +1,8 @@
-import {async,
-        ComponentFixture,
-        TestBed} from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  waitForAsync
+} from '@angular/core/testing';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
@@ -12,7 +14,7 @@ describe('MainViewHeaderComponent', () => {
   let component: MainViewHeaderComponent;
   let fixture: ComponentFixture<MainViewHeaderComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
              imports: [
                PipesModule

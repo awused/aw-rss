@@ -1,7 +1,9 @@
 import {DragDropModule} from '@angular/cdk/drag-drop';
-import {async,
-        ComponentFixture,
-        TestBed} from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  waitForAsync
+} from '@angular/core/testing';
 import {RouterTestingModule} from '@angular/router/testing';
 import {MaterialModule} from 'frontend/app/material/material.module';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
@@ -18,7 +20,7 @@ describe('NavComponent', () => {
   let component: NavComponent;
   let fixture: ComponentFixture<NavComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
              imports: [
                RouterTestingModule,

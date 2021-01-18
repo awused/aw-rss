@@ -3,7 +3,8 @@
                         [mobile]="false"
                         [feed]="feed"
                         [category]="category"
-                        [maxItemId]="maxItemId">
+                        [maxItemId]="maxItemId"
+                        (fuzzyFilterString)="handleFuzzy($event)">
 </awrss-main-view-header>
 
 <cdk-virtual-scroll-viewport #itemScroll
@@ -17,7 +18,7 @@
   <!--                         [category]="category" -->
   <!--                         [maxItemId]="maxItemId"> -->
   <!-- </awrss&#45;main&#45;view&#45;header> -->
-  <awrss-item *cdkVirtualFor="let item of sortedItems; let even = even; let odd = odd"
+  <awrss-item *cdkVirtualFor="let item of fuzzyItems; let even = even; let odd = odd"
               [item]="item"
               [showFeed]="!feed"
               [showCategory]="!category && !feed"
