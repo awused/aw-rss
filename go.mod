@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
-	github.com/mmcdole/gofeed v1.1.0
+	github.com/mmcdole/gofeed v1.1.1-0.20201005053009-96998c2d6be5
 	github.com/mmcdole/goxpp v0.0.0-20200921145534-2f3784f67354 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
