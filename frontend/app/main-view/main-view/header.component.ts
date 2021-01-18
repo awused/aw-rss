@@ -56,7 +56,8 @@ export class MainViewHeaderComponent implements OnInit {
 
 
   public markFeedAsRead() {
-    if (!this.feed || !this.maxItemId) {
+    // TODO -- enable fuzzy filtering for marking all as read
+    if (!this.feed || !this.maxItemId || this.fuzzyString) {
       return;
     }
 
