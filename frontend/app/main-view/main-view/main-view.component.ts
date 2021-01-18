@@ -28,7 +28,8 @@ import {ErrorService} from 'frontend/app/services/error.service';
 import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
 import {ParamService} from 'frontend/app/services/param.service';
-import Fuse from 'fuse.js';
+import {filter as fuzzyFilter,
+        FilterOptions} from 'fuzzy/lib/fuzzy.js';
 import {Observable,
         Subject} from 'rxjs';
 import {
@@ -56,30 +57,16 @@ export class MainViewComponent implements OnInit, OnDestroy {
   private filteredData: FilteredData = EmptyFilteredData;
 
   private sortedItems: Item[] = [];
-  private fuzzyFilter?: Fuse<Item>;
-  private fuzzyOptions: Fuse.IFuseOptions<Item> = {
-    findAllMatches: true,
-    ignoreLocation: true,
-    ignoreFieldNorm: true,
-    useExtendedSearch: true,
-    keys: [
-      'title',
-      {name: 'feed', weight: 0.5},
-      {name: 'category', weight: 0.3}
-    ],
-    getFn: (item: Item, path: string|string[]) => {
-      path = Array.isArray(path) ? path[0] : path;
-      switch (path) {
-        case 'title':
-          return item.title;
-        case 'feed':
-          return this.dataService.getFeed(item.feedId).title;
-        case 'category':
-          const cid = this.dataService.getFeed(item.feedId).categoryId;
-          return cid !== undefined && this.dataService.getCategory(cid)?.title || '';
-        default:
-          return '';
+  private fuzzyOptions: FilterOptions<Item> = {
+    extract: (item: Item) => {
+      if (this.feed) {
+        return item.title;
+      } else if (this.category) {
+        return item.title + ' ' + this.dataService.getFeed(item.feedId).title;
       }
+      const cid = this.dataService.getFeed(item.feedId).categoryId;
+      const cat = cid !== undefined && this.dataService.getCategory(cid)?.title || '';
+      return item.title + ' ' + this.dataService.getFeed(item.feedId).title + ' ' + cat;
     },
   };
 
@@ -124,11 +111,13 @@ export class MainViewComponent implements OnInit, OnDestroy {
               this.sortedItems = this.sortItems(this.filteredData.items);
             }
 
-            if (this.fuzzyFilter && this.fuzzyFilterString) {
-              this.fuzzyFilter.setCollection(this.sortedItems);
-              this.fuzzyItems = this.fuzzyFilter
-                                    .search(this.fuzzyFilterString)
-                                    .map(x => x.item);
+            if (this.fuzzyFilterString) {
+              this.fuzzyItems =
+                  fuzzyFilter(
+                      this.fuzzyFilterString,
+                      this.sortedItems,
+                      this.fuzzyOptions)
+                      .map(x => x.original);
             } else {
               this.fuzzyItems = this.sortedItems;
             }
@@ -255,15 +244,11 @@ export class MainViewComponent implements OnInit, OnDestroy {
   private handleFuzzy(filterString: string) {
     this.fuzzyFilterString = filterString;
     if (this.fuzzyFilterString) {
-      if (!this.fuzzyFilter) {
-        this.fuzzyFilter = new Fuse<Item>(this.sortedItems, this.fuzzyOptions);
-      }
       this.fuzzyItems =
-          this.fuzzyFilter
-              .search(this.fuzzyFilterString)
-              .map(x => x.item);
+          fuzzyFilter(
+              this.fuzzyFilterString, this.sortedItems, this.fuzzyOptions)
+              .map(x => x.original);
     } else {
-      this.fuzzyFilter = undefined;
       this.fuzzyItems = this.sortedItems;
     }
   }
@@ -300,11 +285,11 @@ export class MainViewComponent implements OnInit, OnDestroy {
     this.filteredData = fd;
     this.sortedItems = this.sortItems(this.filteredData.items);
 
-    if (this.fuzzyFilter && this.fuzzyFilterString) {
-      this.fuzzyFilter.setCollection(this.sortedItems);
-      this.fuzzyItems = this.fuzzyFilter
-                            .search(this.fuzzyFilterString)
-                            .map(x => x.item);
+    if (this.fuzzyFilterString) {
+      this.fuzzyItems =
+          fuzzyFilter(
+              this.fuzzyFilterString, this.sortedItems, this.fuzzyOptions)
+              .map(x => x.original);
     } else {
       this.fuzzyItems = this.sortedItems;
     }
