@@ -12,7 +12,11 @@
   text-transform: uppercase;
 }
 
-[matTooltip] {
+[mattooltipposition] {
+  touch-action: auto !important;
+}
+
+[matripple] {
   touch-action: auto !important;
 }
 

@@ -61,7 +61,7 @@
                        (mouseenter)="dropTarget = nc.cData"
                        (mouseleave)="dropTarget = undefined"
                        cdkDrag
-                       [cdkDragDisabled]="isMobile"
+                       [cdkDragDisabled]="isMobile || true"
                        [cdkDragData]="nc.cData"
                        (cdkDragStarted)="dragStarted($event)">
     <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
