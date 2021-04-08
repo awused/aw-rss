@@ -431,19 +431,26 @@ func (r *rssFetcher) fetchHTTPFeed(
 			return ""
 		default:
 		}
-		c, ua, err := r.cloudflare.getNewCookie(f.URL())
-		select {
-		case <-kill:
-			return ""
-		default:
-		}
+		// c, ua, err := r.cloudflare.getNewCookie(f.URL())
+		// select {
+		// case <-kill:
+		// 	return ""
+		// default:
+		// }
+		// if err != nil {
+		// 	log.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
+		// 	log.Error("Body was: \n" + body)
+		// 	panic(err)
+		// }
+		//
+		//body = r.fetchHTTPBody(f, kill, c, ua)
+
+		body, err = r.cloudflare.getFeedContents(f.URL())
 		if err != nil {
-			log.Errorf("Error calling cloudflare.GetNewCookie for [%s]: %v", f, err)
+			log.Errorf("Error calling cloudflare.getFeedContents for [%s]: %v", f, err)
 			log.Error("Body was: \n" + body)
 			panic(err)
 		}
-
-		body = r.fetchHTTPBody(f, kill, c, ua)
 	}
 
 	return body

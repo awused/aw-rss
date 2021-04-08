@@ -22,6 +22,13 @@ print(c)
 print(ua)
 `
 
+const fetchScript = `
+import cloudscraper
+import sys
+
+print(cloudscraper.create_scraper().get(sys.argv[1]).text)
+`
+
 // This needs to be configureable by the user
 // Don't run arbitrary JS from untrusted domains, only handle problematic sites
 // as they're identified
@@ -29,7 +36,7 @@ var trustedHosts = map[string]bool{}
 
 var (
 	errUntrustedHost        = errors.New("Host not trusted for cloudflare bypass")
-	errUnsecureTransport    = errors.New("Cloudflare bypass requires https")
+	errInsecureTransport    = errors.New("Cloudflare bypass requires https")
 	errCloudflareCaptcha    = errors.New("Cloudflare bypass cannot handle the captcha challenges")
 	errCloudflareBroken     = errors.New("Cfscrape is missing or out of date")
 	errCloudflareBadGateway = errors.New("Bad gateway error from cloudflare")
@@ -39,7 +46,7 @@ var (
 
 func isCloudflareError(err error) bool {
 	return err == errUntrustedHost ||
-		err == errUnsecureTransport ||
+		err == errInsecureTransport ||
 		err == errCloudflareCaptcha ||
 		err == errCloudflareBroken ||
 		err == errCloudflareBadGateway ||
@@ -49,12 +56,12 @@ func isCloudflareError(err error) bool {
 
 const cloudflareSentinelOne = "<title>Attention Required! | Cloudflare</title>"
 const cloudflareSentinelTwo = "<title>Just a moment...</title>"
+const cloudflareSentinelThree = "<title>Please Wait... | Cloudflare</title>"
 const cloudflareBadGateway = "502: Bad gateway</title>"
 const cloudflareGatewayTimeout = "504: Gateway time-out</title>"
 const cloudflareServerDown = "521: Web server is down</title>"
 const cloudflareSSLFailure = "525: SSL handshake failed</title>"
-const cloudflareNormal = "This process is automatic. Your browser " +
-	"will redirect to your requested content shortly."
+const cloudflareNormal = "<span data-translate=\"managed_checking_msg\">We are checking your browser...</span>"
 const cloudflareMissing = "ModuleNotFoundError: No module named 'cfscrape'"
 const cloudflareBroken = "Cloudflare may have changed their technique," +
 	"or there may be a bug in the script."
@@ -104,7 +111,8 @@ func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, e
 	}
 
 	if !strings.Contains(body[0:499], cloudflareSentinelOne) &&
-		!strings.Contains(body[0:499], cloudflareSentinelTwo) {
+		!strings.Contains(body[0:499], cloudflareSentinelTwo) &&
+		!strings.Contains(body[0:499], cloudflareSentinelThree) {
 		return false, nil
 	}
 	if strings.Contains(body, cloudflareNormal) {
@@ -202,7 +210,7 @@ func (cf *cloudflare) getNewCookie(
 	if scheme != "https" || !trustedHosts[h] {
 		cf.setInvalid(h)
 		if scheme != "https" {
-			return "", "", errUnsecureTransport
+			return "", "", errInsecureTransport
 		}
 		return "", "", errUntrustedHost
 	}
@@ -264,6 +272,73 @@ func (cf *cloudflare) runPython(feedURL, h string) (string, string, error) {
 	cf.cookieLock.Unlock()
 
 	return lines[0], lines[1], nil
+}
+
+func (cf *cloudflare) getFeedContents(feedURL string) (string, error) {
+	h, scheme, err := host(feedURL)
+	if err != nil {
+		return "", err
+	}
+
+	cf.failureLock.Lock()
+	inv := cf.invalidUntil[h]
+	broken := cf.brokenCfscrape
+	cf.failureLock.Unlock()
+
+	if time.Now().Before(inv) {
+		if broken {
+			return "", errCloudflareBroken
+		}
+		return "", errCloudflareCooldown
+	}
+
+	if scheme != "https" || !trustedHosts[h] {
+		cf.setInvalid(h)
+		if scheme != "https" {
+			return "", errInsecureTransport
+		}
+		return "", errUntrustedHost
+	}
+
+	cf.pythonLock.Lock()
+	defer cf.pythonLock.Unlock()
+	select {
+	case <-cf.closeChan:
+		return "", nil
+	default:
+	}
+
+	log.Infof("Fetching cloudflare contents for [%s]", h)
+	return cf.fetchPython(feedURL, h)
+}
+
+func (cf *cloudflare) fetchPython(feedURL, h string) (string, error) {
+	cf.lastFetch[h] = time.Now()
+
+	out, err :=
+		exec.Command("python3", "-c", fetchScript, feedURL).CombinedOutput()
+	str := string(out)
+	if err != nil {
+		cf.setInvalid(h)
+
+		if strings.Contains(str, cloudflareBroken) ||
+			strings.Contains(str, cloudflareMissing) {
+			// There are probably more errors we can put here
+			// But brokenCfscrape is permanent so we want to avoid setting it on
+			// transient errors
+			// TODO -- Instead of permanent failures, try again after an even longer
+			// time period
+			cf.failureLock.Lock()
+			cf.brokenCfscrape = true
+			cf.failureLock.Unlock()
+			return "", errCloudflareBroken
+		}
+
+		log.Error(str)
+		return "", errCloudflareCaptcha
+	}
+
+	return str, nil
 }
 
 func (cf *cloudflare) setInvalid(h string) {
