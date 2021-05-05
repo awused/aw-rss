@@ -3,9 +3,14 @@
 </awrss-admin-header>
 
 <awrss-admin-body>
+  <mat-form-field class="fuzzy-form">
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput
+           (input)="handleFuzzy($event.target.value)">
+  </mat-form-field>
   <mat-list class="feeds">
     <mat-list-item class="feed"
-                   *ngFor="let feed of filteredData.feeds; let even = even; let odd = odd;"
+                   *ngFor="let feed of fuzzyFeeds; let even = even; let odd = odd;"
                    [class.primary-bg]="odd"
                    [class.secondary-bg]="even"
                    [class.disabled]="feed.disabled">

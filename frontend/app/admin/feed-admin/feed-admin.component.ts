@@ -7,6 +7,8 @@ import {EmptyFilteredData,
         Updates} from 'frontend/app/models/data';
 import {Feed} from 'frontend/app/models/entities';
 import {DataService} from 'frontend/app/services/data.service';
+import {filter as fuzzyFilter,
+        FilterOptions} from 'fuzzy/lib/fuzzy.js';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
@@ -19,7 +21,15 @@ import {EditFeedDialogComponent} from '../edit-feed-dialog/edit-feed-dialog.comp
 })
 export class FeedAdminComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
+  private fuzzyFilterString = '';
+  private readonly fuzzyOptions: FilterOptions<Feed> = {
+    extract: (f: Feed) => {
+      return (f.userTitle ?? '') + ' ' + f.title + ' ' + f.siteUrl + ' ' + f.url;
+    },
+  };
+
   public filteredData: FilteredData = EmptyFilteredData;
+  public fuzzyFeeds: ReadonlyArray<Feed> = [];
 
   constructor(
       private readonly dataService: DataService,
@@ -37,13 +47,29 @@ export class FeedAdminComponent implements OnInit, OnDestroy {
                       validOnly: false,
                     })
         .pipe(takeUntil(this.onDestroy$))
-        .subscribe((fd: FilteredData) => this.filteredData = fd);
+        .subscribe((fd: FilteredData) => {
+          this.filteredData = fd;
+          this.handleFuzzy(this.fuzzyFilterString);
+        });
   }
 
   editFeed(feed: Feed) {
     this.dialog.open(EditFeedDialogComponent, {
       data: {feed}
     });
+  }
+
+  handleFuzzy(value: string) {
+    this.fuzzyFilterString = value;
+    if (!value) {
+      this.fuzzyFeeds = this.filteredData.feeds;
+      return;
+    }
+
+    this.fuzzyFeeds =
+        fuzzyFilter(
+            value, this.filteredData.feeds.slice(), this.fuzzyOptions)
+            .map(x => x.original);
   }
 
   ngOnDestroy() {

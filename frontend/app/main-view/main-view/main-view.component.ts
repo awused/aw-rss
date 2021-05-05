@@ -57,7 +57,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
   private filteredData: FilteredData = EmptyFilteredData;
 
   private sortedItems: Item[] = [];
-  private fuzzyOptions: FilterOptions<Item> = {
+  private readonly fuzzyOptions: FilterOptions<Item> = {
     extract: (item: Item) => {
       if (this.feed) {
         return item.title;
