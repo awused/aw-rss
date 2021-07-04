@@ -6,8 +6,6 @@ An RSS/Atom aggregator with a web frontend.
 
 `go get -u github.com/awused/aw-rss`
 
-Run `npm install` and `npm run-script prod` in the project root to build and compress the frontend.
-
 Copy `aw-rss.toml.sample` to `~/.config/aw-rss/aw-rss.toml` or `~/.aw-rss.toml` and fill it out according to the instructions.
 
 Run `aw-rss` and navigate to `http://localhost:9092` or the port you configured to access the application. The process will shut down cleanly if killed with ctrl-C/SIGINT.
@@ -16,9 +14,27 @@ Run `aw-rss` and navigate to `http://localhost:9092` or the port you configured 
 
 Aw-RSS does not handle any kind of security, authentication, or authorization so it is not safe to expose to the internet. At the minimum you'll need a reverse proxy like nginx with HTTP basic authentication to protect it.
 
-# Cloudflare
+If setting up some form of reverse proxy, you can more efficiently serve the static files by configuring your webserver to directly serve the [dist](dist/) directory while falling back to index.html. Example nginx config:
 
-<!-- I include some limited workarounds for cloudflare protected feeds using [cfscrape](https://github.com/Anorov/cloudflare-scrape). You'll need python3, node, and cfscrape installed to run it. -->
+```
+location /api {
+    proxy_pass http://127.0.0.1:9092;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+
+location /index.html {
+    alias /path/to/aw-rss/dist/index.html;
+}
+
+location / {
+    alias /storage/src/awused/aw-rss/dist/;
+    try_files $uri /index.html;
+    expires max;
+}
+```
+
+# Cloudflare
 
 I include some limited workarounds for cloudflare protectected feeds. I update this as necessary, it is currently using:
 
@@ -35,9 +51,11 @@ You cannot add these using the web frontend, you must use the sqlite3 CLI to do 
 
 Example: `INSERT INTO feeds(url) VALUES('!my-command arg1 arg2 arg3');`
 
-# Frontend Development
+# Local Development
 
 You'll have to edit proxy.conf.json to match the port you configured the backend to serve on.
+
+Run `npm install` and `npm run-script prod` in the project root to build and compress the frontend.
 
 Run `ng serve --aot` for an angular dev server. Navigate to `http://localhost:4200/` with the backend already running.
 

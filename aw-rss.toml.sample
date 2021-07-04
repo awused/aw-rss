@@ -3,13 +3,6 @@
 # Database file. Use :memory: for a temporary, in memory database.
 Database = "/path/to/rss.db"
 
-# Path to the /dist folder of the compiled frontend
-# Files inside this directory will be served.
-# Does not default to anything, but if you built aw-rss in place you'll want to
-# set this to /your/gopath/src/github.com/awused/aw-rss/dist.
-# Environment variables are not expanded.
-DistDir = "/your/gopath/src/github.com/awused/aw-rss/dist"
-
 # Port to listen on.
 Port = 9092
 

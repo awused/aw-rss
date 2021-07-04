@@ -1,6 +1,8 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path"
@@ -13,6 +15,9 @@ import (
 	"github.com/awused/aw-rss/internal/webserver"
 	log "github.com/sirupsen/logrus"
 )
+
+//go:embed dist/*
+var embedded embed.FS
 
 func main() {
 	conf, err := config.LoadConfig()
@@ -30,9 +35,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	dist, err := fs.Sub(embedded, "dist")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	serverChan := make(chan error)
 	go func() {
-		if err := server.Run(); err != nil {
+		if err := server.Run(dist); err != nil {
 			log.Error(err)
 			serverChan <- err
 		} else {

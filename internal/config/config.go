@@ -9,7 +9,6 @@ import (
 // Config is the internal representation of the config
 type Config struct {
 	Database          string
-	DistDir           string
 	Port              int
 	Host              string
 	LogFile           string

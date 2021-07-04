@@ -1,0 +1,70 @@
+{
+  "configVersion": 1,
+  "timestamp": 1625434927324,
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "awrss",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/favicon.ico",
+        "/index.html",
+        "/main.646d8887d1c18c1bfa0d.js",
+        "/polyfills.293988cae63a6c0b3882.js",
+        "/runtime.ce2afe238265c8b3d829.js",
+        "/styles.7d7a964eb58904ed80a8.css"
+      ],
+      "patterns": []
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/assets/icons/graphicsvibe-rss-feed-128.png",
+        "/assets/icons/graphicsvibe-rss-feed-256.png"
+      ],
+      "patterns": [
+        "https:\\/\\/fonts\\.googleapis\\.com\\/.*",
+        "https:\\/\\/fonts\\.gstatic\\.com\\/.*"
+      ]
+    }
+  ],
+  "dataGroups": [],
+  "hashTable": {
+    "/assets/icons/graphicsvibe-rss-feed-128.png": "cf0482e2d7320cbd24cd81787bdc733ffe57cc68",
+    "/assets/icons/graphicsvibe-rss-feed-256.png": "e507661a660e7cb734f5975056537ff8286098f7",
+    "/favicon.ico": "44276253107c71fd2f4a5394aa0c3c7adfc7e69c",
+    "/index.html": "4ab0622cffd51a5c8082321af1f0dd98bae29b38",
+    "/main.646d8887d1c18c1bfa0d.js": "ad78eae38a2218552ce56129bd008a73bdc554eb",
+    "/polyfills.293988cae63a6c0b3882.js": "9240ac53f95be186697aeb9cf1ab3fc9a6ee1daf",
+    "/runtime.ce2afe238265c8b3d829.js": "70b10d6fdf66f0e73786d88601ab088ac8ade35d",
+    "/styles.7d7a964eb58904ed80a8.css": "abd86217f5902010d3d0b2246fe167e9f6dccc0b"
+  },
+  "navigationUrls": [
+    {
+      "positive": true,
+      "regex": "^\\/.*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*\\/.*$"
+    }
+  ],
+  "navigationRequestStrategy": "performance"
+}

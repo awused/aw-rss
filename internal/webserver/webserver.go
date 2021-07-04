@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"errors"
+	"io/fs"
 	"strconv"
 
 	"github.com/awused/aw-rss/internal/config"
@@ -17,7 +18,7 @@ import (
 
 // WebServer A web server
 type WebServer interface {
-	Run() error
+	Run(dist fs.FS) error
 	Close() error
 }
 
@@ -81,7 +82,7 @@ func (w *webserver) close(rssError error) error {
 	return w.rss.Close()
 }
 
-func (w *webserver) Run() (err error) {
+func (w *webserver) Run(dist fs.FS) (err error) {
 	log.Info("Webserver.Run() started")
 
 	host := "localhost"
@@ -107,7 +108,7 @@ func (w *webserver) Run() (err error) {
 	}
 	log.Infof("Listening for connections on %s", addr)
 
-	err = http.Serve(w.listener, w.getRouter())
+	err = http.Serve(w.listener, w.getRouter(dist))
 
 	w.closeLock.Lock()
 	defer w.closeLock.Unlock()

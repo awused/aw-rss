@@ -1,0 +1,19 @@
+{
+  "name": "Aw-Rss",
+  "short_name": "Aw-Rss",
+  "description": "Desuwa's RSS reader/aggregator",
+  "theme_color": "#1976d2",
+  "background_color": "#fafafa",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [{
+    "src": "/assets/icons/graphicsvibe-rss-feed-128.png",
+    "sizes": "128x128",
+    "type": "image/png"
+  }, {
+    "src": "/assets/icons/graphicsvibe-rss-feed-256.png",
+    "sizes": "256x256",
+    "type": "image/png"
+  }]
+}
