@@ -44,7 +44,7 @@ export class Data {
     // and tend to be newer items rather than older ones.
     // TODO -- Optimize by using splice when changes are found rather than
     // always creating a new array.
-    const merged = [];
+    const merged: T[] = [];
     let changed = false;
 
     let di = 0;
