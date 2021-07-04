@@ -106,7 +106,6 @@ export class NavComponent {
   // that are not failing
   public uncategorizedReadFeeds: FeedData[] = [];
   public dragging = false;
-  public draggingCategory?: number;
   public dropTarget: CategoryData|string|undefined;
   public showAll = false;
   public expanded: {[x: number]: boolean} = {};
@@ -173,19 +172,13 @@ export class NavComponent {
     this.refreshService.startRefresh();
   }
 
-  public dragStarted(event: CdkDragStart<FeedData|CategoryData>, x: any) {
-    const data = event.source.data;
+  public dragStarted(event: CdkDragStart<FeedData>, x: any) {
     this.dragging = true;
-
-    if (data instanceof CategoryData) {
-      this.draggingCategory = data.category.id;
-    }
   }
 
   public dragDropped(
-      event: CdkDragDrop<CategoryData|void, FeedData|CategoryData>) {
+      event: CdkDragDrop<CategoryData|void, FeedData>) {
     this.dragging = false;
-    this.draggingCategory = undefined;
 
     // This is a really hacky workaround for Angular Material's
     // broken drag and drop.
@@ -201,49 +194,17 @@ export class NavComponent {
 
     // TODO -- Actually do these things
     const data = event.item.data;
-    if (data instanceof CategoryData) {
-      if (targetCategory && data.category.id !== targetCategory.category.id) {
-        this.reorderCategories(data.category.id, targetCategory.category.id);
-      } else if (!targetCategory) {
-        this.reorderCategories(data.category.id);
-      }
+    if (!targetCategory && data.feed.categoryId !== undefined) {
+      this.mutateService.editFeed(data.feed, {clearCategory: true});
     }
 
-    if (data instanceof FeedData) {
-      if (!targetCategory && data.feed.categoryId !== undefined) {
-        this.mutateService.editFeed(data.feed, {clearCategory: true});
-      }
-
-      if (targetCategory && data.feed.categoryId !== targetCategory.category.id) {
-        this.mutateService.editFeed(
-            data.feed,
-            {categoryId: targetCategory.category.id});
-      }
+    if (targetCategory && data.feed.categoryId !== targetCategory.category.id) {
+      this.mutateService.editFeed(
+          data.feed,
+          {categoryId: targetCategory.category.id});
     }
   }
 
-  private reorderCategories(targetId: number, before?: number) {
-    const categoryIds = [];
-    this.navCategories.forEach((nc) => {
-      const id = nc.cData.category.id;
-
-      if (id === targetId) {
-        return;
-      }
-
-      if (before !== undefined && before === id) {
-        categoryIds.push(targetId);
-      }
-
-      categoryIds.push(id);
-    });
-
-    if (before === undefined) {
-      categoryIds.push(targetId);
-    }
-
-    this.mutateService.reorderCategories(categoryIds);
-  }
 
   private handleParams(p: ParamMap|void) {
     this.selectedCategoryName = undefined;

@@ -5,7 +5,7 @@
 <awrss-admin-body>
   <mat-list class="categories">
     <mat-list-item class="category"
-                   *ngFor="let cat of filteredData.categories; let even = even; let odd = odd;"
+                   *ngFor="let cat of sortedCategories; let even = even; let odd = odd;"
                    [class.primary-bg]="odd"
                    [class.secondary-bg]="even">
       <a class="title"
@@ -14,6 +14,18 @@
         {{cat.title}}
       </a>
       <div class="spacer"></div>
+      <button class="up-button"
+              (click)="moveCategory(cat.id, 'up')"
+              matTooltip="Move the {{cat.title}} category earlier in the list."
+              mat-icon-button>
+        <mat-icon>arrow_upward</mat-icon>
+      </button>
+      <button class="down-button"
+              (click)="moveCategory(cat.id, 'down')"
+              matTooltip="Move the {{cat.title}} category later in the list."
+              mat-icon-button>
+        <mat-icon>arrow_downward</mat-icon>
+      </button>
       <button class="disable-button"
               (click)="disableCategory(cat)"
               matTooltip="Delete the {{cat.title}} category"

@@ -1,17 +1,12 @@
 import {
-  ChangeDetectorRef,
   Component,
   OnDestroy,
   OnInit,
-  SimpleChanges,
 } from '@angular/core';
 import {ActivatedRoute,
-        NavigationEnd,
         ParamMap,
         Router} from '@angular/router';
-import {Data,
-        EmptyFilteredData,
-        Entity,
+import {EmptyFilteredData,
         FilteredData,
         Updates} from 'frontend/app/models/data';
 import {
@@ -20,11 +15,9 @@ import {
   Feed,
   Item
 } from 'frontend/app/models/entities';
-import {EmptyFilters,
-        Filters,
+import {Filters,
         PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
-import {ErrorService} from 'frontend/app/services/error.service';
 import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
 import {ParamService} from 'frontend/app/services/param.service';
@@ -34,10 +27,8 @@ import {Observable,
         Subject} from 'rxjs';
 import {
   filter,
-  last,
   map,
   switchMap,
-  take,
   takeUntil,
   tap
 } from 'rxjs/operators';
@@ -84,7 +75,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly dataService: DataService,
-      private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
       private readonly mobileService: MobileService,
       private readonly fuzzyFilterService: FuzzyFilterService) {

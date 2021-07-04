@@ -50,7 +50,6 @@
      cdkDropListGroup>
   <mat-expansion-panel *ngFor="let nc of navCategories; let evenC = even; let oddC = odd"
                        class="category"
-                       [class.not-dragging]="draggingCategory !== nc.cData.category.id"
                        [class.should-hide]="shouldHideCategory(nc.cData.category)"
                        [expanded]="expanded[nc.cData.category.id]"
                        (opened)="expanded[nc.cData.category.id] = true"
@@ -59,11 +58,7 @@
                        [cdkDropListData]="nc.cData"
                        (cdkDropListDropped)="dragDropped($event)"
                        (mouseenter)="dropTarget = nc.cData"
-                       (mouseleave)="dropTarget = undefined"
-                       cdkDrag
-                       [cdkDragDisabled]="isMobile || true"
-                       [cdkDragData]="nc.cData"
-                       (cdkDragStarted)="dragStarted($event)">
+                       (mouseleave)="dropTarget = undefined">
     <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
                                 [class.primary-bg]="evenC"
                                 [class.active]="selectedCategoryName === nc.cData.category.name"

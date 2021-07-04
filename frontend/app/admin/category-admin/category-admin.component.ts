@@ -21,7 +21,8 @@ import {EditCategoryDialogComponent} from '../edit-category-dialog/edit-category
 })
 export class CategoryAdminComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
-  public filteredData: FilteredData = EmptyFilteredData;
+  private filteredData: FilteredData = EmptyFilteredData;
+  public sortedCategories: ReadonlyArray<Category> = [];
 
   constructor(
       private readonly dataService: DataService,
@@ -32,7 +33,10 @@ export class CategoryAdminComponent implements OnInit, OnDestroy {
     this.dataService.updates()
         .pipe(takeUntil(this.onDestroy$))
         .subscribe(
-            (u: Updates) => this.filteredData = this.filteredData.merge(u)[0]);
+            (u: Updates) => {
+              this.filteredData = this.filteredData.merge(u)[0];
+              this.sortCategories(this.filteredData.categories);
+            });
 
     this.dataService.dataForFilters({
                       excludeFeeds: true,
@@ -40,7 +44,10 @@ export class CategoryAdminComponent implements OnInit, OnDestroy {
                       validOnly: true,
                     })
         .pipe(takeUntil(this.onDestroy$))
-        .subscribe((fd: FilteredData) => this.filteredData = fd);
+        .subscribe((fd: FilteredData) => {
+          this.filteredData = fd;
+          this.sortCategories(fd.categories);
+        });
   }
 
   public editCategory(category: Category) {
@@ -67,6 +74,42 @@ export class CategoryAdminComponent implements OnInit, OnDestroy {
             this.mutateService.editCategory(category, {disabled: true});
           }
         });
+  }
+
+  public moveCategory(targetId: number, direction: 'up'|'down') {
+    const categoryIds = this.sortedCategories.map((c) => c.id);
+
+    const i = categoryIds.findIndex((cid) => cid === targetId);
+    if (i < 0) {
+      return;
+    }
+
+    const ni = direction === 'up' ? i - 1 : i + 1;
+    if (ni < 0 || ni >= categoryIds.length) {
+      return;
+    }
+
+    categoryIds.splice(i, 1);
+    categoryIds.splice(ni, 0, targetId);
+
+    this.mutateService.reorderCategories(categoryIds);
+  }
+
+  private sortCategories(categories: ReadonlyArray<Category>) {
+    this.sortedCategories = categories.slice().sort((a, b) => {
+      if (a.sortPosition !== undefined) {
+        if (b.sortPosition === undefined) {
+          return -1;
+        }
+
+        return a.sortPosition - b.sortPosition;
+      }
+      if (b.sortPosition !== undefined) {
+        return 1;
+      }
+
+      return a.id - b.id;
+    });
   }
 
   ngOnDestroy() {
