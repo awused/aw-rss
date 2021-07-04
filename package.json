@@ -5,11 +5,11 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "prod": "ng build --prod && node compress.js",
+    "prod": "ng build --configuration production && node compress.js",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e",
-    "bundle-report": "ng build --prod --stats-json && node compress.js && webpack-bundle-analyzer dist/stats.json"
+    "bundle-report": "ng build --configuration production --stats-json && node compress.js && webpack-bundle-analyzer dist/stats.json"
   },
   "browserslist": [
     "last 2 and_chr versions",

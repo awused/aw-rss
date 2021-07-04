@@ -5,7 +5,7 @@
     "types": []
   },
   "exclude": [
-    "frontend/test.ts",
+    "test.ts",
     "**/*.fake.ts",
     "**/*.spec.ts"
   ]
