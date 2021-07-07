@@ -8,7 +8,7 @@ require (
 	github.com/awused/awconf v0.0.0-20210616091321-7189f311cc83
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/json-iterator/go v1.1.11 // indirect
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mmcdole/gofeed v1.1.3
 	github.com/mmcdole/goxpp v0.0.0-20200921145534-2f3784f67354 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
