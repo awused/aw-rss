@@ -1,0 +1,28 @@
+services:
+  base:
+    image: base
+    build: .
+  build:
+    image: base
+    depends_on:
+      - base
+    volumes:
+      - ./frontend:/aw-rss/frontend:ro
+      - ./dist:/aw-rss/dist:rw
+    command: npm run prod
+  sandbox:
+    image: base
+    depends_on:
+      - base
+    volumes:
+      - ./frontend:/aw-rss/frontend:ro
+      - ./dist:/aw-rss/dist:rw
+    command: bash
+  copy-modules:
+    image: base
+    depends_on:
+      - base
+    volumes:
+      - ./frontend:/aw-rss/frontend:ro
+      - ./node_modules:/aw-rss/node_modules_out:rw
+    command: rsync -rlptD --delete --size-only node_modules/ node_modules_out
