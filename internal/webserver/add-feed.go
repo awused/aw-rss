@@ -87,8 +87,12 @@ const youtubeFeedPrefix = "https://www.youtube.com/feeds/videos.xml?channel_id="
 // currently, equivalent to h=1.
 const mangadexRE = `^https://mangadex.org/([^?])+`
 
+const yandereRE = `^https://yande.re/post\?(.*&)?tags=([^?&]+)`
+const yanderePrefix = "https://yande.re/post/piclens?page=1&tags="
+
 var youtubeChannelRegex = regexp.MustCompile(youtubeChannelRE)
 var mangadexRegex = regexp.MustCompile(mangadexRE)
+var yandereRegex = regexp.MustCompile(yandereRE)
 
 // Responsible for URL rewrites that are always performed.
 // These cannot be overwritten with Force so should be very limited.
@@ -103,6 +107,11 @@ func unconditionalURLRewrite(url string) string {
 	matches = mangadexRegex.FindStringSubmatch(url)
 	if matches != nil {
 		return matches[0]
+	}
+
+	matches = yandereRegex.FindStringSubmatch(url)
+	if matches != nil {
+		return yanderePrefix + strings.TrimRight(matches[2], "+")
 	}
 
 	return url
