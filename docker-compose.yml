@@ -1,30 +1,30 @@
 services:
-  base:
-    image: base
+  aw-rss-base:
+    image: aw-rss-base
     build: .
   build:
-    image: base
+    image: aw-rss-base
     depends_on:
-      - base
+      - aw-rss-base
     volumes:
       - ./frontend:/aw-rss/frontend:ro
-      - ./dist:/aw-rss/dist:rw
-    command: npm run prod
+      - ./dist:/aw-rss/parent-dist:rw
+    command: sh -c 'npm run prod && rm -rf parent-dist/* && cp -r dist/* parent-dist/'
   sandbox:
-    image: base
+    image: aw-rss-base
     depends_on:
-      - base
+      - aw-rss-base
     volumes:
       - ./frontend:/aw-rss/frontend:ro
-      - ./dist:/aw-rss/dist:rw
+      - ./dist:/aw-rss/parent-dist:rw
+      - ./package.json:/aw-rss/parent-package.json:rw
+      - ./package-lock.json:/aw-rss/parent-lock.json:rw
     command: bash
   copy-modules:
-    image: base
+    image: aw-rss-base
     depends_on:
-      - base
+      - aw-rss-base
     volumes:
       - ./frontend:/aw-rss/frontend:ro
       - ./node_modules:/aw-rss/node_modules_out:rw
-      - ./package.json:/aw-rss/parent-package.json:rw
-      - ./package-lock.json:/aw-rss/parent-lock.json:rw
-    command: sh -c "rsync -rlptD --delete --size-only node_modules/ node_modules_out; cp package.json parent-package.json; cp package-lock.json parent-lock.json"
+    command: sh -c "rsync -rlptD --delete --size-only node_modules/ node_modules_out"
