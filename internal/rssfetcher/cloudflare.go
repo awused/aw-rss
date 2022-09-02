@@ -61,7 +61,7 @@ const cloudflareBadGateway = "502: Bad gateway</title>"
 const cloudflareGatewayTimeout = "504: Gateway time-out</title>"
 const cloudflareServerDown = "521: Web server is down</title>"
 const cloudflareSSLFailure = "525: SSL handshake failed</title>"
-const cloudflareNormal = "<span data-translate=\"managed_checking_msg\">We are checking your browser...</span>"
+const cloudflareNormal = "Checking if the site connection is secure"
 const cloudflareMissing = "ModuleNotFoundError: No module named 'cfscrape'"
 const cloudflareBroken = "Cloudflare may have changed their technique," +
 	"or there may be a bug in the script."

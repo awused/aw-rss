@@ -102,9 +102,9 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 		// TODO -- quirks.HandleBodyQuirks()
 		_, err = gofeed.NewParser().ParseString(body)
 		if err == nil {
-			log.Infoln("Successfully parsed new feed:", rawURL)
+			log.Infoln("Successfully parsed new feed: ", rawURL)
 		} else {
-			log.Infoln("Attempting to parse:", rawURL, "as HTML")
+			log.Infoln("Attempting to parse: ", rawURL, "as HTML")
 
 			parsed, err := htmlquery.Parse(strings.NewReader(body))
 			if err != nil {
@@ -116,7 +116,7 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 			nodes := htmlquery.Find(parsed, "(//head/link|//body/link)[@type='application/rss+xml' or @type='application/atom+xml']")
 			if len(nodes) == 1 {
 				rawURL = htmlquery.SelectAttr(nodes[0], "href")
-				log.Info("Found feed URL in HTML:", rawURL)
+				log.Info("Found feed URL in HTML: ", rawURL)
 			} else if len(nodes) > 1 {
 				log.Error("Support for selecting between multiple detected feeds is unimplemented")
 				http.Error(w, "Unimplemented", http.StatusBadRequest)

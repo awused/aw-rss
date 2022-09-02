@@ -41,6 +41,10 @@ type RssFetcher interface {
 	Close() error
 	// InformFeedChanged informs the fetcher that a feed has changed
 	InformFeedChanged()
+	// RerunFeed immediately fetches a feed if it is waiting between fetches or after an error
+	RerunFeed(int64)
+	// RerunFailing immediately reruns all failing feeds without waiting for backoff
+	RerunFailing()
 }
 
 type feedError struct {
@@ -48,18 +52,26 @@ type feedError struct {
 	err error
 }
 
+type routineChannels struct {
+	kill  chan struct{}
+	rerun chan struct{}
+}
+
 type rssFetcher struct {
-	conf         config.Config
-	db           *database.Database
-	httpClient   *http.Client
-	cloudflare   *cloudflare
+	conf       config.Config
+	db         *database.Database
+	httpClient *http.Client
+	cloudflare *cloudflare
+	// All guarded by lock
 	feeds        map[int64]*structs.Feed
-	routines     map[int64]chan struct{}
+	routines     map[int64]routineChannels
 	retryBackoff map[int64]time.Duration
-	mapLock      sync.RWMutex
-	lastPolled   time.Time
-	wg           sync.WaitGroup
-	errorChan    chan feedError
+	rerunFailing chan struct{}
+	// End guarded by lock
+	lock       sync.RWMutex
+	lastPolled time.Time
+	wg         sync.WaitGroup
+	errorChan  chan feedError
 	// Used when a feed has changed in a way that will impact fetching
 	feedsChangedChan chan struct{}
 	// Per-host critical sections
@@ -80,8 +92,9 @@ func NewRssFetcher(conf config.Config,
 		Timeout: RssTimeout,
 	}
 	rss.feeds = make(map[int64]*structs.Feed)
-	rss.routines = make(map[int64]chan struct{})
+	rss.routines = make(map[int64]routineChannels)
 	rss.retryBackoff = make(map[int64]time.Duration)
+	rss.rerunFailing = make(chan struct{})
 	rss.hostLocks = make(map[string]*sync.Mutex)
 	rss.closeChan = make(chan struct{})
 	rss.errorChan = make(chan feedError)
@@ -99,6 +112,34 @@ func (r *rssFetcher) InformFeedChanged() {
 	case r.feedsChangedChan <- struct{}{}:
 	case <-r.closeChan:
 	}
+}
+
+func (r *rssFetcher) RerunFeed(fid int64) {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+
+	rchans, ok := r.routines[fid]
+	if !ok {
+		log.Info("Can't rerun feed ", fid, " since it is not currently running")
+		return
+	}
+
+	select {
+	case rchans.rerun <- struct{}{}:
+		log.Info("Restarted feed from user request ", fid)
+	default:
+	}
+}
+
+func (r *rssFetcher) RerunFailing() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	old := r.rerunFailing
+	r.rerunFailing = make(chan struct{})
+
+	close(old)
+	log.Info("Rerunning all failing feeds")
 }
 
 func (r *rssFetcher) Close() error {
@@ -119,10 +160,10 @@ func (r *rssFetcher) Close() error {
 	close(r.closeChan)
 	r.closed = true
 
-	r.mapLock.Lock()
+	r.lock.Lock()
 	r.killOldRoutines(map[int64]*structs.Feed{})
 	r.feeds = map[int64]*structs.Feed{}
-	r.mapLock.Unlock()
+	r.lock.Unlock()
 
 	log.Infof("Waiting up to 60 seconds for goroutines to finish")
 
@@ -199,11 +240,11 @@ func (r *rssFetcher) Run() (err error) {
 				return nil
 			}
 
-			r.mapLock.Lock()
+			r.lock.Lock()
 			r.killOldRoutines(newFeeds)
 			r.startNewRoutines(newFeedsArray)
 			r.feeds = newFeeds
-			r.mapLock.Unlock()
+			r.lock.Unlock()
 
 			r.closeLock.Unlock()
 
@@ -231,7 +272,7 @@ func (r *rssFetcher) Run() (err error) {
 
 // Main work done here for each feed
 // TODO -- clean this up and refactor it
-func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
+func (r *rssFetcher) routine(f *structs.Feed, rchans routineChannels) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			err := rec.(error)
@@ -249,7 +290,7 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 		log.Tracef("Routine for [%s] completed", f)
 		r.wg.Done()
 		// We could attempt to send f on feedUpdateChan but
-		// Any important updates should come through the webserver
+		// any important updates should come through the webserver
 	}()
 
 	parser := gofeed.NewParser()
@@ -257,12 +298,12 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 	log.Debugf("Routine for [%s] started", f)
 	for {
 		// The feed may have been updated
-		r.mapLock.RLock()
+		r.lock.RLock()
 		newF, ok := r.feeds[f.ID()]
-		r.mapLock.RUnlock()
+		r.lock.RUnlock()
 		if !ok {
 			select {
-			case <-kill:
+			case <-rchans.kill:
 				log.Debugf("Routine for [%s] killed by parent", f)
 			default:
 				// Should never happen
@@ -274,14 +315,14 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 
 		body := ""
 		if strings.HasPrefix(f.URL(), "!") {
-			body = r.runExternalCommandFeed(f, kill)
+			body = r.runExternalCommandFeed(f, rchans.kill)
 		} else {
-			body = r.fetchHTTPFeed(f, kill)
+			body = r.fetchHTTPFeed(f, rchans.kill)
 		}
 		body = quirks.HandleBodyQuirks(f, body)
 
 		select {
-		case <-kill:
+		case <-rchans.kill:
 			log.Debugf("Routine for [%s] killed by parent", f)
 			return
 		default:
@@ -325,16 +366,17 @@ func (r *rssFetcher) routine(f *structs.Feed, kill <-chan struct{}) {
 				return
 			}*/
 
-		r.mapLock.Lock()
+		r.lock.Lock()
 		if _, ok := r.retryBackoff[f.ID()]; ok {
 			r.retryBackoff[f.ID()] = time.Minute
 		}
-		r.mapLock.Unlock()
+		r.lock.Unlock()
 
 		select {
-		case <-kill:
+		case <-rchans.kill:
 			log.Debugf("Routine for [%s] killed by parent", f)
 			return
+		case <-rchans.rerun:
 		case <-time.After(r.getSleepTime(f, feed, body)):
 		}
 	}
@@ -346,13 +388,13 @@ func (r *rssFetcher) runExternalCommandFeed(
 	// This is not correct when there are spaces in the path, but it fails
 	// in a safe manner.
 	h := strings.SplitN(f.URL(), " ", 2)[0]
-	r.mapLock.Lock()
+	r.lock.Lock()
 	lock, ok := r.hostLocks[h]
 	if !ok {
 		lock = &sync.Mutex{}
 		r.hostLocks[h] = lock
 	}
-	r.mapLock.Unlock()
+	r.lock.Unlock()
 
 	lock.Lock()
 	defer lock.Unlock()
@@ -384,13 +426,13 @@ func (r *rssFetcher) fetchHTTPFeed(
 		panic(err)
 	}
 
-	r.mapLock.Lock()
+	r.lock.Lock()
 	lock, ok := r.hostLocks[h]
 	if !ok {
 		lock = &sync.Mutex{}
 		r.hostLocks[h] = lock
 	}
-	r.mapLock.Unlock()
+	r.lock.Unlock()
 
 	lock.Lock()
 	defer lock.Unlock()
@@ -531,32 +573,36 @@ func (r *rssFetcher) getSleepTime(f *structs.Feed, feed *gofeed.Feed, body strin
 }
 
 func (r *rssFetcher) killRoutine(f *structs.Feed) {
-	routine, ok := r.routines[f.ID()]
+	rchans, ok := r.routines[f.ID()]
 	if !ok {
 		log.Warningf("Tried to kill non-existent routine for [%s]", f)
 		return
 	}
 	log.Debugf("Killing routine for [%s]", f)
-	close(routine)
+	close(rchans.kill)
+	// We do not close rchans.rerun to avoid races
 	delete(r.routines, f.ID())
 	delete(r.retryBackoff, f.ID())
 }
 
 func (r *rssFetcher) restartRoutine(
-	f *structs.Feed, kill <-chan struct{}, delay time.Duration) {
+	f *structs.Feed, rchans routineChannels, delay time.Duration, rerunFailing <-chan struct{}) {
 	log.Debugf(
 		"Restarting routine for [%s] in %s", f, delay)
 
 	select {
-	case <-kill:
+	case <-rchans.kill:
 		log.Debugf(
 			"Routine for [%s] killed by parent before it could restart", f)
 		r.wg.Done()
 		return
+	case <-rchans.rerun:
+	case <-rerunFailing:
 	case <-time.After(delay):
-		log.Debugf("Restarting routine for [%s] now", f)
-		r.routine(f, kill)
 	}
+
+	log.Debugf("Restarting routine for [%s] now", f)
+	r.routine(f, rchans)
 }
 
 func (r *rssFetcher) killOldRoutines(newFeeds map[int64]*structs.Feed) {
@@ -572,7 +618,10 @@ func (r *rssFetcher) startNewRoutines(newFeeds []*structs.Feed) {
 		if _, ok := r.feeds[feed.ID()]; !ok {
 			log.Debugf("Starting new routine for [%s]", feed)
 
-			r.routines[feed.ID()] = make(chan struct{})
+			r.routines[feed.ID()] = routineChannels{
+				kill:  make(chan struct{}),
+				rerun: make(chan struct{}),
+			}
 			r.retryBackoff[feed.ID()] = time.Minute
 
 			r.wg.Add(1)
@@ -585,8 +634,8 @@ func (r *rssFetcher) restartFailedRoutine(fe feedError) {
 	feed := fe.f
 	id := feed.ID()
 
-	r.mapLock.Lock()
-	defer r.mapLock.Unlock()
+	r.lock.Lock()
+	defer r.lock.Unlock()
 
 	_, ok := r.feeds[id]
 	if !ok {
@@ -597,8 +646,13 @@ func (r *rssFetcher) restartFailedRoutine(fe feedError) {
 	if isCloudflareError(fe.err) {
 		backoff = time.Hour * 6
 	}
+	// This should be a no-op since the routine will already have exited,
+	// but will clear old values out of the maps.
 	r.killRoutine(feed)
-	r.routines[id] = make(chan struct{})
+	r.routines[id] = routineChannels{
+		kill:  make(chan struct{}),
+		rerun: make(chan struct{}),
+	}
 	r.retryBackoff[id] = backoff * 2
 	if r.retryBackoff[id] > time.Hour*6 {
 		r.retryBackoff[id] = time.Hour * 6 // Check at least once every six hours
@@ -608,7 +662,8 @@ func (r *rssFetcher) restartFailedRoutine(fe feedError) {
 		"Error in routine for [Feed: %d], attempting to restart in %s",
 		id, backoff)
 	r.wg.Add(1)
-	go r.restartRoutine(feed, r.routines[id], backoff)
+	rerunFailing := r.rerunFailing
+	go r.restartRoutine(feed, r.routines[id], backoff, rerunFailing)
 }
 
 func host(feedURL string) (string, string, error) {
