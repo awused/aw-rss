@@ -6,7 +6,7 @@ import {
   waitForAsync
 } from '@angular/core/testing';
 import {RouterTestingModule} from '@angular/router/testing';
-import {FeedFixtures} from 'frontend/app/models/models.fake';
+import {FEED_FIXTURES} from 'frontend/app/models/models.fake';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 
 import {FeedData} from '../nav/nav.component';
@@ -18,7 +18,7 @@ import {FeedComponent} from './feed.component';
   template: '<awrss-feed [fd]="fd"></awrss-feed>'
 })
 class TestWrapperComponent {
-  fd = new FeedData(FeedFixtures.emptyFeed);
+  fd = new FeedData(FEED_FIXTURES.emptyFeed);
 }
 
 

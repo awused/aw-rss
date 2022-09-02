@@ -55,7 +55,7 @@ export interface PartialFilters extends Filters {
   doNotFetch?: boolean;
 }
 
-export const EmptyFilters: Filters = {
+export const EMPTY_FILTERS: Filters = {
   excludeCategories: true,
   excludeFeeds: true,
   excludeItems: true,
@@ -90,7 +90,7 @@ export class DataFilter {
     }
 
     return this.addNewCategory(c);
-  }
+  };
 
   addNewCategory = (c: Category): boolean => {
     if (this.f.categoryName !== undefined) {
@@ -110,7 +110,7 @@ export class DataFilter {
     }
 
     return !this.f.validOnly || !c.disabled;
-  }
+  };
 
   keepExistingFeed = (f: Feed): boolean => {
     if (this.f.feedId !== undefined) {
@@ -136,7 +136,7 @@ export class DataFilter {
     }
 
     return this.addNewFeed(f);
-  }
+  };
 
   addNewFeed = (f: Feed): boolean => {
     if (this.f.feedId !== undefined) {
@@ -163,7 +163,7 @@ export class DataFilter {
 
     this.includedFeedIds.add(f.id);
     return true;
-  }
+  };
 
   keepExistingItem = (i: Item): boolean => {
     if ((this.includedFeedIds.size !== 0 || this.categoryId !== undefined) &&
@@ -176,7 +176,7 @@ export class DataFilter {
     }
 
     return this.addNewItem(i);
-  }
+  };
 
   addNewItem = (i: Item): boolean => {
     if (this.itemIds.size !== 0) {
@@ -201,5 +201,5 @@ export class DataFilter {
       return false;
     }
     return true;
-  }
+  };
 }

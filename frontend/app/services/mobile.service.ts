@@ -15,9 +15,7 @@ export class MobileService {
 
   private mobileQueryListener: () => void;
 
-  constructor(
-      private readonly media: MediaMatcher,
-  ) {
+  constructor(media: MediaMatcher) {
     this.mobileQuery = media.matchMedia('(max-width: 768px)');
     this.mobile$ = new BehaviorSubject(this.mobileQuery.matches);
     this.mobileQueryListener = () => this.mobile$.next(this.mobileQuery.matches);

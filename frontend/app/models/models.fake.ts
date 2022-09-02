@@ -1,7 +1,7 @@
 import {Feed,
         Item} from './entities';
 
-export const FeedFixtures: {[x: string]: Feed} = {
+export const FEED_FIXTURES: {[x: string]: Feed} = {
   emptyFeed: {
     commitTimestamp: 0,
     createTimestamp: 0,
@@ -15,7 +15,7 @@ export const FeedFixtures: {[x: string]: Feed} = {
 };
 
 
-export const ItemFixtures: {[x: string]: Item} = {
+export const ITEM_FIXTURES: {[x: string]: Item} = {
   emptyItem: {
     commitTimestamp: 0,
     feedId: 0,

@@ -10,10 +10,19 @@ services:
       - ./frontend:/aw-rss/frontend:ro
       - ./dist:/aw-rss/parent-dist:rw
     command: sh -c 'npm run prod && rm -rf parent-dist/* && cp -r dist/* parent-dist/'
+  dev:
+    image: aw-rss-base
+    depends_on:
+      - aw-rss-base
+    volumes:
+      - ./frontend:/aw-rss/frontend:ro
+    network_mode: host
+    command: npm run-script ng serve
   sandbox:
     image: aw-rss-base
     depends_on:
       - aw-rss-base
+    network_mode: host
     volumes:
       - ./frontend:/aw-rss/frontend:ro
       - ./dist:/aw-rss/parent-dist:rw

@@ -1,7 +1,7 @@
 import {HttpClient} from '@angular/common/http';
 import {Injectable} from '@angular/core';
 import {
-  BehaviorSubject,
+  firstValueFrom,
   forkJoin,
   Observable,
   of,
@@ -23,8 +23,7 @@ import {Data,
 import {Category,
         Feed,
         Item} from '../models/entities';
-import {Filters,
-        TimeRange} from '../models/filter';
+import {Filters} from '../models/filter';
 
 import {ErrorService} from './error.service';
 import {LoadingService} from './loading.service';
@@ -120,9 +119,9 @@ export class DataService {
   private readonly categoryUpdates$: Observable<void>;
   // All enabled feeds have read items back _at least_ this far
   // This only applies to read items that have been deliberately fetched
-  private oldestReadItemId: number|undefined = undefined;
+  // private oldestReadItemId: number|undefined = undefined;
   private hasAllFeeds = false;
-  private hasAllCategories = false;
+  // private hasAllCategories = false;
   private feedMetadata: Map<number, FeedMetadata> = new Map();
   private categoryMetadata: Map<number, CategoryMetadata> = new Map();
   // For now it's enough to just do this at initial load
@@ -203,10 +202,8 @@ export class DataService {
     return this.data$
         .pipe(
             take(1),
-            map((data: Data): FilteredData => {
-              return new FilteredData(
-                  data.filter(f), f);
-            }));
+            map((data: Data): FilteredData => new FilteredData(
+                    data.filter(f), f)));
   }
 
   public fetchMoreReadForFeed(id: number): Observable<void> {
@@ -267,12 +264,10 @@ export class DataService {
 
   private handleRefresh(su: ServerUpdates): void {
     if (su.mustRefresh) {
-      this.errorService.showError('Client state is too old, refreshing')
-          .toPromise()
+      firstValueFrom(this.errorService.showError('Client state is too old, refreshing'))
           .then(() => window.location.reload());
       return;
     }
-    const d = new Data(su.categories, su.feeds, su.items);
     const up = new Updates(true, su.categories, su.feeds, su.items);
 
     this.handleUpdates(up);
@@ -296,10 +291,8 @@ export class DataService {
     // fetches or replays.
 
 
-    let changed;
-    let d;
     let replayed = false;
-    [d, changed] = this.data.merge(u);
+    const [d, changed] = this.data.merge(u);
     if (changed) {
       // Push to data first, so that subscribers of data can take the unchanged
       // fast-path
@@ -562,30 +555,31 @@ export class DataService {
   private getInitialState() {
     this.loadingService.startLoading();
     this.http.get<CurrentState>('/api/current')
-        .subscribe(
-            (state: CurrentState) => {
-              this.timestamp = state.timestamp;
-              this.initialNewestTimestamps = state.newestTimestamps || [];
-              this.data = new Data(
-                  state.categories,
-                  state.feeds,
-                  state.items);
+        .subscribe({
+          next: (state: CurrentState) => {
+            this.timestamp = state.timestamp;
+            this.initialNewestTimestamps = state.newestTimestamps || [];
+            this.data = new Data(
+                state.categories,
+                state.feeds,
+                state.items);
 
-              this.data.feeds.forEach(
-                  (f) => this.feedMetadata.set(
-                      f.id, new FeedMetadata(f, true, false)));
+            this.data.feeds.forEach(
+                (f) => this.feedMetadata.set(
+                    f.id, new FeedMetadata(f, true, false)));
 
-              this.data.categories.forEach(
-                  (c) => this.categoryMetadata.set(
-                      c.id, new CategoryMetadata(c)));
+            this.data.categories.forEach(
+                (c) => this.categoryMetadata.set(
+                    c.id, new CategoryMetadata(c)));
 
-              this.data$.next(this.data);
-            },
-            (error: Error) => {
-              this.errorService.showError(error);
-              this.loadingService.finishLoading();
-            },
-            () => this.loadingService.finishLoading());
+            this.data$.next(this.data);
+          },
+          error: (error: Error) => {
+            this.errorService.showError(error);
+            this.loadingService.finishLoading();
+          },
+          complete: () => this.loadingService.finishLoading()
+        });
   }
 
   private refreshState(): void {
@@ -594,17 +588,18 @@ export class DataService {
     }
     this.loadingService.startLoading();
     this.http.get<ServerUpdates>(`/api/updates/${this.timestamp}`)
-        .subscribe(
-            (su: ServerUpdates) => this.handleRefresh(su),
-            (error: Error) => {
-              this.errorService.showError(error);
-              this.refreshService.finishRefresh();
-              this.loadingService.finishLoading();
-            },
-            () => {
-              this.refreshService.finishRefresh();
-              this.loadingService.finishLoading();
-            });
+        .subscribe({
+          next: (su: ServerUpdates) => this.handleRefresh(su),
+          error: (error: Error) => {
+            this.errorService.showError(error);
+            this.refreshService.finishRefresh();
+            this.loadingService.finishLoading();
+          },
+          complete: () => {
+            this.refreshService.finishRefresh();
+            this.loadingService.finishLoading();
+          }
+        });
   }
 
   private fetchDisabledFeeds(): Observable<void> {

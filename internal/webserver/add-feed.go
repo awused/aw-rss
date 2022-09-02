@@ -2,12 +2,16 @@ package webserver
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 
+	"github.com/antchfx/htmlquery"
+	"github.com/awused/aw-rss/internal/rssfetcher"
 	"github.com/awused/aw-rss/internal/structs"
+	"github.com/mmcdole/gofeed"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -57,25 +61,103 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Force {
-		f, err := ws.db.InsertNewFeed(rawURL, req.UserTitle)
+	if !req.Force {
+		req, err := http.NewRequest("GET", rawURL, nil)
 		if err != nil {
 			log.Error(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		resp := addFeedResponse{Status: "success", Feed: f}
+		// Workaround for dolphinemu.org, but doesn't seem to break any other feeds.
+		req.Header.Add("Cache-Control", "no-cache")
 
-		if err = json.NewEncoder(w).Encode(resp); err != nil {
-			log.Error(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		// Pretend to be wget. Some sites don't like an empty user agent.
+		// Reddit in particular will _always_ say to retry in a few seconds,
+		// even if you wait hours.
+		req.Header.Add("User-Agent", "Wget/1.19.5 (freebsd11.1)")
+
+		httpClient := &http.Client{
+			Timeout: rssfetcher.RssTimeout,
 		}
-		ws.rss.InformFeedChanged()
+
+		resp, err := httpClient.Do(req)
+
+		if err != nil {
+			log.Error(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		// Close unconditionally to avoid memory leaks
+		_ = resp.Body.Close()
+		if err != nil {
+			log.Error(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		body := string(bodyBytes)
+		// TODO -- quirks.HandleBodyQuirks()
+		_, err = gofeed.NewParser().ParseString(body)
+		if err == nil {
+			log.Infoln("Successfully parsed new feed:", rawURL)
+		} else {
+			log.Infoln("Attempting to parse:", rawURL, "as HTML")
+
+			parsed, err := htmlquery.Parse(strings.NewReader(body))
+			if err != nil {
+				log.Error(err)
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			nodes := htmlquery.Find(parsed, "(//head/link|//body/link)[@type='application/rss+xml' or @type='application/atom+xml']")
+			if len(nodes) == 1 {
+				rawURL = htmlquery.SelectAttr(nodes[0], "href")
+				log.Info("Found feed URL in HTML:", rawURL)
+			} else if len(nodes) > 1 {
+				log.Error("Support for selecting between multiple detected feeds is unimplemented")
+				http.Error(w, "Unimplemented", http.StatusBadRequest)
+				return
+			} else {
+				log.Error("No feeds found for ", rawURL)
+				http.Error(w, "No feed found", http.StatusBadRequest)
+				return
+			}
+
+			rawURL = unconditionalURLRewrite(rawURL)
+
+			u, err := url.Parse(rawURL)
+			if err != nil {
+				log.Error(err)
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			if u.Scheme != "http" && u.Scheme != "https" {
+				log.Error(err)
+				http.Error(w, "url scheme must be http or https", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	f, err := ws.db.InsertNewFeed(rawURL, req.UserTitle)
+	if err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	http.Error(w, "Unimplemented", http.StatusBadRequest)
+	resp := addFeedResponse{Status: "success", Feed: f}
+
+	if err = json.NewEncoder(w).Encode(resp); err != nil {
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	ws.rss.InformFeedChanged()
 	return
 }
 

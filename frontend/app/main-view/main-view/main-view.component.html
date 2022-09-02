@@ -1,4 +1,4 @@
-<awrss-main-view-header *ngIf="!(mobile | async)"
+<awrss-main-view-header *ngIf="(mobile | async) !== true"
                         class="header"
                         [mobile]="false"
                         [feed]="feed"

@@ -2,7 +2,7 @@ import {Component,
         OnDestroy,
         OnInit} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
-import {EmptyFilteredData,
+import {EMPTY_FILTERED_DATA,
         FilteredData,
         Updates} from 'frontend/app/models/data';
 import {Category} from 'frontend/app/models/entities';
@@ -21,7 +21,7 @@ import {EditCategoryDialogComponent} from '../edit-category-dialog/edit-category
 })
 export class CategoryAdminComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
-  private filteredData: FilteredData = EmptyFilteredData;
+  private filteredData: FilteredData = EMPTY_FILTERED_DATA;
   public sortedCategories: ReadonlyArray<Category> = [];
 
   constructor(

@@ -12,8 +12,8 @@ export class ConfirmationDialogComponent {
 
   constructor(
       @Inject(MAT_DIALOG_DATA) public readonly data: {
-        title: string,
-        text: string|string[]
+        title: string;
+        text: string|string[];
       }) {
     if (typeof data.text === 'string') {
       this.text = [data.text];

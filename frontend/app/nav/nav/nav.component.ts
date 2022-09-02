@@ -1,20 +1,16 @@
 import {
   CdkDragDrop,
-  CdkDragRelease,
   CdkDragStart
 } from '@angular/cdk/drag-drop';
 import {Component,
         EventEmitter,
-        Input,
-        OnInit,
         Output} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
 import {ActivatedRoute,
         ParamMap,
         Router} from '@angular/router';
 import {AddDialogComponent} from 'frontend/app/admin/add-dialog/add-dialog.component';
-import {EmptyFilteredData,
-        FilteredData,
+import {FilteredData,
         Updates} from 'frontend/app/models/data';
 import {Category,
         CATEGORY_NAME_REGEX,
@@ -140,7 +136,7 @@ export class NavComponent {
     const aTitle = this.feedTitlePipe.transform(a.feed);
     const bTitle = this.feedTitlePipe.transform(b.feed);
     return aTitle.toLowerCase() > bTitle.toLowerCase() ? 1 : -1;
-  }
+  };
 
   public openAddDialog() {
     this.dialog.open(AddDialogComponent);
@@ -172,7 +168,7 @@ export class NavComponent {
     this.refreshService.startRefresh();
   }
 
-  public dragStarted(event: CdkDragStart<FeedData>, x: any) {
+  public dragStarted(_event: CdkDragStart<FeedData>, _x: any) {
     this.dragging = true;
   }
 

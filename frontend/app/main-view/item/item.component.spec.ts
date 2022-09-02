@@ -5,7 +5,7 @@ import {
   waitForAsync
 } from '@angular/core/testing';
 import {RouterTestingModule} from '@angular/router/testing';
-import {ItemFixtures} from 'frontend/app/models/models.fake';
+import {ITEM_FIXTURES} from 'frontend/app/models/models.fake';
 import {PipesModule} from 'frontend/app/pipes/pipes.module';
 import {DataService} from 'frontend/app/services/data.service';
 import {FakeDataService} from 'frontend/app/services/data.service.fake';
@@ -19,7 +19,7 @@ import {ItemComponent} from './item.component';
   template: '<awrss-item [item]="item"></awrss-item>'
 })
 class TestWrapperComponent {
-  item = ItemFixtures.emptyItem;
+  item = ITEM_FIXTURES.emptyItem;
 }
 
 describe('ItemComponent', () => {

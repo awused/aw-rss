@@ -2,7 +2,7 @@ import {Component,
         OnDestroy,
         OnInit} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
-import {EmptyFilteredData,
+import {EMPTY_FILTERED_DATA,
         FilteredData,
         Updates} from 'frontend/app/models/data';
 import {Feed} from 'frontend/app/models/entities';
@@ -23,12 +23,10 @@ export class FeedAdminComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();
   private fuzzyFilterString = '';
   private readonly fuzzyOptions: FilterOptions<Feed> = {
-    extract: (f: Feed) => {
-      return (f.userTitle ?? '') + ' ' + f.title + ' ' + f.siteUrl + ' ' + f.url;
-    },
+    extract: (f: Feed) => (f.userTitle ?? '') + ' ' + f.title + ' ' + f.siteUrl + ' ' + f.url,
   };
 
-  public filteredData: FilteredData = EmptyFilteredData;
+  public filteredData: FilteredData = EMPTY_FILTERED_DATA;
   public fuzzyFeeds: ReadonlyArray<Feed> = [];
 
   constructor(

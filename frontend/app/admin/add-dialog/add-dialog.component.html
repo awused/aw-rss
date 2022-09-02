@@ -26,6 +26,13 @@
                  placeholder="Title Override"
                  matTooltip="Override the automatically detected title of the feed. Optional.">
         </mat-form-field>
+        <div>
+          <mat-checkbox [formControl]="feedForm.get('force')"
+                        name="force"
+                        matTooltip="Force adding a new feed even if it can't be validated.">
+            Force
+          </mat-checkbox>
+        </div>
         <div align="right">
           <button mat-button
                   mat-dialog-close>

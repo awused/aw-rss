@@ -55,9 +55,9 @@ Example: `INSERT INTO feeds(url) VALUES('!my-command arg1 arg2 arg3');`
 
 You'll have to edit proxy.conf.json to match the port you configured the backend to serve on.
 
-Run `npm install` and `npm run-script prod` in the project root to build and compress the frontend.
+Run `docker-compose run --rm build` in the project root to build and compress the frontend.
 
-Run `ng serve --aot` for an angular dev server. Navigate to `http://localhost:4200/` with the backend already running.
+Run `docker-compose run --rm dev` for an angular dev server. Navigate to `http://localhost:4200/` with the backend already running.
 
 # Shortcuts
 

@@ -1,6 +1,5 @@
 import {Component,
-        Inject,
-        OnInit} from '@angular/core';
+        Inject} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -34,7 +33,7 @@ export class EditCategoryDialogComponent {
       private readonly mutateService: MutateService,
       private readonly snackBar: MatSnackBar,
       @Inject(MAT_DIALOG_DATA) public readonly data: {
-        category: Category,
+        category: Category;
       }) {
     this.category = data.category;
 

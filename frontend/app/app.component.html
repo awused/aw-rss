@@ -1,5 +1,5 @@
 <div class="mat-typography"
-     [class.fixed-layout]="!(mobile | async)">
+     [class.fixed-layout]="(mobile | async) !== true">
   <mat-toolbar class="awrss-toolbar"
                *ngIf="mobile | async">
     <button (click)="openNav = !openNav"
@@ -34,7 +34,7 @@
   <mat-sidenav-container (backdropClick)="openNav = false"
                          fullscreen>
     <mat-sidenav #snav
-                 [opened]="!(mobile | async) || openNav"
+                 [opened]="(mobile | async) !== true || openNav"
                  [mode]="(mobile | async) ? 'over' : 'side'"
                  [fixedTopGap]="(mobile | async)  ? 56 : 0"
                  fixedInViewport

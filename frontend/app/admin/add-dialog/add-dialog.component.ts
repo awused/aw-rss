@@ -1,5 +1,4 @@
-import {Component,
-        OnInit} from '@angular/core';
+import {Component} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -29,7 +28,8 @@ export class AddDialogComponent {
     url: new FormControl('', [
       Validators.required, Validators.pattern(FEED_URL_PATTERN)
     ]),
-    title: new FormControl('')
+    title: new FormControl(''),
+    force: new FormControl(false),
   });
 
   public categoryForm = new FormGroup({
@@ -72,7 +72,7 @@ export class AddDialogComponent {
 
   public submitFeed(formValue: any) {
     this.mutateService
-        .newFeed(formValue.url, formValue.title, true)
+        .newFeed(formValue.url, formValue.title, formValue.force)
         .subscribe(() => {
           this.snackBar.open(`Added Feed [${formValue.title || formValue.url}]`, '', {
             duration: 3000

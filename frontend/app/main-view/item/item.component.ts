@@ -13,8 +13,7 @@ import {
 import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 import {Subject} from 'rxjs';
-import {filter,
-        takeUntil} from 'rxjs/operators';
+import {takeUntil} from 'rxjs/operators';
 
 @Component({
   selector: 'awrss-item',
@@ -57,9 +56,10 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.disabled = true;
     this.mutateService.markItemRead(this.item, !this.item.read)
-        .subscribe(
-            () => this.disabled = false,
-            () => this.disabled = false);
+        .subscribe({
+          next: () => this.disabled = false,
+          error: () => this.disabled = false
+        });
   }
 
   handleItemMouseup(event: MouseEvent) {

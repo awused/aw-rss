@@ -28,7 +28,7 @@ const dbPollPeriod = time.Duration(time.Minute * 5)
 
 // TODO -- make this configurable, along with a maxPollPeriod
 const minPollPeriod = time.Duration(time.Minute * 15)
-const rssTimeout = 30 * time.Second
+const RssTimeout = 30 * time.Second
 const startupRateLimit = 250 * time.Millisecond
 
 // RssFetcher is responsible for reading fetching feeds and storing them in the
@@ -77,7 +77,7 @@ func NewRssFetcher(conf config.Config,
 	rss.conf = conf
 	rss.db = db
 	rss.httpClient = &http.Client{
-		Timeout: rssTimeout,
+		Timeout: RssTimeout,
 	}
 	rss.feeds = make(map[int64]*structs.Feed)
 	rss.routines = make(map[int64]chan struct{})

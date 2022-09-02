@@ -2,7 +2,7 @@ import {Category,
         Feed,
         Item} from './entities';
 import {DataFilter,
-        EmptyFilters,
+        EMPTY_FILTERS,
         Filters} from './filter';
 
 export type Entity = Category|Feed|Item;
@@ -39,7 +39,7 @@ export class Data {
       uEntities: ReadonlyArray<T>,
       keepExisting: (x: T) => boolean,
       addNew: (x: T) => boolean,
-      df: DataFilter): [ReadonlyArray<T>, boolean] {
+      /*df: DataFilter*/): [ReadonlyArray<T>, boolean] {
     // Most merges are a relatively small number of updates into a larger list,
     // and tend to be newer items rather than older ones.
     // TODO -- Optimize by using splice when changes are found rather than
@@ -49,8 +49,7 @@ export class Data {
 
     let di = 0;
     let de: T|undefined;
-    for (let ui = 0; ui < uEntities.length; ui++) {
-      const ue = uEntities[ui];
+    for (const ue of uEntities) {
       for (; di < dEntities.length; di++) {
         de = dEntities[di];
         if (de.id < ue.id) {
@@ -114,7 +113,7 @@ export class Data {
           u.categories,
           df.keepExistingCategory,
           df.addNewCategory,
-          df);
+      );
       changed = changed || c;
     }
     if (!f.excludeFeeds) {
@@ -123,7 +122,7 @@ export class Data {
           u.feeds,
           df.keepExistingFeed,
           df.addNewFeed,
-          df);
+      );
       changed = changed || c;
     }
     if (!f.excludeItems) {
@@ -132,7 +131,7 @@ export class Data {
           u.items,
           df.keepExistingItem,
           df.addNewItem,
-          df);
+      );
       changed = changed || c;
     }
     if (!changed) {
@@ -158,8 +157,7 @@ export class FilteredData {
 
 
   public merge(u: Updates): [FilteredData, boolean] {
-    let newData, changed;
-    [newData, changed] = this.data.merge(u, this.filters);
+    const [newData, changed] = this.data.merge(u, this.filters);
     if (!changed) {
       return [this, changed];
     }
@@ -167,4 +165,4 @@ export class FilteredData {
   }
 }
 
-export const EmptyFilteredData = new FilteredData(new Data(), EmptyFilters);
+export const EMPTY_FILTERED_DATA = new FilteredData(new Data(), EMPTY_FILTERS);

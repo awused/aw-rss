@@ -12,7 +12,7 @@ const SAFE_ITEM_URL_PATTERN = /^(?:(?:https?|magnet):|[^&:/?#]*(?:[/?#]|$))/gi;
 export class UrlSanitizePipe implements PipeTransform {
   constructor(private readonly domSanitizer: DomSanitizer) {}
 
-  transform(value: string, args?: void): SafeUrl|null {
+  transform(value: string, _args?: void): SafeUrl|null {
     if (value.match(SAFE_ITEM_URL_PATTERN)) {
       return this.domSanitizer.bypassSecurityTrustUrl(value);
     }

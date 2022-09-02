@@ -6,7 +6,7 @@ WORKDIR /aw-rss
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm install --force
 RUN npm install -g npm-check-updates
 
 COPY . .

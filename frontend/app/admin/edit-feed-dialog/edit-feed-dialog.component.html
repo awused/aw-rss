@@ -51,11 +51,13 @@
         </mat-option>
       </mat-select>
     </mat-form-field>
-    <mat-checkbox [formControl]="feedForm.get('enabled')"
-                  name="enabled"
-                  matTooltip="Disabled feeds will not be fetched and won't appear in the sidenav.">
-      Enabled
-    </mat-checkbox>
+    <div>
+      <mat-checkbox [formControl]="feedForm.get('enabled')"
+                    name="enabled"
+                    matTooltip="Disabled feeds will not be fetched and won't appear in the sidenav.">
+        Enabled
+      </mat-checkbox>
+    </div>
   </mat-dialog-content>
   <mat-dialog-actions align="right">
     <button type="submit"

@@ -1,12 +1,9 @@
 @import 'variables';
 
-// html,
-// body,
-// awrss-root,
-// mat-sidenav-container {
-//   height: 100%;
-//   background-color: mat-color($primary);
-// }
+html {
+  color: white;
+  background-color: #303030;
+}
 
 [mat-button] {
   text-transform: uppercase;

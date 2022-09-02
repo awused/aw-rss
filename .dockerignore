@@ -3,3 +3,5 @@ internal
 dist
 npm-debug.log
 frontend
+.git
+.angular

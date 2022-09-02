@@ -1,6 +1,5 @@
 import {Component,
-        Inject,
-        OnInit} from '@angular/core';
+        Inject} from '@angular/core';
 import {FormControl,
         FormGroup} from '@angular/forms';
 import {MAT_DIALOG_DATA,
@@ -31,7 +30,7 @@ export class EditFeedDialogComponent {
       private readonly snackBar: MatSnackBar,
       private readonly feedTitlePipe: FeedTitlePipe,
       @Inject(MAT_DIALOG_DATA) public readonly data: {
-        feed: Feed,
+        feed: Feed;
       }) {
     this.feed = data.feed;
 

@@ -6,7 +6,7 @@ import {
 import {ActivatedRoute,
         ParamMap,
         Router} from '@angular/router';
-import {EmptyFilteredData,
+import {EMPTY_FILTERED_DATA,
         FilteredData,
         Updates} from 'frontend/app/models/data';
 import {
@@ -45,7 +45,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
   public fuzzyFilterString?: string;
 
   private readonly onDestroy$: Subject<void> = new Subject();
-  private filteredData: FilteredData = EmptyFilteredData;
+  private filteredData: FilteredData = EMPTY_FILTERED_DATA;
 
   private sortedItems: Item[] = [];
   private readonly fuzzyOptions: FilterOptions<Item> = {
@@ -150,7 +150,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
             map((p: ParamMap) => this.paramsToFilters(p)),
             filter((f?: Filters): f is Filters => Boolean(f)),
             tap(() => {
-              this.filteredData = EmptyFilteredData;
+              this.filteredData = EMPTY_FILTERED_DATA;
               this.loadingMore = false;
               this.hasRead = false;
               this.hasAllRead = false;
@@ -196,18 +196,21 @@ export class MainViewComponent implements OnInit, OnDestroy {
     this.loadingMore = true;
     this.dataService.dataForFilters(newFilters)
         .pipe(takeUntil(this.onDestroy$))
-        .subscribe((fd: FilteredData) => {
-          if (!this.feed || this.feed.id !== f.id) {
-            this.loadingMore = false;
-            return;
-          }
+        .subscribe({
+          next: (fd: FilteredData) => {
+            if (!this.feed || this.feed.id !== f.id) {
+              this.loadingMore = false;
+              return;
+            }
 
-          if (initialFilters === this.filteredData.filters) {
-            this.hasRead = true;
-            this.hasAllRead = this.dataService.hasAllRead(this.feed);
-            this.handleNewFilteredData(fd);
-          }
-        }, () => this.loadingMore = false);
+            if (initialFilters === this.filteredData.filters) {
+              this.hasRead = true;
+              this.hasAllRead = this.dataService.hasAllRead(this.feed);
+              this.handleNewFilteredData(fd);
+            }
+          },
+          error: () => this.loadingMore = false
+        });
   }
 
   public showMoreRead() {
@@ -221,14 +224,17 @@ export class MainViewComponent implements OnInit, OnDestroy {
     this.loadingMore = true;
     this.dataService.fetchMoreReadForFeed(this.feed.id)
         .pipe(takeUntil(this.onDestroy$))
-        .subscribe(() => {
-          this.loadingMore = false;
-          if (!this.feed || this.feed.id !== f.id) {
-            return;
-          }
+        .subscribe({
+          next: () => {
+            this.loadingMore = false;
+            if (!this.feed || this.feed.id !== f.id) {
+              return;
+            }
 
-          this.hasAllRead = this.dataService.hasAllRead(f);
-        }, () => this.loadingMore = false);
+            this.hasAllRead = this.dataService.hasAllRead(f);
+          },
+          error: () => this.loadingMore = false
+        });
   }
 
   private handleFuzzy(filterString: string) {
@@ -321,7 +327,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
       f.categoryName = cname;
     }
 
-    return <Filters>f;
+    return f as Filters;
   }
 
   // A faster merge method when the set of items hasn't changed and the update

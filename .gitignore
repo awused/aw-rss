@@ -27,6 +27,7 @@
 !.vscode/extensions.json
 
 # misc
+.angular
 /.sass-cache
 /connect.lock
 /coverage
@@ -35,6 +36,7 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+.todo
 
 # System Files
 .DS_Store

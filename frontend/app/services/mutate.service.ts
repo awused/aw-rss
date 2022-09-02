@@ -2,11 +2,9 @@ import {HttpClient} from '@angular/common/http';
 import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {map,
-        share,
-        tap} from 'rxjs/operators';
+        share} from 'rxjs/operators';
 
-import {Data,
-        Updates} from '../models/data';
+import {Updates} from '../models/data';
 import {
   Category,
   Feed,
@@ -45,7 +43,7 @@ export class MutateService {
 
     // The data service will merge in an item with the same commit_timestamp.
     // This will be overridden by the API response.
-    const optimisticItem: Item = Object.assign({}, it, {read: read});
+    const optimisticItem: Item = Object.assign({}, it, {read});
 
     this.loadingService.startLoading();
     this.dataService.pushUpdates(new Updates(false, [], [], [optimisticItem]));
@@ -98,10 +96,10 @@ export class MutateService {
   }
 
   public editFeed(feed: Feed, edit: {
-    categoryId?: number,
-    clearCategory?: boolean,
-    disabled?: boolean,
-    userTitle?: string
+    categoryId?: number;
+    clearCategory?: boolean;
+    disabled?: boolean;
+    userTitle?: string;
   }): Observable<void> {
     const url = `/api/feeds/${feed.id}/edit`;
     const req = {edit};
@@ -141,10 +139,10 @@ export class MutateService {
   }
 
   public newCategory(req: {
-    name: string,
-    title: string,
-    hiddenNav: boolean,
-    hiddenMain: boolean
+    name: string;
+    title: string;
+    hiddenNav: boolean;
+    hiddenMain: boolean;
   }): Observable<void> {
     const url = `/api/categories/add`;
 
@@ -162,11 +160,11 @@ export class MutateService {
   }
 
   public editCategory(category: Category, edit: {
-    name?: string,
-    title?: string,
-    hiddenMain?: boolean,
-    hiddenNav?: boolean,
-    disabled?: boolean,
+    name?: string;
+    title?: string;
+    hiddenMain?: boolean;
+    hiddenNav?: boolean;
+    disabled?: boolean;
   }): Observable<void> {
     const url = `/api/categories/${category.id}/edit`;
     const req = {edit};
@@ -228,12 +226,13 @@ export class MutateService {
   private subscribe(
       obs: Observable<any>,
       rollback: () => void = () => undefined) {
-    obs.subscribe(
-        () => this.loadingService.finishLoading(),
-        (err: Error) => {
-          this.errorService.showError(err);
-          rollback();
-          this.loadingService.finishLoading();
-        });
+    obs.subscribe({
+      next: () => this.loadingService.finishLoading(),
+      error: (err: Error) => {
+        this.errorService.showError(err);
+        rollback();
+        this.loadingService.finishLoading();
+      }
+    });
   }
 }

@@ -1,6 +1,5 @@
 import {NgModule} from '@angular/core';
 import {
-  RouteReuseStrategy,
   RouterModule,
   Routes
 } from '@angular/router';
