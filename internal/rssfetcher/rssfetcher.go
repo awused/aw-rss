@@ -126,7 +126,7 @@ func (r *rssFetcher) RerunFeed(fid int64) {
 
 	select {
 	case rchans.rerun <- struct{}{}:
-		log.Info("Restarted feed from user request ", fid)
+		log.Info("Restarted feed from user request: ", fid)
 	default:
 	}
 }

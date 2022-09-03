@@ -32,6 +32,13 @@
           mat-icon-button>
     <mat-icon>archive</mat-icon>
   </button>
+  <button class="rerun-button"
+          (click)="rerunFeed()"
+          *ngIf="feed"
+          matTooltip="Rerun this feed now"
+          mat-icon-button>
+    <mat-icon>autorenew</mat-icon>
+  </button>
   <button class="edit-button"
           (click)="edit()"
           *ngIf="feed || category"

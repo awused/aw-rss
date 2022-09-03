@@ -206,6 +206,37 @@ export class MutateService {
     return obs;
   }
 
+  // For now, this is fire and forget
+  public rerunFeed(
+      feedId: number,
+      ): Observable<void> {
+    const url = `/api/feeds/${feedId}/rerun`;
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http.post<Record<string, never>>(url, {})
+            .pipe(
+                map(() => undefined),
+                share());
+
+    this.subscribe(obs);
+    return obs;
+  }
+
+  public rerunFailingFeeds(): Observable<void> {
+    const url = `/api/feeds/rerun-failing`;
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http.post<Record<string, never>>(url, {})
+            .pipe(
+                map(() => undefined),
+                share());
+
+    this.subscribe(obs);
+    return obs;
+  }
+
   public reorderCategories(categoryIds: number[]): Observable<void> {
     // This is probably rare enough to not bother doing optimistically
     const url = `/api/categories/reorder`;

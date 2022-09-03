@@ -82,6 +82,14 @@ export class MainViewHeaderComponent implements OnInit {
         });
   }
 
+  public rerunFeed() {
+    if (!this.feed) {
+      return;
+    }
+
+    this.mutateService.rerunFeed(this.feed.id);
+  }
+
   handleFuzzy(value: string) {
     this.fuzzyString = value;
     this.fuzzyFilterService.pushFuzzyFilterString(value);

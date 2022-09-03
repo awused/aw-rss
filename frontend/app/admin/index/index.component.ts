@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import {Component,
+        OnInit} from '@angular/core';
+import {MutateService} from 'frontend/app/services/mutate.service';
 
 @Component({
   selector: 'awrss-index',
@@ -6,10 +8,14 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./index.component.scss']
 })
 export class IndexComponent implements OnInit {
-
-  constructor() { }
+  constructor(
+      private readonly mutateService: MutateService,
+  ) {}
 
   ngOnInit() {
   }
 
+  rerunFailingFeeds() {
+    this.mutateService.rerunFailingFeeds();
+  }
 }
