@@ -28,6 +28,7 @@ const dbPollPeriod = time.Duration(time.Minute * 5)
 
 // TODO -- make this configurable, along with a maxPollPeriod
 const minPollPeriod = time.Duration(time.Minute * 15)
+const minCloudflarePeriod = time.Duration(time.Minute * 90)
 const RssTimeout = 30 * time.Second
 const startupRateLimit = 250 * time.Millisecond
 
@@ -453,19 +454,26 @@ func (r *rssFetcher) fetchHTTPFeed(
 		}
 	}
 
-	c, ua, err := r.cloudflare.getCookie(f.URL())
-	if err != nil {
-		log.Errorf("Error calling cloudflare.getCookie() for [%s]: %v", f, err)
-		panic(err)
-	}
-	body := r.fetchHTTPBody(f, kill, c, ua)
+	// c, ua, err := r.cloudflare.getCookie(f.URL())
+	// if err != nil {
+	// 	log.Errorf("Error calling cloudflare.getCookie() for [%s]: %v", f, err)
+	// 	panic(err)
+	// }
+	cf := r.cloudflare.getIsCloudflare(f.URL())
+	c, ua := "", ""
+	body := ""
 
-	cf, err := r.cloudflare.isCloudflareResponse(f.URL(), body)
-	if err != nil {
-		log.Errorf("Error calling isCloudflareResponse() for [%s]: %v", f, err)
-		log.Errorf("Body was: \n" + body)
-		panic(err)
+	if !cf {
+		body = r.fetchHTTPBody(f, kill, c, ua)
+
+		cf, err = r.cloudflare.isCloudflareResponse(f.URL(), body)
+		if err != nil {
+			log.Errorf("Error calling isCloudflareResponse() for [%s]: %v", f, err)
+			log.Errorf("Body was: \n" + body)
+			panic(err)
+		}
 	}
+
 	if cf {
 		// Check if we've been killed before making HTTP calls
 		select {
@@ -563,6 +571,11 @@ func (r *rssFetcher) getSleepTime(f *structs.Feed, feed *gofeed.Feed, body strin
 			}
 		}
 	}
+
+	if r.cloudflare.getIsCloudflare(f.URL()) && sleepTime < minCloudflarePeriod {
+		sleepTime = minCloudflarePeriod
+	}
+
 	if sleepTime < minPollPeriod {
 		log.Debugf("Poll period for feed [%s] was %s; using minPollPeriod", f, sleepTime)
 		sleepTime = minPollPeriod

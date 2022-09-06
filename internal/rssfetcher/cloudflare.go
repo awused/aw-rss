@@ -67,12 +67,13 @@ const cloudflareBroken = "Cloudflare may have changed their technique," +
 	"or there may be a bug in the script."
 
 type cloudflare struct {
-	cookies    map[string]string
-	userAgents map[string]string
-	lastFetch  map[string]time.Time
-	cookieLock sync.RWMutex
-	pythonLock sync.Mutex
-	closeChan  <-chan struct{}
+	cookies      map[string]string
+	isCloudflare map[string]bool
+	userAgents   map[string]string
+	lastFetch    map[string]time.Time
+	cookieLock   sync.RWMutex
+	pythonLock   sync.Mutex
+	closeChan    <-chan struct{}
 
 	brokenCfscrape bool
 	// If we have permanent failures, disable these hosts for 6 hours at a time
@@ -87,6 +88,7 @@ func newCloudflare(conf config.Config, closeChan <-chan struct{}) *cloudflare {
 
 	return &cloudflare{
 		cookies:      make(map[string]string),
+		isCloudflare: make(map[string]bool),
 		userAgents:   make(map[string]string),
 		lastFetch:    make(map[string]time.Time),
 		closeChan:    closeChan,
@@ -99,12 +101,17 @@ func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, e
 		return false, nil
 	}
 
+	h, _, h_err := host(feedURL)
+
+	cf.cookieLock.Lock()
+	defer cf.cookieLock.Unlock()
+
 	if strings.Contains(body[0:499], cloudflareBadGateway) ||
 		strings.Contains(body[0:499], cloudflareGatewayTimeout) ||
 		strings.Contains(body[0:499], cloudflareServerDown) ||
 		strings.Contains(body[0:499], cloudflareSSLFailure) {
-		h, _, err := host(feedURL)
-		if err == nil {
+		cf.isCloudflare[h] = true
+		if h_err == nil {
 			cf.setInvalid(h)
 		}
 		return true, errCloudflareBadGateway
@@ -115,14 +122,16 @@ func (cf *cloudflare) isCloudflareResponse(feedURL string, body string) (bool, e
 		!strings.Contains(body[0:499], cloudflareSentinelThree) {
 		return false, nil
 	}
+
+	cf.isCloudflare[h] = true
 	if strings.Contains(body, cloudflareNormal) {
 		return true, nil
 	}
 
-	h, _, err := host(feedURL)
-	if err == nil {
+	if h_err == nil {
 		cf.setInvalid(h)
 	}
+
 	return true, errCloudflareCaptcha
 }
 
@@ -154,6 +163,22 @@ func (cf *cloudflare) getCookie(feedURL string) (
 		err = nil
 	}
 	return c, ua, err
+}
+
+func (cf *cloudflare) getIsCloudflare(feedURL string) bool {
+	h, scheme, err := host(feedURL)
+	if err != nil {
+		return false
+	}
+
+	if scheme != "https" || !trustedHosts[h] {
+		return false
+	}
+
+	cf.cookieLock.RLock()
+	defer cf.cookieLock.RUnlock()
+
+	return cf.isCloudflare[h]
 }
 
 func (cf *cloudflare) getExistingCookie(
@@ -281,11 +306,11 @@ func (cf *cloudflare) getFeedContents(feedURL string) (string, error) {
 	}
 
 	cf.failureLock.Lock()
-	inv := cf.invalidUntil[h]
+	inv, ok := cf.invalidUntil[h]
 	broken := cf.brokenCfscrape
 	cf.failureLock.Unlock()
 
-	if time.Now().Before(inv) {
+	if ok && time.Now().Before(inv) {
 		if broken {
 			return "", errCloudflareBroken
 		}
