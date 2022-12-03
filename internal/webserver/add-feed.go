@@ -123,6 +123,7 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 				return
 			} else {
 				log.Error("No feeds found for ", rawURL)
+				log.Error(body)
 				http.Error(w, "No feed found", http.StatusBadRequest)
 				return
 			}
