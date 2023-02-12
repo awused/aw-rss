@@ -5,14 +5,10 @@
   <a *ngIf="showCategory && category"
      class="category-link mat-body-strong"
      [class.category-pad]="showFeed"
-     routerLink="/category/{{category.name}}">
-    {{category.title}}
-  </a>
+     routerLink="/category/{{category.name}}">{{category.title}}</a>
   <a *ngIf="showFeed"
      class="feed-link mat-body-strong"
-     routerLink="/feed/{{feed.id}}">
-    {{feed | feedTitle}}
-  </a>
+     routerLink="/feed/{{feed.id}}">{{feed | feedTitle}}</a>
 </div>
 <a class="link primary-text"
    [class.item-hover]="itemHover"
