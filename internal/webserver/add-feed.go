@@ -113,7 +113,7 @@ func (ws *webserver) addFeed(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			nodes := htmlquery.Find(parsed, "(//head/link|//body/link)[@type='application/rss+xml' or @type='application/atom+xml']")
+			nodes := htmlquery.Find(parsed, "((//head/link)|(//body/link))[@type='application/rss+xml' or @type='application/atom+xml']")
 			if len(nodes) == 1 {
 				rawURL = htmlquery.SelectAttr(nodes[0], "href")
 				log.Info("Found feed URL in HTML: ", rawURL)
