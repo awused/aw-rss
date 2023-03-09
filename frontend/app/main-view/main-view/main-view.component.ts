@@ -18,6 +18,7 @@ import {
 import {Filters,
         PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
+import {ErrorService} from 'frontend/app/services/error.service';
 import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
 import {ParamService} from 'frontend/app/services/param.service';
@@ -55,6 +56,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
       } else if (this.category) {
         return item.title + ' ' + this.dataService.getFeed(item.feedId).title;
       }
+
       const cid = this.dataService.getFeed(item.feedId).categoryId;
       const cat = cid !== undefined && this.dataService.getCategory(cid)?.title || '';
       return item.title + ' ' + this.dataService.getFeed(item.feedId).title + ' ' + cat;
@@ -75,6 +77,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly dataService: DataService,
+      private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
       private readonly mobileService: MobileService,
       private readonly fuzzyFilterService: FuzzyFilterService) {
@@ -89,6 +92,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
           let changed;
           const oldItemLength = this.filteredData.items.length;
           [this.filteredData, changed] = this.filteredData.merge(u);
+
           if (changed) {
             // Fast path
             if (!u.refresh &&
@@ -334,23 +338,33 @@ export class MainViewComponent implements OnInit, OnDestroy {
   // contains a smaller list of items.
   private mergeItems(items: ReadonlyArray<Item>): void {
     let i = 0;
+    let failed = false;
     const sorted = this.sortItems(items);
 
     sorted.forEach((nit: Item) => {
-      for (; i < this.sortedItems.length; i++) {
+      while (i < this.sortedItems.length) {
         const sit = this.sortedItems[i];
         const cmp = this.compareItems(nit, sit);
         if (cmp < 0) {
+          failed = true;
+          console.error(`Failed to merge updates for item:`, nit);
           return;
         } else if (cmp > 0) {
+          i++;
           continue;
         }
 
         if (nit.commitTimestamp >= sit.commitTimestamp) {
           this.sortedItems[i] = nit;
         }
+        i++;
+        return;
       }
     });
+
+    if (failed) {
+      this.errorService.showError('Failed to merge updates for all items, see console for details');
+    }
   }
 
   private sortItems(items: ReadonlyArray<Item>): Item[] {

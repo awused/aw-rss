@@ -323,6 +323,9 @@ export class DataService {
     const backfillUnread: Set<number> = new Set();
     const backfillRead: Set<number> = new Set();
 
+    // True when all data needs to be replayed.
+    // This can happen when a change can have a splash radius beyond the given category/feed.
+    // Usually this means updates to the layout of the navigation menu.
     let mustReplay = false;
 
     u.categories.forEach((c) => {
@@ -495,6 +498,7 @@ export class DataService {
                       });
                     }
                   }
+
                   // We don't trigger backfills from backfills
                   // There is a bug where this can cause missing items if a user
                   // updates a previously disabled feed to switch its categories
@@ -527,6 +531,7 @@ export class DataService {
                       }
                     });
                   }
+
                   // TODO -- if all the feeds in a category have allRead,
                   // that category has allRead
                   const replayed = this.handleUpdates(u);

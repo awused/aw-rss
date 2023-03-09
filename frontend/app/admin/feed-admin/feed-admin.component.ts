@@ -37,7 +37,10 @@ export class FeedAdminComponent implements OnInit, OnDestroy {
     this.dataService.updates()
         .pipe(takeUntil(this.onDestroy$))
         .subscribe(
-            (u: Updates) => this.filteredData = this.filteredData.merge(u)[0]);
+            (u: Updates) => {
+              this.filteredData = this.filteredData.merge(u)[0];
+              this.handleFuzzy(this.fuzzyFilterString);
+            });
 
     this.dataService.dataForFilters({
                       excludeCategories: true,
