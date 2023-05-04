@@ -35,15 +35,15 @@
       </a>
     </div>
     <mat-form-field>
+      <mat-label>Title Override</mat-label>
       <input matInput
              name="title"
              formControlName="userTitle"
-             placeholder="Title Override"
              matTooltip="Override the automatically detected title of the feed. Optional.">
     </mat-form-field>
     <mat-form-field>
-      <mat-select formControlName="categoryId"
-                  placeholder="Category">
+      <mat-label>Category</mat-label>
+      <mat-select formControlName="categoryId">
         <mat-option [value]="undefined">None</mat-option>
         <mat-option *ngFor="let category of categories"
                     [value]="category.id">

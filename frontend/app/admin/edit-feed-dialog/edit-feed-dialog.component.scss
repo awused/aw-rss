@@ -1,11 +1,8 @@
-.mat-dialog-content {
+mat-dialog-content {
   display: flex;
   flex-direction: column;
   overflow: visible;
-}
-
-.mat-dialog-actions {
-  flex-direction: row-reverse;
+  padding: 0px 24px !important;
 }
 
 button {

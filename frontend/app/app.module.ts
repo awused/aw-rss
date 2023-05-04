@@ -38,7 +38,6 @@ import {PipesModule} from './pipes/pipes.module';
     ServiceWorkerModule.register(
         '/ngsw-worker.js', {enabled: environment.production})
   ],
-  entryComponents: [AppComponent],
   providers: [
     Title,
     {

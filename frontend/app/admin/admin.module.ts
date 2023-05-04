@@ -49,7 +49,7 @@ const routes: Routes = [
     AdminBodyComponent,
     CategoryAdminComponent,
   ],
-  entryComponents: [
+  bootstrap: [
     AddDialogComponent,
     ConfirmationDialogComponent,
     EditFeedDialogComponent,

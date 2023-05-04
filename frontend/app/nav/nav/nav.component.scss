@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @import 'variables';
 
 // TODO - remove https://github.com/angular/material2/pull/14732
@@ -69,7 +70,7 @@
   width: auto;
 
   &.active {
-    background-color: mat-color($primary, lighter);
+    background-color: mat.get-color-from-palette($primary, lighter);
 
     .link {
       color: black;
@@ -114,14 +115,14 @@
 
   .mat-expansion-panel-header {
     &.failing .unread {
-      color: mat-color($warn, darker);
+      color: mat.get-color-from-palette($warn, darker);
     }
 
     &.active {
       background-color: white;
 
       &.failing {
-        background-color: mat-color($warn, darker);
+        background-color: mat.get-color-from-palette($warn, darker);
 
         .unread {
           color: black;
@@ -150,7 +151,7 @@
 }
 
 .uncategorized-target {
-  background-color: mat-color($primary, darker);
+  background-color: mat.get-color-from-palette($primary, darker);
   margin: 0;
   padding: 84px 0;
   text-align: center;

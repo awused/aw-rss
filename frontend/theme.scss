@@ -1,17 +1,20 @@
-@import '~@angular/material/theming';
+@use '@angular/material' as mat;
 @import 'variables';
 
 // Include the common styles for Angular Material. We include this here so that you only
 // have to load a single css file for Angular Material in your app.
 // Be sure that you only ever include this mixin once!
-@include mat-core();
+@include mat.core();
 
 // Include theme styles for core and each component used in your app.
 // Alternatively, you can import and @include the theme mixins for each component
 // that you are using.
-@include angular-material-theme($theme);
+@include mat.core-theme($theme);
+@include mat.all-component-themes($theme);
+@include mat.all-legacy-component-themes($theme);
+@include mat.all-legacy-component-typographies();
 
-// Define a custom mixin that takes in the current theme
+
 @mixin awrss-theme($theme) {
   // Parse the theme and create variables for each color in the pallete
   $primary: map-get($theme, primary);
@@ -20,15 +23,15 @@
 
   // Create theme specfic styles
   .primary-bg {
-    background-color: mat-color($primary, 700);
+    background-color: mat.get-color-from-palette($primary, 700);
   }
 
   .primary-dark-bg {
-    background-color: mat-color($primary, 900)
+    background-color: mat.get-color-from-palette($primary, 900)
   }
 
   .secondary-bg {
-    background-color: mat-color($primary, 800)
+    background-color: mat.get-color-from-palette($primary, 800)
   }
 
   .primary-text {
@@ -36,15 +39,15 @@
   }
 
   .accent-text {
-    color: mat-color($accent);
+    color: mat.get-color-from-palette($accent);
   }
 
   .accent-bg {
-    background-color: mat-color($accent);
+    background-color: mat.get-color-from-palette($accent);
   }
 
   .warn-bg {
-    background-color: mat-color($warn);
+    background-color: mat.get-color-from-palette($warn);
   }
 }
 

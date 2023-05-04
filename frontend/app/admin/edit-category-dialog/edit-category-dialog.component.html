@@ -8,10 +8,10 @@
       name="categoryForm">
   <mat-dialog-content>
     <mat-form-field>
+      <mat-label>Name</mat-label>
       <input matInput
              name="name"
-             formControlName="name"
-             placeholder="Name">
+             formControlName="name">
       <mat-error *ngIf="categoryForm.controls['name'].hasError('pattern')">
         Name must start with a letter and contain only lowercase letters,
         numbers, and hyphens.
@@ -24,10 +24,10 @@
       </mat-error>
     </mat-form-field>
     <mat-form-field>
+      <mat-label>Title</mat-label>
       <input matInput
              name="title"
-             formControlName="title"
-             placeholder="Title">
+             formControlName="title">
       <mat-error *ngIf="categoryForm.controls['title'].hasError('required')">
         Title is required
       </mat-error>

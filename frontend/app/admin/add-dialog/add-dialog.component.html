@@ -1,5 +1,5 @@
 <mat-dialog-content>
-  <mat-tab-group>
+  <mat-tab-group dynamicHeight>
     <mat-tab label="Feed">
       <form [formGroup]="feedForm"
             (ngSubmit)="submitFeed(feedForm.value)"
@@ -7,10 +7,10 @@
             novalidate
             name="feedForm">
         <mat-form-field>
+          <mat-label>URL</mat-label>
           <input matInput
                  name="url"
                  formControlName="url"
-                 placeholder="URL"
                  autofocus>
           <mat-error *ngIf="feedForm.controls['url'].hasError('pattern')">
             URL must be HTTP or HTTPS
@@ -20,10 +20,10 @@
           </mat-error>
         </mat-form-field>
         <mat-form-field>
+          <mat-label>Title Override</mat-label>
           <input matInput
                  name="title"
                  formControlName="title"
-                 placeholder="Title Override"
                  matTooltip="Override the automatically detected title of the feed. Optional.">
         </mat-form-field>
         <div>

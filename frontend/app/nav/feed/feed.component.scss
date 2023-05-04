@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @import 'variables';
 
 :host {
@@ -20,7 +21,7 @@
   }
 
   &.failing .time {
-    color: mat-color($warn);
+    color: mat.get-color-from-palette($warn);
   }
 }
 
@@ -35,14 +36,14 @@
 }
 
 .active {
-  background-color: mat-color($primary, lighter);
+  background-color: mat.get-color-from-palette($primary, lighter);
 
   .link {
     color: black;
   }
 
   &.failing {
-    background-color: mat-color($warn, darker);
+    background-color: mat.get-color-from-palette($warn, darker);
 
     .time {
       color: black;

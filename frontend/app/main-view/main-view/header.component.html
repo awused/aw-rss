@@ -19,7 +19,8 @@
     </div>
   </h2>
   <div class="spacer"></div>
-  <mat-form-field>
+  <!-- Angular Material just doesn't care -->
+  <mat-form-field style=" margin-bottom: -1.5em">
     <input matInput
            [value]="fuzzyString"
            (input)="handleFuzzy($event.target.value)">

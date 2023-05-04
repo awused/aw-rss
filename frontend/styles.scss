@@ -3,10 +3,10 @@
 html {
   color: white;
   background-color: #303030;
-}
-
-[mat-button] {
-  text-transform: uppercase;
+  --mdc-typography-button-text-transform: uppercase;
+  --mdc-dialog-supporting-text-size: 14px;
+  --mdc-typography-body1-font-size: 14px;
+  --mdc-typography-body1-line-height: 20px;
 }
 
 [mattooltipposition] {
@@ -17,7 +17,25 @@ html {
   touch-action: auto !important;
 }
 
-// These must be globall scoped
+.mdc-text-field {
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+.mat-mdc-form-field-focus-overlay {
+  background-color: transparent !important;
+}
+
+.mat-mdc-form-field-infix {
+  min-height: auto !important;
+}
+
+mat-dialog-actions {
+  flex-direction: row-reverse;
+  justify-content: end !important;
+}
+
+// These must be global scoped
 // https://github.com/angular/material2/issues/13983
 mat-sidenav>.mat-drawer-inner-container {
   // Firefox
@@ -44,5 +62,30 @@ awrss-nav {
 
   .mat-expansion-indicator {
     margin-left: 16px;
+  }
+}
+
+.mdc-icon-button {
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+
+  &>*[role=img] {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .mat-mdc-button-touch-target {
+    width: 40px !important;
+    height: 40px !important;
   }
 }

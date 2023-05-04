@@ -20,6 +20,9 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "allowedCommonJsDependencies": [
+              "fuzzy/lib/fuzzy.js"
+            ],
             "outputPath": "dist/",
             "index": "frontend/index.html",
             "main": "frontend/main.ts",
@@ -143,5 +146,4 @@
       }
     }
   },
-  "defaultProject": "frontend"
 }
