@@ -9,26 +9,27 @@
            (input)="handleFuzzy($event.target.value)">
   </mat-form-field>
   <mat-list class="feeds">
-    <mat-list-item class="feed"
-                   *ngFor="let feed of fuzzyFeeds; let even = even; let odd = odd;"
+    <mat-list-item *ngFor="let feed of fuzzyFeeds; let even = even; let odd = odd;"
                    [class.primary-bg]="odd"
                    [class.secondary-bg]="even"
                    [class.disabled]="feed.disabled">
-      <a class="title"
-         [matTooltip]="feed | feedTitle"
-         routerLink="/feed/{{feed.id}}">
-        {{feed | feedTitle}}
-      </a>
-      <a class="url"
-         [matTooltip]="feed.url"
-         [href]="feed.url">
-        {{feed.url}}
-      </a>
-      <div class="spacer"></div>
-      <button (click)="editFeed(feed)"
-              mat-icon-button>
-        <mat-icon>edit</mat-icon>
-      </button>
+      <span class="feed">
+        <a class="title"
+           [matTooltip]="feed | feedTitle"
+           routerLink="/feed/{{feed.id}}">
+          {{feed | feedTitle}}
+        </a>
+        <a class="url"
+           [matTooltip]="feed.url"
+           [href]="feed.url">
+          {{feed.url}}
+        </a>
+        <div class="spacer"></div>
+        <button (click)="editFeed(feed)"
+                mat-icon-button>
+          <mat-icon>edit</mat-icon>
+        </button>
+      </span>
     </mat-list-item>
   </mat-list>
 </awrss-admin-body>

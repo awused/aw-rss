@@ -2,6 +2,10 @@
   padding: 0;
 }
 
+.feed {
+  display: flex;
+}
+
 .title,
 .url {
   overflow: hidden;

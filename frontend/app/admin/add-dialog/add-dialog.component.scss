@@ -1,9 +1,19 @@
+mat-dialog-content {
+  padding-bottom: 8px !important;
+  padding-right: 8px !important;
+}
+
 form {
   display: flex;
   flex-direction: column;
   overflow: visible;
+  padding-right: 16px;
 }
 
 button {
   margin-left: 8px;
+}
+
+.tab-actions {
+  margin-right: -16px;
 }
