@@ -152,7 +152,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
         .pipe(
             takeUntil(this.onDestroy$),
             map((p: ParamMap) => this.paramsToFilters(p)),
-            filter((f?: Filters): f is Filters => Boolean(f)),
+            filter((f: Filters|undefined): f is Filters => Boolean(f)),
             tap(() => {
               this.filteredData = EMPTY_FILTERED_DATA;
               this.loadingMore = false;
