@@ -136,6 +136,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
               }
             }
           }
+
+          if (this.category && this.hasAllRead && !this.dataService.categoryAllRead(this.category)) {
+            this.hasAllRead = false;
+          }
         });
 
     this.dataService.feedUpdates()
@@ -187,58 +191,93 @@ export class MainViewComponent implements OnInit, OnDestroy {
   }
 
   public showRead() {
-    if (!this.feed) {
-      // TODO
-      return;
+    if (this.category) {
+      const c = this.category;
+      const initialFilters = this.filteredData.filters;
+      const newFilters =
+          Object.assign({}, initialFilters, {unreadOnly: false});
+
+      this.loadingMore = true;
+      this.dataService.dataForFilters(newFilters)
+          .pipe(takeUntil(this.onDestroy$))
+          .subscribe({
+            next: (fd: FilteredData) => {
+              if (!this.category || this.category.id !== c.id) {
+                this.loadingMore = false;
+                return;
+              }
+
+              if (initialFilters === this.filteredData.filters) {
+                this.hasRead = true;
+                this.hasAllRead = this.dataService.categoryAllRead(this.category);
+                this.handleNewFilteredData(fd);
+              }
+            },
+            error: () => this.loadingMore = false
+          });
+    } else if (this.feed) {
+      const f = this.feed;
+      const initialFilters = this.filteredData.filters;
+      const newFilters =
+          Object.assign({}, initialFilters, {unreadOnly: false});
+
+      this.loadingMore = true;
+      this.dataService.dataForFilters(newFilters)
+          .pipe(takeUntil(this.onDestroy$))
+          .subscribe({
+            next: (fd: FilteredData) => {
+              if (!this.feed || this.feed.id !== f.id) {
+                this.loadingMore = false;
+                return;
+              }
+
+              if (initialFilters === this.filteredData.filters) {
+                this.hasRead = true;
+                this.hasAllRead = this.dataService.feedAllRead(this.feed);
+                this.handleNewFilteredData(fd);
+              }
+            },
+            error: () => this.loadingMore = false
+          });
     }
-
-    const f = this.feed;
-    const initialFilters = this.filteredData.filters;
-    const newFilters =
-        Object.assign({}, initialFilters, {unreadOnly: false});
-
-    this.loadingMore = true;
-    this.dataService.dataForFilters(newFilters)
-        .pipe(takeUntil(this.onDestroy$))
-        .subscribe({
-          next: (fd: FilteredData) => {
-            if (!this.feed || this.feed.id !== f.id) {
-              this.loadingMore = false;
-              return;
-            }
-
-            if (initialFilters === this.filteredData.filters) {
-              this.hasRead = true;
-              this.hasAllRead = this.dataService.hasAllRead(this.feed);
-              this.handleNewFilteredData(fd);
-            }
-          },
-          error: () => this.loadingMore = false
-        });
   }
 
   public showMoreRead() {
-    if (!this.feed) {
-      // TODO
-      return;
+    if (this.category) {
+      const c = this.category;
+
+      this.loadingMore = true;
+      this.dataService.fetchMoreReadForCategory(this.category.id)
+          .pipe(takeUntil(this.onDestroy$))
+          .subscribe({
+            next: () => {
+              this.loadingMore = false;
+              if (!this.category || this.category.id !== c.id) {
+                return;
+              }
+
+              this.hasAllRead = this.dataService.categoryAllRead(this.category);
+            },
+            error: () => this.loadingMore = false
+          });
+    } else if (this.feed) {
+      const f = this.feed;
+
+      this.loadingMore = true;
+      this.dataService.fetchMoreReadForFeed(this.feed.id)
+          .pipe(takeUntil(this.onDestroy$))
+          .subscribe({
+            next: () => {
+              this.loadingMore = false;
+              if (!this.feed || this.feed.id !== f.id) {
+                return;
+              }
+
+              this.hasAllRead = this.dataService.feedAllRead(this.feed);
+            },
+            error: () => this.loadingMore = false
+          });
     }
-
-    const f = this.feed;
-
-    this.loadingMore = true;
-    this.dataService.fetchMoreReadForFeed(this.feed.id)
-        .pipe(takeUntil(this.onDestroy$))
-        .subscribe({
-          next: () => {
-            this.loadingMore = false;
-            if (!this.feed || this.feed.id !== f.id) {
-              return;
-            }
-
-            this.hasAllRead = this.dataService.hasAllRead(f);
-          },
-          error: () => this.loadingMore = false
-        });
   }
 
   private handleFuzzy(filterString: string) {

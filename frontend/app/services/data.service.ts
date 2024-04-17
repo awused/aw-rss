@@ -83,8 +83,8 @@ class FeedMetadata {
     this.readAfter = d;
   }
 
-  public hasReadAfter(d: Date): boolean {
-    return this.allRead || (this.readAfter && this.readAfter >= d) || false;
+  public hasReadAfter(d: Date|undefined): boolean {
+    return !d || this.allRead || (this.readAfter && this.readAfter >= d) || false;
   }
 
   public hasRead(): boolean {
@@ -95,16 +95,27 @@ class FeedMetadata {
 // Data about what is present in the cache for this category
 class CategoryMetadata {
   constructor(
-      public category: Category) {}
-}
+      public category: Category,
+      // True only when we know we have all read items from the database
+      public allRead: boolean,
+      public readAfter?: Date) {}
 
-// A component that cares about read items will need to subscribe
-// so that missing data is fetched when necessary
-export interface ReadSubscription {
-  readonly category?: number;
-  readonly readAfter: Date;
-}
+  public setReadAfter(d: Date) {
+    if (this.readAfter && d >= this.readAfter) {
+      return;
+    }
 
+    this.readAfter = d;
+  }
+
+  public hasReadAfter(d: Date): boolean {
+    return this.allRead || (this.readAfter && this.readAfter >= d) || false;
+  }
+
+  public hasRead(): boolean {
+    return this.allRead || this.readAfter !== undefined;
+  }
+}
 
 
 @Injectable({
@@ -190,6 +201,16 @@ export class DataService {
         fetches.push(
             this.fetchMoreReadForFeed(f.feedId));
       }
+    } else if (f.categoryName !== undefined) {
+      // This is going to be rare, and we already do linear searches in handleUpdates.
+      for (let cm of this.categoryMetadata.values()) {
+        if (cm.category.name === f.categoryName) {
+          if (!cm.hasRead()) {
+            fetches.push(this.fetchMoreReadForCategory(cm.category.id));
+          }
+          break;
+        }
+      }
     }
 
     if (!fetches.length) {
@@ -219,6 +240,19 @@ export class DataService {
     });
   }
 
+  public fetchMoreReadForCategory(id: number): Observable<void> {
+    const cm = this.categoryMetadata.get(id);
+    if (!cm || cm.allRead) {
+      return of(undefined);
+    }
+
+    const readBefore = cm.readAfter || new Date(this.timestamp * 1000);
+    return this.getItems({
+      categoryId: id,
+      readBefore
+    });
+  }
+
   public updates(): Observable<Updates> {
     return this.updates$;
   }
@@ -242,9 +276,14 @@ export class DataService {
   }
 
   // TODO -- Feed | Category | all
-  public hasAllRead(feed: Feed): boolean {
+  public feedAllRead(feed: Feed): boolean {
     const fd = this.feedMetadata.get(feed.id);
     return Boolean(fd?.allRead);
+  }
+
+  public categoryAllRead(category: Category): boolean {
+    const cm = this.categoryMetadata.get(category.id);
+    return Boolean(cm?.allRead);
   }
 
   public getInitialTimestampForFeed(id: number): string|undefined {
@@ -277,7 +316,7 @@ export class DataService {
   }
 
   // Returns whether it replayed all data or not
-  private handleUpdates(u: Updates): boolean {
+  private handleUpdates(u: Updates, pushEmpty?: boolean): boolean {
     // Handle cases where feed/entities need to be fetched or replayed
     // Handle these asynchronously, after starting a spinner
 
@@ -310,7 +349,7 @@ export class DataService {
       u = new Updates(u.refresh);
     }
 
-    if (!u.isEmpty()) {
+    if (!u.isEmpty() || pushEmpty) {
       this.updates$.next(u);
     }
     return replayed;
@@ -355,7 +394,7 @@ export class DataService {
 
       this.categoryMetadata.set(
           c.id,
-          new CategoryMetadata(c));
+          new CategoryMetadata(c, false));
       mustReplay = true;
     });
 
@@ -400,6 +439,10 @@ export class DataService {
               (cm.category.hiddenNav || cm.category.hiddenMain)) {
             mustReplay = true;
           }
+
+          if (cm && !m.hasReadAfter(cm.readAfter)) {
+            backfillRead.add(f.id);
+          }
         }
 
         // Check for missing global time ranges and fetch missing data
@@ -440,30 +483,64 @@ export class DataService {
     return [mustReplay, backfillUnread, backfillRead];
   }
 
-  // TODO -- needs more than just IDs for read
   private maybeBackfill(unread: Set<number>, read: Set<number>) {
     if (!unread.size && !read.size) {
       return;
     }
 
-    // We will never have feeds where we only care about read items
-    const unreadOnly = [...unread].filter((x) => !read.has(x));
-    if (unreadOnly.length) {
+    if (unread.size) {
       this.getItems({
-            feedIds: [...unreadOnly],
+            feedIds: [...unread],
             unread: true,
           })
           .subscribe();
     }
+
     if (read.size) {
-      // TODO
-      console.log(`Would fetch read items for ${[...read]}`);
+      // It should be rare that we need to backfill read items from multiple categories.
+      // So just find the minimum read time between all categories and go with that.
+      let minRead = undefined;
+      for (let fid of read) {
+        const fm = this.feedMetadata.get(fid);
+        if (!fm) {
+          continue;
+        }
+
+        const cm = fm.feed.categoryId !== undefined && this.feedMetadata.get(fm.feed.categoryId);
+        if (cm && cm.readAfter !== undefined) {
+          if (minRead === undefined || cm.readAfter < minRead) {
+            minRead = cm.readAfter;
+          }
+        }
+      }
+
+      this.getItems({
+            feedIds: [...read],
+            unread: false,
+            readAfter: minRead,
+          })
+          .subscribe();
     }
+  }
+
+  private getFeedsInCategory(categoryId: number): Set<number> {
+    const feeds = new Set<number>();
+    for (let fm of this.feedMetadata.values()) {
+      if (fm.feed.categoryId === categoryId) {
+        feeds.add(fm.feed.id);
+      }
+    }
+    return feeds;
   }
 
   private getItems(req: GetItemsRequest): Observable<void> {
     if (req.readBefore && !req.readBeforeCount) {
       req.readBeforeCount = READ_ITEMS_PAGE_SIZE;
+    }
+
+    let oldFeeds = new Set<number>();
+    if (req.categoryId !== undefined) {
+      oldFeeds = this.getFeedsInCategory(req.categoryId);
     }
 
     this.loadingService.startLoading();
@@ -480,8 +557,18 @@ export class DataService {
                   const u = new Updates(false, [], resp.feeds, resp.items);
                   let allRead = false;
                   let minRead: Date|undefined;
+                  let feedIds = req.feedIds;
+                  let pushEmpty = false;
+
                   if (req.readBefore) {
                     minRead = req.readBefore;
+
+                    resp.items.forEach((item: Item) => {
+                      if (item.read &&
+                          (!minRead || new Date(item.timestamp) < minRead)) {
+                        minRead = new Date(item.timestamp);
+                      }
+                    });
 
                     const pageSize = req.readBeforeCount ||
                         READ_ITEMS_PAGE_SIZE;
@@ -489,27 +576,43 @@ export class DataService {
                       // It's possible for some feeds inside a category to have
                       // allRead but for this to be false, but that's fine.
                       allRead = true;
-                    } else {
-                      resp.items.forEach((item: Item) => {
-                        if (item.read &&
-                            (!minRead || new Date(item.timestamp) < minRead)) {
-                          minRead = new Date(item.timestamp);
-                        }
-                      });
                     }
                   }
+
+                  const readAfter = req.readAfter || minRead;
 
                   // We don't trigger backfills from backfills
                   // There is a bug where this can cause missing items if a user
                   // updates a previously disabled feed to switch its categories
                   // between a refresh and when the backfill completes, but that is
                   // simply not worth handling.
+                  // It could better be solved by preventing concurrent updates and refreshes.
                   const mustReplay = this.mergeMetadata(u, req.unread)[0];
-                  // TODO -- Also handle updating category metadata
-                  // including feeds in those categories
 
-                  if (req.feedIds) {
-                    req.feedIds.forEach((fid: number) => {
+                  if (req.categoryId !== undefined && req.readBefore) {
+                    const cm = this.categoryMetadata.get(req.categoryId);
+                    if (cm) {
+                      const newFeeds = this.getFeedsInCategory(req.categoryId);
+
+                      if (readAfter) {
+                        cm.setReadAfter(readAfter);
+                      }
+
+                      feedIds = [];
+                      for (let fid of oldFeeds) {
+                        if (newFeeds.has(fid)) {
+                          feedIds.push(fid);
+                        }
+                      }
+
+                      if (allRead) {
+                        cm.allRead = true;
+                      }
+                    }
+                  }
+
+                  if (feedIds) {
+                    feedIds.forEach((fid: number) => {
                       const fm = this.feedMetadata.get(fid);
                       if (!fm) {
                         return;
@@ -519,22 +622,23 @@ export class DataService {
                         fm.hasUnread = true;
                       }
 
+                      if (readAfter) {
+                        fm.setReadAfter(readAfter);
+                      }
+
                       if (allRead) {
                         fm.allRead = true;
-                      } else {
-                        if (req.readAfter) {
-                          fm.setReadAfter(req.readAfter);
-                        }
-                        if (minRead) {
-                          fm.setReadAfter(minRead);
+                      } else if (fm.feed.categoryId !== undefined) {
+                        const cm = this.categoryMetadata.get(fm.feed.categoryId);
+                        if (cm && cm.allRead) {
+                          cm.allRead = false;
+                          pushEmpty = true;
                         }
                       }
                     });
                   }
 
-                  // TODO -- if all the feeds in a category have allRead,
-                  // that category has allRead
-                  const replayed = this.handleUpdates(u);
+                  const replayed = this.handleUpdates(u, pushEmpty);
                   if (mustReplay && !replayed) {
                     this.updates$.next(
                         new Updates(
@@ -571,11 +675,11 @@ export class DataService {
 
             this.data.feeds.forEach(
                 (f) => this.feedMetadata.set(
-                    f.id, new FeedMetadata(f, true, false)));
+                    f.id, new FeedMetadata(f, /* hasUnread= */ true, /* allRead= */ false)));
 
             this.data.categories.forEach(
                 (c) => this.categoryMetadata.set(
-                    c.id, new CategoryMetadata(c)));
+                    c.id, new CategoryMetadata(c, /* allRead= */ false)));
 
             this.data$.next(this.data);
           },
