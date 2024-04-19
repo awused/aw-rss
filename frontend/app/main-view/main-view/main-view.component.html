@@ -8,11 +8,11 @@
 </awrss-main-view-header>
 
 <div class="viewport"
+     [class.mobile]="mobile | async"
      cdkVirtualScrollingElement>
   <cdk-virtual-scroll-viewport #itemScroll
                                itemSize="52"
-                               class="item-list"
-                               [class.mobile]="mobile | async">
+                               class="item-list">
     <!-- <awrss&#45;main&#45;view&#45;header *ngIf="mobile | async" -->
     <!--                         class="header" -->
     <!--                         [mobile]="true" -->
