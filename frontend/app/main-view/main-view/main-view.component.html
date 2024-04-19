@@ -7,24 +7,27 @@
                         (fuzzyFilterString)="handleFuzzy($event)">
 </awrss-main-view-header>
 
-<cdk-virtual-scroll-viewport #itemScroll
-                             itemSize="52"
-                             class="item-list"
-                             [class.mobile]="mobile | async">
-  <!-- <awrss&#45;main&#45;view&#45;header *ngIf="mobile | async" -->
-  <!--                         class="header" -->
-  <!--                         [mobile]="true" -->
-  <!--                         [feed]="feed" -->
-  <!--                         [category]="category" -->
-  <!--                         [maxItemId]="maxItemId"> -->
-  <!-- </awrss&#45;main&#45;view&#45;header> -->
-  <awrss-item *cdkVirtualFor="let item of fuzzyItems; let even = even; let odd = odd"
-              [item]="item"
-              [showFeed]="!feed"
-              [showCategory]="!category && !feed"
-              [class.primary-bg]="odd"
-              [class.secondary-bg]="even">
-  </awrss-item>
+<div class="viewport"
+     cdkVirtualScrollingElement>
+  <cdk-virtual-scroll-viewport #itemScroll
+                               itemSize="52"
+                               class="item-list"
+                               [class.mobile]="mobile | async">
+    <!-- <awrss&#45;main&#45;view&#45;header *ngIf="mobile | async" -->
+    <!--                         class="header" -->
+    <!--                         [mobile]="true" -->
+    <!--                         [feed]="feed" -->
+    <!--                         [category]="category" -->
+    <!--                         [maxItemId]="maxItemId"> -->
+    <!-- </awrss&#45;main&#45;view&#45;header> -->
+    <awrss-item *cdkVirtualFor="let item of fuzzyItems; let even = even; let odd = odd"
+                [item]="item"
+                [showFeed]="!feed"
+                [showCategory]="!category && !feed"
+                [class.primary-bg]="odd"
+                [class.secondary-bg]="even">
+    </awrss-item>
+  </cdk-virtual-scroll-viewport>
 
   <div class="show-more primary-dark-bg"
        *ngIf="!hasAllRead">
@@ -41,4 +44,4 @@
       Show More
     </button>
   </div>
-</cdk-virtual-scroll-viewport>
+</div>
