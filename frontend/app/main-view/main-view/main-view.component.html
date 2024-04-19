@@ -27,7 +27,7 @@
   </awrss-item>
 
   <div class="show-more primary-dark-bg"
-       *ngIf="(feed || category) && !hasAllRead">
+       *ngIf="!hasAllRead">
     <button [disabled]="loadingMore"
             *ngIf="!hasRead"
             (click)="showRead()"

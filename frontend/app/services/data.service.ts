@@ -128,15 +128,15 @@ export class DataService {
   private readonly updates$: Subject<Updates> = new Subject<Updates>();
   private readonly feedUpdates$: Observable<void>;
   private readonly categoryUpdates$: Observable<void>;
-  // All enabled feeds have read items back _at least_ this far
-  // This only applies to read items that have been deliberately fetched
-  // private oldestReadItemId: number|undefined = undefined;
   private hasAllFeeds = false;
   // private hasAllCategories = false;
   private feedMetadata: Map<number, FeedMetadata> = new Map();
   private categoryMetadata: Map<number, CategoryMetadata> = new Map();
   // For now it's enough to just do this at initial load
   private initialNewestTimestamps: {[x: number]: string} = {};
+  private allRead: boolean = false;
+  private readAfter?: Date;
+  private lastClean: Date = new Date();
 
   constructor(
       private readonly http: HttpClient,
@@ -179,7 +179,7 @@ export class DataService {
       fetches.push(
           this.waitForInitialFetch()
               .pipe(
-                  mergeMap(() => this.fetchReadForFilters(f))));
+                  mergeMap(() => this.fetchInitialReadForFilters(f))));
     }
 
     // TODO -- Handle disabled missing data synchronously
@@ -192,7 +192,8 @@ export class DataService {
     return this.filteredDataForFilters(f);
   }
 
-  private fetchReadForFilters(f: Filters): Observable<void> {
+  // Fetches the initial page of read items if we don't already have any.
+  private fetchInitialReadForFilters(f: Filters): Observable<void> {
     const fetches = [];
 
     if (f.feedId !== undefined) {
@@ -211,6 +212,8 @@ export class DataService {
           break;
         }
       }
+    } else if (!this.hasRead()) {
+      fetches.push(this.fetchMoreReadForAll());
     }
 
     if (!fetches.length) {
@@ -253,6 +256,15 @@ export class DataService {
     });
   }
 
+  public fetchMoreReadForAll(): Observable<void> {
+    if (this.allRead) {
+      return of(undefined);
+    }
+
+    const readBefore = this.readAfter || new Date(this.timestamp * 1000);
+    return this.getItems({readBefore});
+  }
+
   public updates(): Observable<Updates> {
     return this.updates$;
   }
@@ -275,7 +287,6 @@ export class DataService {
     return (this.feedMetadata.get(id) as FeedMetadata).feed;
   }
 
-  // TODO -- Feed | Category | all
   public feedAllRead(feed: Feed): boolean {
     const fd = this.feedMetadata.get(feed.id);
     return Boolean(fd?.allRead);
@@ -284,6 +295,10 @@ export class DataService {
   public categoryAllRead(category: Category): boolean {
     const cm = this.categoryMetadata.get(category.id);
     return Boolean(cm?.allRead);
+  }
+
+  public hasAllRead(): boolean {
+    return this.allRead;
   }
 
   public getInitialTimestampForFeed(id: number): string|undefined {
@@ -299,6 +314,34 @@ export class DataService {
 
   public pushUpdates(u: Updates) {
     this.handleUpdates(u);
+  }
+
+  // Only called when refreshing a main view with no read items visible
+  public maybeCleanRead() {
+    const now = new Date();
+    if (now.valueOf() - this.lastClean.valueOf() < 24 * 60 * 60 * 1000) {
+      return;
+    }
+
+    this.lastClean = now;
+    for (let fm of this.feedMetadata.values()) {
+      fm.allRead = false;
+      fm.readAfter = undefined;
+    }
+    for (let cm of this.categoryMetadata.values()) {
+      cm.allRead = false;
+      cm.readAfter = undefined;
+    }
+    this.allRead = false;
+    this.readAfter = undefined;
+
+    const items = this.data.items.filter((it) => !it.read);
+    // We don't need to update the data subject because nothing is listening for read items.
+    this.data = new Data(this.data.categories, this.data.feeds, items);
+  }
+
+  private hasRead(): boolean {
+    return this.allRead || this.readAfter !== undefined;
   }
 
   private handleRefresh(su: ServerUpdates): void {
@@ -426,10 +469,6 @@ export class DataService {
 
         if (oldFeed.categoryId !== f.categoryId) {
           mustReplay = true;
-          // if (this.sub && (!this.sub.id || f.categoryId == this.sub.id)) {
-          // Check for missing time ranges in category subscriptions
-          // Fetch if necessary
-          // }
         }
 
         if (f.categoryId !== undefined) {
@@ -443,6 +482,10 @@ export class DataService {
           if (cm && !m.hasReadAfter(cm.readAfter)) {
             backfillRead.add(f.id);
           }
+        }
+
+        if (!m.hasReadAfter(this.readAfter)) {
+          backfillRead.add(f.id);
         }
 
         // Check for missing global time ranges and fetch missing data
@@ -471,11 +514,6 @@ export class DataService {
       if (!isBackfill && f.createTimestamp < this.timestamp) {
         // Do Fetches
         backfillUnread.add(f.id);
-
-        // if (this.sub && (!this.sub.id || f.categoryId == this.sub.id)) {
-        // Check for missing time ranges in category subscriptions
-        // Fetch if necessary
-        // }
       }
     });
 
@@ -499,7 +537,7 @@ export class DataService {
     if (read.size) {
       // It should be rare that we need to backfill read items from multiple categories.
       // So just find the minimum read time between all categories and go with that.
-      let minRead = undefined;
+      let minRead = this.readAfter;
       for (let fid of read) {
         const fm = this.feedMetadata.get(fid);
         if (!fm) {
@@ -586,8 +624,31 @@ export class DataService {
                   // updates a previously disabled feed to switch its categories
                   // between a refresh and when the backfill completes, but that is
                   // simply not worth handling.
-                  // It could better be solved by preventing concurrent updates and refreshes.
+                  // It could be better solved by preventing concurrent updates and refreshes.
                   const mustReplay = this.mergeMetadata(u, req.unread)[0];
+
+                  if (req.categoryId === undefined && !feedIds && req.readBefore) {
+                    this.readAfter = readAfter;
+                    this.allRead = allRead;
+
+                    for (let cm of this.categoryMetadata.values()) {
+                      if (readAfter) {
+                        cm.setReadAfter(readAfter);
+                      }
+                      if (allRead) {
+                        cm.allRead = true;
+                      }
+                    }
+
+                    for (let fm of this.feedMetadata.values()) {
+                      if (readAfter) {
+                        fm.setReadAfter(readAfter);
+                      }
+                      if (allRead) {
+                        fm.allRead = true;
+                      }
+                    }
+                  }
 
                   if (req.categoryId !== undefined && req.readBefore) {
                     const cm = this.categoryMetadata.get(req.categoryId);
@@ -632,6 +693,13 @@ export class DataService {
                         const cm = this.categoryMetadata.get(fm.feed.categoryId);
                         if (cm && cm.allRead) {
                           cm.allRead = false;
+                          // The category itself hasn't changed, but the main view reads
+                          // categoryMetadata.allRead on every update, so an update needs to happen.
+                          pushEmpty = true;
+                        }
+
+                        if (this.allRead) {
+                          this.allRead = false;
                           pushEmpty = true;
                         }
                       }

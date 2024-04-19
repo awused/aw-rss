@@ -93,6 +93,10 @@ export class MainViewComponent implements OnInit, OnDestroy {
           const oldItemLength = this.filteredData.items.length;
           [this.filteredData, changed] = this.filteredData.merge(u);
 
+          if (u.refresh && !this.hasRead) {
+            this.dataService.maybeCleanRead();
+          }
+
           if (changed) {
             // Fast path
             if (!u.refresh &&
@@ -137,7 +141,13 @@ export class MainViewComponent implements OnInit, OnDestroy {
             }
           }
 
-          if (this.category && this.hasAllRead && !this.dataService.categoryAllRead(this.category)) {
+          // These can turn false during backfill when feeds are added to categories or re-enabled.
+          if (this.category &&
+              this.hasAllRead &&
+              !this.dataService.categoryAllRead(this.category)) {
+            this.hasAllRead = false;
+          } else if (
+              !this.category && !this.feed && this.hasAllRead && !this.dataService.hasAllRead()) {
             this.hasAllRead = false;
           }
         });
@@ -176,108 +186,119 @@ export class MainViewComponent implements OnInit, OnDestroy {
     this.fuzzyFilterService.fuzzyFilterString()
         .pipe(takeUntil(this.onDestroy$))
         .subscribe((s: string) => this.handleFuzzy(s));
-
-    // TODO -- maybe control if show-more is visible to reduce jank
-    /*
-    this.itemScroll.renderedRangeStream
-      .pipe(takeUntil(this.onDestroy$))
-      .subscribe((lr: ListRange) => {
-      });
-     */
   }
 
   public getFeed(id: number): Feed {
     return this.dataService.getFeed(id);
   }
 
+  // The first time the user clicks "show read" we start keeping read items through refreshes.
   public showRead() {
+    const initialFilters = this.filteredData.filters;
+    const newFilters =
+        Object.assign({}, initialFilters, {unreadOnly: false});
+
+    this.loadingMore = true;
+    let next;
     if (this.category) {
       const c = this.category;
-      const initialFilters = this.filteredData.filters;
-      const newFilters =
-          Object.assign({}, initialFilters, {unreadOnly: false});
+      next = (fd: FilteredData) => {
+        if (!this.category || this.category.id !== c.id) {
+          this.loadingMore = false;
+          return;
+        }
 
-      this.loadingMore = true;
-      this.dataService.dataForFilters(newFilters)
-          .pipe(takeUntil(this.onDestroy$))
-          .subscribe({
-            next: (fd: FilteredData) => {
-              if (!this.category || this.category.id !== c.id) {
-                this.loadingMore = false;
-                return;
-              }
+        if (initialFilters === this.filteredData.filters) {
+          this.hasRead = true;
+          this.hasAllRead = this.dataService.categoryAllRead(this.category);
+          this.handleNewFilteredData(fd);
+        }
+      };
 
-              if (initialFilters === this.filteredData.filters) {
-                this.hasRead = true;
-                this.hasAllRead = this.dataService.categoryAllRead(this.category);
-                this.handleNewFilteredData(fd);
-              }
-            },
-            error: () => this.loadingMore = false
-          });
     } else if (this.feed) {
       const f = this.feed;
-      const initialFilters = this.filteredData.filters;
-      const newFilters =
-          Object.assign({}, initialFilters, {unreadOnly: false});
 
-      this.loadingMore = true;
-      this.dataService.dataForFilters(newFilters)
-          .pipe(takeUntil(this.onDestroy$))
-          .subscribe({
-            next: (fd: FilteredData) => {
-              if (!this.feed || this.feed.id !== f.id) {
-                this.loadingMore = false;
-                return;
-              }
+      next = (fd: FilteredData) => {
+        if (!this.feed || this.feed.id !== f.id) {
+          this.loadingMore = false;
+          return;
+        }
 
-              if (initialFilters === this.filteredData.filters) {
-                this.hasRead = true;
-                this.hasAllRead = this.dataService.feedAllRead(this.feed);
-                this.handleNewFilteredData(fd);
-              }
-            },
-            error: () => this.loadingMore = false
-          });
+        if (initialFilters === this.filteredData.filters) {
+          this.hasRead = true;
+          this.hasAllRead = this.dataService.feedAllRead(this.feed);
+          this.handleNewFilteredData(fd);
+        }
+      };
+    } else {
+      next = (fd: FilteredData) => {
+        if (this.feed || this.category) {
+          this.loadingMore = false;
+          return;
+        }
+
+        if (initialFilters === this.filteredData.filters) {
+          this.hasRead = true;
+          this.hasAllRead = this.dataService.hasAllRead();
+          this.handleNewFilteredData(fd);
+        }
+      };
     }
+
+    this.dataService.dataForFilters(newFilters)
+        .pipe(takeUntil(this.onDestroy$))
+        .subscribe({
+          next,
+          error: () => this.loadingMore = false
+        });
   }
 
   public showMoreRead() {
+    this.loadingMore = true;
+    let obs;
+    let next;
+
     if (this.category) {
       const c = this.category;
 
-      this.loadingMore = true;
-      this.dataService.fetchMoreReadForCategory(this.category.id)
-          .pipe(takeUntil(this.onDestroy$))
-          .subscribe({
-            next: () => {
-              this.loadingMore = false;
-              if (!this.category || this.category.id !== c.id) {
-                return;
-              }
+      obs = this.dataService.fetchMoreReadForCategory(this.category.id);
+      next = () => {
+        this.loadingMore = false;
+        if (!this.category || this.category.id !== c.id) {
+          return;
+        }
 
-              this.hasAllRead = this.dataService.categoryAllRead(this.category);
-            },
-            error: () => this.loadingMore = false
-          });
+        this.hasAllRead = this.dataService.categoryAllRead(this.category);
+      };
     } else if (this.feed) {
       const f = this.feed;
 
-      this.loadingMore = true;
-      this.dataService.fetchMoreReadForFeed(this.feed.id)
-          .pipe(takeUntil(this.onDestroy$))
-          .subscribe({
-            next: () => {
-              this.loadingMore = false;
-              if (!this.feed || this.feed.id !== f.id) {
-                return;
-              }
+      obs = this.dataService.fetchMoreReadForFeed(this.feed.id);
+      next = () => {
+        this.loadingMore = false;
+        if (!this.feed || this.feed.id !== f.id) {
+          return;
+        }
 
-              this.hasAllRead = this.dataService.feedAllRead(this.feed);
-            },
-            error: () => this.loadingMore = false
-          });
+        this.hasAllRead = this.dataService.feedAllRead(this.feed);
+      };
+    } else {
+      obs = this.dataService.fetchMoreReadForAll();
+      next = () => {
+        this.loadingMore = false;
+        if (this.category || this.feed) {
+          return;
+        }
+
+        this.hasAllRead = this.dataService.hasAllRead();
+      };
     }
+
+    obs.pipe(takeUntil(this.onDestroy$))
+        .subscribe({
+          next,
+          error: () => this.loadingMore = false
+        });
   }
 
   private handleFuzzy(filterString: string) {
