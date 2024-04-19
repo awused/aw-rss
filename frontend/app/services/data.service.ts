@@ -86,10 +86,6 @@ class FeedMetadata {
   public hasReadAfter(d: Date|undefined): boolean {
     return !d || this.allRead || (this.readAfter && this.readAfter >= d) || false;
   }
-
-  public hasRead(): boolean {
-    return this.allRead || this.readAfter !== undefined;
-  }
 }
 
 // Data about what is present in the cache for this category
@@ -110,10 +106,6 @@ class CategoryMetadata {
 
   public hasReadAfter(d: Date): boolean {
     return this.allRead || (this.readAfter && this.readAfter >= d) || false;
-  }
-
-  public hasRead(): boolean {
-    return this.allRead || this.readAfter !== undefined;
   }
 }
 
@@ -198,21 +190,50 @@ export class DataService {
 
     if (f.feedId !== undefined) {
       const fd = this.feedMetadata.get(f.feedId);
-      if (fd && !fd.hasRead()) {
-        fetches.push(
-            this.fetchMoreReadForFeed(f.feedId));
+      if (fd) {
+        const readAfter = fd.readAfter;
+        // It's possible for readAfter to be set by a category/all call, but for no read items to
+        // actually be present for this feed.
+        const hasLocalRead = fd.allRead ||
+            (readAfter !== undefined &&
+             !!this.data.items.find(
+                 (it) => it.feedId === f.feedId && it.read && new Date(it.timestamp) >= readAfter));
+
+        if (!hasLocalRead) {
+          fetches.push(
+              this.fetchMoreReadForFeed(f.feedId));
+        }
       }
     } else if (f.categoryName !== undefined) {
       // This is going to be rare, and we already do linear searches in handleUpdates.
+      let cd;
       for (let cm of this.categoryMetadata.values()) {
         if (cm.category.name === f.categoryName) {
-          if (!cm.hasRead()) {
-            fetches.push(this.fetchMoreReadForCategory(cm.category.id));
-          }
+          cd = cm;
           break;
         }
       }
+
+      if (cd) {
+        const readAfter = cd.readAfter;
+        const categoryId = cd.category.id;
+        const itemInCategory =
+            ((it: Item) => this.feedMetadata.get(it.feedId)?.feed.categoryId === categoryId);
+
+        // It's possible for readAfter to be set by an all feeds read call, but for no read items to
+        // actually be present for this category.
+        const hasLocalRead = cd.allRead ||
+            (readAfter !== undefined &&
+             !!this.data.items.find(
+                 (it) => it.read && new Date(it.timestamp) >= readAfter && itemInCategory(it)));
+
+        if (!hasLocalRead) {
+          fetches.push(this.fetchMoreReadForCategory(categoryId));
+        }
+      }
     } else if (!this.hasRead()) {
+      // If all the read items are in hidden categories, this might result in no read items being
+      // visible on first click, but that's a niche enough problem it's not worth fixing.
       fetches.push(this.fetchMoreReadForAll());
     }
 
