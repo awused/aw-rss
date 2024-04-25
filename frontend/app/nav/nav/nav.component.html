@@ -19,24 +19,20 @@
     </div>
   </a>
 </div>
-<div class="home-link"
-     *ngIf="isMobile"
-     routerLinkActive="active"
-     [routerLinkActiveOptions]="{exact:true}">
-  <a class="
-     link
-     mat-subheading-1"
-     routerLink="/">
-    <div class="title">
-      All Feeds
-    </div>
-    <div class="spacer"></div>
-    <div class="unread"
-         *ngIf="mainUnread">
-      ({{mainUnread}})
-    </div>
-  </a>
-</div>
+<a class="home-link link mat-subheading-1"
+   *ngIf="isMobile"
+   routerLink=""
+   routerLinkActive="active"
+   [routerLinkActiveOptions]="{exact:true}">
+  <div class="title">
+    All Feeds
+  </div>
+  <div class="spacer"></div>
+  <div class="unread"
+       *ngIf="mainUnread">
+    ({{mainUnread}})
+  </div>
+</a>
 <!-- TODO
    https://github.com/angular/material2/pull/14732
    [cdkDragStartDelay]="isMobile ? 1000 : 0"

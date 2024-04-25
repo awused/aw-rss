@@ -24,14 +24,14 @@
 }
 
 .home-link {
-  padding: 4px;
+  padding: 9px 8px;
+  width: auto;
 
-  &.has-header {
-    padding-right: 0;
-    margin-top: 40px;
+  &.link {
+    margin-bottom: 8px;
   }
 
-  .active {
+  &.active {
     background-color: white;
     color: black;
   }
@@ -61,20 +61,6 @@
 
   &:hover .title {
     text-decoration: underline;
-  }
-}
-
-.home-link {
-  display: flex;
-  padding: 4px;
-  width: auto;
-
-  &.active {
-    background-color: mat.get-color-from-palette($primary, lighter);
-
-    .link {
-      color: black;
-    }
   }
 }
 
@@ -114,6 +100,14 @@
   }
 
   .mat-expansion-panel-header {
+    &:hover {
+      background-color: unset !important;
+
+      &.active {
+        background-color: white !important;
+      }
+    }
+
     &.failing .unread {
       color: mat.get-color-from-palette($warn, darker);
     }
@@ -121,16 +115,17 @@
     &.active {
       background-color: white;
 
+      .link,
+      .unread {
+        color: black;
+      }
+
       &.failing {
         background-color: mat.get-color-from-palette($warn, darker);
 
         .unread {
-          color: black;
+          color: white;
         }
-      }
-
-      .link {
-        color: black;
       }
     }
 
