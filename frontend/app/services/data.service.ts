@@ -114,12 +114,15 @@ class CategoryMetadata {
   providedIn: 'root'
 })
 export class DataService {
-  private timestamp = -1;
-  private data: Data = new Data();
   private readonly data$: ReplaySubject<Data> = new ReplaySubject<Data>(1);
   private readonly updates$: Subject<Updates> = new Subject<Updates>();
   private readonly feedUpdates$: Observable<void>;
   private readonly categoryUpdates$: Observable<void>;
+
+  private timestamp = -1;
+  private data: Data = new Data();
+  // If the initial fetch failed, then hitting refresh will fetch the initial data instead.
+  private retryInitial = false;
   private hasAllFeeds = false;
   // private hasAllCategories = false;
   private feedMetadata: Map<number, FeedMetadata> = new Map();
@@ -775,13 +778,20 @@ export class DataService {
           error: (error: Error) => {
             this.errorService.showError(error);
             this.loadingService.finishLoading();
+            this.retryInitial = true;
           },
           complete: () => this.loadingService.finishLoading()
         });
   }
 
   private refreshState(): void {
-    if (this.timestamp === -1) {
+    if (this.retryInitial) {
+      this.retryInitial = false;
+      this.refreshService.finishRefresh();
+      this.getInitialState();
+      return;
+    } else if (this.timestamp === -1) {
+      this.refreshService.finishRefresh();
       return;
     }
     this.loadingService.startLoading();
