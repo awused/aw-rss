@@ -18,7 +18,6 @@ import {
 import {Filters,
         PartialFilters} from 'frontend/app/models/filter';
 import {DataService} from 'frontend/app/services/data.service';
-import {ErrorService} from 'frontend/app/services/error.service';
 import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
 import {ParamService} from 'frontend/app/services/param.service';
@@ -77,7 +76,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly dataService: DataService,
-      private readonly errorService: ErrorService,
       private readonly paramService: ParamService,
       private readonly mobileService: MobileService,
       private readonly fuzzyFilterService: FuzzyFilterService) {
@@ -101,8 +99,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
             // Fast path
             if (!u.refresh &&
                 oldItemLength === this.filteredData.items.length &&
-                u.items.length < this.sortedItems.length) {
-              this.mergeItems(u.items);
+                u.items.length < this.sortedItems.length &&
+                this.tryMergeItems(u.items)) {
               // TODO -- remove https://github.com/angular/material2/pull/14639
               this.sortedItems = this.sortedItems.slice();
             } else {
@@ -396,19 +394,19 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
   // A faster merge method when the set of items hasn't changed and the update
   // contains a smaller list of items.
-  private mergeItems(items: ReadonlyArray<Item>): void {
+  private tryMergeItems(items: ReadonlyArray<Item>): boolean {
     let i = 0;
-    let failed = false;
     const sorted = this.sortItems(items);
 
-    sorted.forEach((nit: Item) => {
+    outer: for (let j = 0; j < sorted.length; j++) {
+      const nit = sorted[j];
+
       while (i < this.sortedItems.length) {
         const sit = this.sortedItems[i];
         const cmp = this.compareItems(nit, sit);
         if (cmp < 0) {
-          failed = true;
-          console.error(`Failed to merge updates for item:`, nit);
-          return;
+          console.log(`Failed to merge updates for item:`, nit);
+          return false;
         } else if (cmp > 0) {
           i++;
           continue;
@@ -418,13 +416,14 @@ export class MainViewComponent implements OnInit, OnDestroy {
           this.sortedItems[i] = nit;
         }
         i++;
-        return;
+        continue outer;
       }
-    });
 
-    if (failed) {
-      this.errorService.showError('Failed to merge updates for all items, see console for details');
+      console.log(`Failed to merge updates for item:`, nit);
+      return false;
     }
+
+    return true;
   }
 
   private sortItems(items: ReadonlyArray<Item>): Item[] {
