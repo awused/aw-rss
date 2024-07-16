@@ -1,10 +1,7 @@
-# You can use the -awconf flag to override the config being loaded.
+# You can use the --awconf flag to override the config being loaded.
 
 # Database file. Use :memory: for a temporary, in memory database.
-Database = "/path/to/rss.db"
-
-# Port to listen on.
-Port = 9092
+database = "/path/to/rss.db"
 
 # Host to listen on.
 # Do not change this unless you understand the security implications.
@@ -12,22 +9,25 @@ Port = 9092
 # authorization. If you want to expose aw-rss for remote access it should be
 # done using a reverse proxy with basic authentication support such as nginx.
 # Change this your own risk.
-# Host = "127.0.0.1"
+host = "localhost"
+
+# Port to listen on.
+port = 9092
 
 # Log file, leave blank to log to stdout
-# Aw-rss does not clear or rotate this log file.
-# LogFile=
+# aw-rss truncates this file on every start.
+# log_file = "/path/to/file.log"
 
-# Logrus log level, defaults to Info
-# Trace, Debug, Info, Warning, Error, Fatal and Panic.
-LogLevel = "Info"
+# Log level, as per RUST_LOG, defaults to Info
+# Trace, Debug, Info, Warning, Error
+log_level = "Info"
 
 # Whether items with identical URLs should be deduplicated or not, even in
 # different feeds.
 # When true, items with the same URLs in different feeds will be automatically
 # marked as "read" after the first one.
 # Whichever feed happens to go first is not deterministic.
-Dedupe = true
+dedupe = true
 
 # Whitelist of known cloudflare protected hosts that you trust enough to run
 # Javascript from.
@@ -38,6 +38,8 @@ Dedupe = true
 #
 # For cloudflare protected domains that aren't in the whitelist, aw-rss will
 # back off aggressively but will never run their javascript.
-CloudflareDomains = [
+#
+# NOT ENABLED
+cloudflare_domains = [
   "mangadex.org"
 ]
