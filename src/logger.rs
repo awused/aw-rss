@@ -1,6 +1,9 @@
+use std::fs::OpenOptions;
+
 use axum::http::HeaderValue;
 use chrono::format::{Fixed, Item};
 use chrono::{Local, Timelike};
+use color_eyre::eyre::bail;
 use tower_http::trace::{MakeSpan, OnResponse};
 use tracing::{event, Level};
 use tracing_error::ErrorLayer;
@@ -59,20 +62,29 @@ impl<B> OnResponse<B> for ResponseFormat {
     }
 }
 
-pub fn init_logging() {
+pub fn init_logging() -> color_eyre::Result<()> {
     let filter_layer = EnvFilter::builder()
         .with_default_directive(CONFIG.log_level.parse().unwrap())
         .from_env_lossy()
         // These are unbelievably spammy
         .add_directive("html5ever=warn".parse().unwrap())
         .add_directive("selectors=warn".parse().unwrap());
-    let fmt_layer = tracing_subscriber::fmt::layer().with_timer(TimeFormatter {});
 
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(fmt_layer)
-        .with(ErrorLayer::default())
-        .init();
+    let fmt_layer = tracing_subscriber::fmt::layer().with_timer(TimeFormatter {});
+    let registry = tracing_subscriber::registry().with(filter_layer);
+
+    if let Some(file) = CONFIG.log_file.as_ref() {
+        if !file.is_absolute() {
+            bail!("Configured log_file {file:?} is not an absolute path");
+        }
+
+        let file = OpenOptions::new().truncate(true).create(true).write(true).open(file)?;
+        registry.with(fmt_layer.with_writer(file)).with(ErrorLayer::default()).init();
+    } else {
+        registry.with(fmt_layer).with(ErrorLayer::default()).init();
+    }
+
+    Ok(())
     // Lazy::force(&LOCALE);
 
     // tracing_subscriber::fmt()

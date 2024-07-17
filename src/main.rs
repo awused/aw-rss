@@ -72,7 +72,7 @@ where
 async fn main() -> color_eyre::Result<()> {
     config::init();
     color_eyre::install()?;
-    logger::init_logging();
+    logger::init_logging()?;
 
     closing::init();
 
