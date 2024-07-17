@@ -87,38 +87,13 @@ impl Database {
     }
 
     // TODO -- remove these
-    #[instrument(skip(self))]
-    pub async fn get_feed(&mut self, id: i64) -> Result<Feed> {
-        let con = self.con()?;
-
-        let feed = sqlx::query_as("SELECT * FROM feeds WHERE id = ?")
+    #[instrument(skip(guard))]
+    pub async fn get<T: RssStruct>(mut guard: MutexGuard<'_, Self>, id: i64) -> Result<T> {
+        sqlx::query_as(&format!("SELECT * FROM {} WHERE id = ?", T::table_name()))
             .bind(id)
-            .fetch_one(con)
-            .await?;
-        info!("getting feed {feed:?}");
-        Ok(feed)
-    }
-
-    #[instrument(skip(self))]
-    pub async fn get_item(&mut self, id: i64) -> Result<Item> {
-        let con = self.con()?;
-
-        let item = sqlx::query_as("SELECT * FROM items WHERE id = ?")
-            .bind(id)
-            .fetch_one(con)
-            .await?;
-        info!("getting feed {item:?}");
-        Ok(item)
-    }
-
-    #[instrument(skip(self))]
-    pub async fn get_category(&mut self, id: i64) -> Result<Category> {
-        let cat = sqlx::query_as("SELECT * FROM categories WHERE id = ?")
-            .bind(id)
-            .fetch_one(self.con()?)
-            .await?;
-        info!("getting feed {cat:?}");
-        Ok(cat)
+            .fetch_one(guard.con()?)
+            .await
+            .map_err(Into::into)
     }
 
     #[instrument(skip(guard))]
@@ -178,6 +153,14 @@ impl Database {
                 Ok(Outcome::Update((feed, n)))
             }
         }
+    }
+
+    #[instrument(skip(guard))]
+    pub async fn current_feeds(mut guard: MutexGuard<'_, Self>) -> Result<Vec<Feed>> {
+        sqlx::query_as("SELECT * FROM feeds WHERE disabled = 0")
+            .fetch_all(guard.con()?)
+            .await
+            .map_err(Into::into)
     }
 
     #[instrument(skip_all)]

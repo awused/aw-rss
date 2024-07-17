@@ -30,7 +30,7 @@ pub use item::Item;
 pub type RssQueryAs<'a, T> = QueryAs<'a, Sqlite, T, SqliteArguments<'a>>;
 
 #[derive(Debug)]
-pub enum FetcherAction {
+pub enum Action {
     RerunFailing,
     Rerun(i64),
     // Send ID so that we can be sure there's no chance that a poorly timed Fetcher poll could

@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::time::Duration;
 
 use atom_syndication::Link;
 use chrono::Utc;
@@ -11,8 +12,15 @@ use crate::com::feed::ParsedUpdate;
 use crate::com::item::ParsedInsert;
 use crate::com::{Feed, RssStruct};
 
+#[derive(Debug)]
+struct Parsed {
+    feed: ParsedUpdate,
+    items: Vec<ParsedInsert>,
+    ttl: Option<Duration>,
+}
+
 #[instrument(skip(body))]
-pub fn parse_feed(feed: &Feed, body: &str) -> Result<(ParsedUpdate, Vec<ParsedInsert>)> {
+pub fn parse_feed(feed: &Feed, body: &str) -> Result<Parsed> {
     parse(body, Some(feed))
 }
 
@@ -21,7 +29,7 @@ pub fn check_valid_feed(body: &str) -> Result<()> {
     parse(body, None).map(|_| ())
 }
 
-fn parse(body: &str, feed: Option<&Feed>) -> Result<(ParsedUpdate, Vec<ParsedInsert>)> {
+fn parse(body: &str, feed: Option<&Feed>) -> Result<Parsed> {
     let rss_feed = Channel::read_from(Cursor::new(&body));
 
     if let Ok(parsed) = rss_feed {
@@ -31,13 +39,23 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<(ParsedUpdate, Vec<ParsedIns
             link: Some(parsed.link),
         };
 
+        let mut out = Parsed {
+            feed: update,
+            items: Vec::new(),
+            ttl: None,
+        };
+
         let Some(feed) = feed else {
-            return Ok((update, Vec::new()));
+            return Ok(out);
         };
 
         // Reverse to ensure sorting is consistent when timestamps are equal
-        let items = parsed.items.into_iter().rev().map(|item| (feed, item).into()).collect();
-        return Ok((update, items));
+        out.items = parsed.items.into_iter().rev().map(|item| (feed, item).into()).collect();
+        out.ttl = parsed
+            .ttl
+            .and_then(|t| t.parse::<u64>().ok())
+            .map(|m| Duration::from_secs(60 * m));
+        return Ok(out);
     }
 
     let atom_feed = atom_syndication::Feed::read_from(Cursor::new(&body));
@@ -49,13 +67,19 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<(ParsedUpdate, Vec<ParsedIns
             link: extract_atom_url(parsed.links),
         };
 
+        let mut out = Parsed {
+            feed: update,
+            items: Vec::new(),
+            ttl: None,
+        };
+
         let Some(feed) = feed else {
-            return Ok((update, Vec::new()));
+            return Ok(out);
         };
 
         // Reverse to ensure sorting is consistent when timestamps are equal
-        let items = parsed.entries.into_iter().rev().map(|entry| (feed, entry).into()).collect();
-        return Ok((update, items));
+        out.items = parsed.entries.into_iter().rev().map(|entry| (feed, entry).into()).collect();
+        return Ok(out);
     }
 
     info!("Failed to decode feed as rss or atom");

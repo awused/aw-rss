@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use url::Host;
 
 use crate::com::feed::UserInsert;
-use crate::com::{Feed, FetcherAction, RssStruct, CLIENT};
+use crate::com::{Action, Feed, RssStruct, CLIENT};
 use crate::database::Database;
 use crate::parsing::check_valid_feed;
 use crate::router::{AppState, HttpError, HttpResult, RouterState};
@@ -69,7 +69,7 @@ pub(super) async fn add(state: RouterState, req: Request) -> Result<Response> {
 
     let db = state.db.lock().await;
     let feed = Database::single_insert(db, insert).await?;
-    state.fetcher_sender.send(FetcherAction::FeedChanged(feed.id()))?;
+    state.fetcher_sender.send(Action::FeedChanged(feed.id()))?;
     Ok(Response::Success { feed })
 }
 
@@ -79,7 +79,7 @@ async fn get_valid_feed_url(url: &str) -> Result<Url> {
 
     info!("Attempting to load feed");
 
-    let body = CLIENT.get(url.clone()).send().await?.text().await?;
+    let body = CLIENT.get(url.clone()).send().await?.text().await;
     let Err(e) = check_valid_feed(&body) else {
         return Ok(url);
     };

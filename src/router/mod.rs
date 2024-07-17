@@ -17,7 +17,7 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::closing;
-use crate::com::{FetcherAction, HttpError};
+use crate::com::{Action, HttpError};
 use crate::database::Database;
 use crate::logger::{RequestSpan, ResponseFormat};
 
@@ -27,7 +27,7 @@ mod api;
 #[derive(Debug, Clone)]
 pub struct RouterState {
     pub db: Arc<Mutex<Database>>,
-    pub fetcher_sender: UnboundedSender<FetcherAction>,
+    pub fetcher_sender: UnboundedSender<Action>,
 }
 
 

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::MutexGuard;
 
 use super::{AppState, HttpResult};
-use crate::com::{category, feed, item, Category, Feed, FetcherAction, Item, RssStruct};
+use crate::com::{category, feed, item, Action, Category, Feed, Item, RssStruct};
 use crate::database::Database;
 use crate::RouterState;
 
@@ -26,19 +26,6 @@ struct ItemsResponse {
     items: Vec<Item>,
 }
 
-async fn feed(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Feed>> {
-    let mut db = state.db.lock().await;
-    Ok(Json(db.get_feed(id).await?))
-}
-
-async fn item(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Item>> {
-    let mut db = state.db.lock().await;
-    Ok(Json(db.get_item(id).await?))
-}
-async fn category(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Category>> {
-    let mut db = state.db.lock().await;
-    Ok(Json(db.get_category(id).await?))
-}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -189,17 +176,17 @@ async fn feed_edit(
         Database::single_edit(db, id, req.edit)
             .await?
             // Sending won't fail unless we're closing, at which point we don't care.
-            .if_update(|_| state.fetcher_sender.send(FetcherAction::FeedChanged(id)).unwrap())
+            .if_update(|_| state.fetcher_sender.send(Action::FeedChanged(id)).unwrap())
             .take(),
     ))
 }
 
 async fn rerun_failing(State(state): AppState) {
-    state.fetcher_sender.send(FetcherAction::RerunFailing).unwrap()
+    state.fetcher_sender.send(Action::RerunFailing).unwrap()
 }
 
 async fn feed_rerun(State(state): AppState, Path(id): Path<i64>) {
-    state.fetcher_sender.send(FetcherAction::Rerun(id)).unwrap()
+    state.fetcher_sender.send(Action::Rerun(id)).unwrap()
 }
 
 async fn category_edit(
@@ -241,10 +228,4 @@ pub(super) fn api_router() -> Router<RouterState> {
 
         .route("/current", get(current))
         .route("/updates/:timestamp", get(updates))
-
-
-        // Temporary for debugging/development
-        .route("/feed/:id", get(feed))
-        .route("/item/:id", get(item))
-        .route("/category/:id", get(category))
 }
