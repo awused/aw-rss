@@ -3,15 +3,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use api::api_router;
-use axum::body::Body;
 use axum::extract::State;
-use axum::http::{header, Response, StatusCode, Uri};
+use axum::http::{header, Uri};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
-use derive_more::From;
 use rust_embed::Embed;
-use thiserror::Error;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
@@ -20,7 +17,7 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::closing;
-use crate::com::FetcherAction;
+use crate::com::{FetcherAction, HttpError};
 use crate::database::Database;
 use crate::logger::{RequestSpan, ResponseFormat};
 
@@ -36,36 +33,7 @@ pub struct RouterState {
 
 type AppState = State<RouterState>;
 
-#[derive(From, Error, Debug)]
-enum AppError {
-    #[error("{0}")]
-    Report(color_eyre::Report),
-    // #[error("{0}")]
-    // Sql(sqlx::Error),
-    #[error("Error {0:?}: {1}")]
-    Status(StatusCode, &'static str),
-}
-
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response<Body> {
-        match self {
-            Self::Report(e) => {
-                error!("{e:?}");
-
-                match e.downcast::<Self>() {
-                    Ok(s) => return s.into_response(),
-                    Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-                }
-            }
-            // Self::Sql(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-            Self::Status(e, s) => (e, s.to_string()),
-        }
-        .into_response()
-    }
-}
-
-type AppResult<T> = core::result::Result<T, AppError>;
+type HttpResult<T> = core::result::Result<T, HttpError>;
 
 #[derive(Embed)]
 #[folder = "dist/"]

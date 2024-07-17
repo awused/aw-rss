@@ -10,15 +10,14 @@ use derive_more::From;
 use serde::{Deserialize, Serialize};
 use tokio::sync::MutexGuard;
 
-use super::{AppResult, AppState};
-use crate::com::feed::UserEdit as FeedEdit;
-use crate::com::item::UserEdit as ItemEdit;
-use crate::com::{Category, Feed, FetcherAction, Item, RssStruct};
+use super::{AppState, HttpResult};
+use crate::com::{category, feed, item, Category, Feed, FetcherAction, Item, RssStruct};
 use crate::database::Database;
 use crate::RouterState;
 
 mod add_feed;
 mod get_items;
+mod reorder_categories;
 
 
 #[derive(Serialize, Debug, From)]
@@ -27,16 +26,16 @@ struct ItemsResponse {
     items: Vec<Item>,
 }
 
-async fn feed(State(state): AppState, Path(id): Path<i64>) -> AppResult<Json<Feed>> {
+async fn feed(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Feed>> {
     let mut db = state.db.lock().await;
     Ok(Json(db.get_feed(id).await?))
 }
 
-async fn item(State(state): AppState, Path(id): Path<i64>) -> AppResult<Json<Item>> {
+async fn item(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Item>> {
     let mut db = state.db.lock().await;
     Ok(Json(db.get_item(id).await?))
 }
-async fn category(State(state): AppState, Path(id): Path<i64>) -> AppResult<Json<Category>> {
+async fn category(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Category>> {
     let mut db = state.db.lock().await;
     Ok(Json(db.get_category(id).await?))
 }
@@ -55,7 +54,7 @@ struct CurrentState {
     newest_timestamps: HashMap<i64, DateTime<Utc>>,
 }
 
-async fn current(State(state): AppState) -> AppResult<Json<CurrentState>> {
+async fn current(State(state): AppState) -> HttpResult<Json<CurrentState>> {
     let mut db = state.db.lock().await;
     let mut tx = db.transaction().await?;
 
@@ -88,7 +87,7 @@ struct Updates {
 
 const MAX_STALENESS: TimeDelta = TimeDelta::weeks(1);
 
-async fn updates(State(state): AppState, Path(ts): Path<i64>) -> AppResult<Json<Updates>> {
+async fn updates(State(state): AppState, Path(ts): Path<i64>) -> HttpResult<Json<Updates>> {
     let mut db = state.db.lock().await;
     let mut tx = db.transaction().await?;
 
@@ -122,19 +121,19 @@ async fn updates(State(state): AppState, Path(ts): Path<i64>) -> AppResult<Json<
     Ok(updates.into())
 }
 
-async fn item_read(State(state): AppState, Path(id): Path<i64>) -> AppResult<Json<Item>> {
-    let edit = ItemEdit { read: true };
+async fn item_read(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Item>> {
+    let edit = item::UserEdit { read: true };
     let db = state.db.lock().await;
     Ok(Json(Database::single_edit(db, id, edit).await?.take()))
 }
 
-async fn item_unread(State(state): AppState, Path(id): Path<i64>) -> AppResult<Json<Item>> {
-    let edit = ItemEdit { read: false };
+async fn item_unread(State(state): AppState, Path(id): Path<i64>) -> HttpResult<Json<Item>> {
+    let edit = item::UserEdit { read: false };
     let db = state.db.lock().await;
     Ok(Json(Database::single_edit(db, id, edit).await?.take()))
 }
 
-async fn disabled_feeds(State(state): AppState) -> AppResult<Json<Vec<Feed>>> {
+async fn disabled_feeds(State(state): AppState) -> HttpResult<Json<Vec<Feed>>> {
     let mut db = state.db.lock().await;
     Ok(Json(db.disabled_feeds().await?))
 }
@@ -169,22 +168,22 @@ async fn feed_read(
     State(state): AppState,
     Path(id): Path<i64>,
     Json(req): Json<ReadFeedRequest>,
-) -> AppResult<Json<ItemsResponse>> {
+) -> HttpResult<Json<ItemsResponse>> {
     let db = state.db.lock().await;
     Ok(Json(req.apply(db, id).await?.into()))
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct EditFeedRequest {
-    edit: FeedEdit,
+struct EditRequest<E: 'static> {
+    edit: E,
 }
 
 async fn feed_edit(
     State(state): AppState,
     Path(id): Path<i64>,
-    Json(req): Json<EditFeedRequest>,
-) -> AppResult<Json<Feed>> {
+    Json(req): Json<EditRequest<feed::UserEdit>>,
+) -> HttpResult<Json<Feed>> {
     let db = state.db.lock().await;
     Ok(Json(
         Database::single_edit(db, id, req.edit)
@@ -203,6 +202,23 @@ async fn feed_rerun(State(state): AppState, Path(id): Path<i64>) {
     state.fetcher_sender.send(FetcherAction::Rerun(id)).unwrap()
 }
 
+async fn category_edit(
+    State(state): AppState,
+    Path(id): Path<i64>,
+    Json(req): Json<EditRequest<category::UserEdit>>,
+) -> HttpResult<Json<Category>> {
+    let db = state.db.lock().await;
+    Ok(Json(Database::single_edit(db, id, req.edit).await?.take()))
+}
+
+async fn category_add(
+    State(state): AppState,
+    Json(req): Json<category::UserInsert>,
+) -> HttpResult<Json<Category>> {
+    let db = state.db.lock().await;
+    Ok(Json(Database::single_insert(db, req).await?))
+}
+
 pub(super) fn api_router() -> Router<RouterState> {
     Router::new()
         // Items
@@ -219,9 +235,9 @@ pub(super) fn api_router() -> Router<RouterState> {
         .route("/feeds/:id/rerun", post(feed_rerun))
 
         // Categories
-        // .route("/categories/add", post(category_add))
-        // .route("/categories/reorder", post(category_reorder))
-        // .route("/categories/:id/edit", post(category_edit))
+        .route("/categories/add", post(category_add))
+        .route("/categories/reorder", post(reorder_categories::handle))
+        .route("/categories/:id/edit", post(category_edit))
 
         .route("/current", get(current))
         .route("/updates/:timestamp", get(updates))

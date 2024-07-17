@@ -1,18 +1,15 @@
 use std::convert::Infallible;
-use std::env::temp_dir;
-use std::io::Write;
 use std::marker::PhantomData;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::{process, thread};
+use std::thread;
 
 use async_channel::{bounded, Receiver, Sender};
 use color_eyre::eyre::bail;
 use color_eyre::Result;
 use once_cell::sync::Lazy;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::spawn_thread;
 

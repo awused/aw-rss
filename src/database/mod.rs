@@ -5,11 +5,17 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use color_eyre::Result;
 use derive_more::From;
+use once_cell::unsync::Lazy;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{migrate, Connection, Sqlite, SqliteConnection};
 use tokio::sync::MutexGuard;
 
-use crate::com::{Category, EditResult, Feed, Item, RssQueryAs, RssStruct, Update, UtcDateTime};
+use crate::com::feed::ParsedUpdate;
+use crate::com::item::ParsedInsert;
+use crate::com::{
+    Category, Feed, Insert, Item, LazyBuilder, OnConflict, Outcome, QueryBuilder, RssQueryAs,
+    RssStruct, Update, UtcDateTime,
+};
 use crate::config::CONFIG;
 
 #[derive(Debug, From)]
@@ -120,15 +126,15 @@ impl Database {
         mut guard: MutexGuard<'_, Self>,
         id: i64,
         edit: E,
-    ) -> Result<EditResult<T>> {
+    ) -> Result<Outcome<T>> {
         let mut tx = guard.transaction().await?;
-        let edited = T::update(id, &mut tx, edit).await?;
+        let edited = tx.update(id, edit).await?;
         match edited {
-            EditResult::NoOp(_) => {
+            Outcome::NoOp(_) => {
                 tx.rollback().await?;
                 debug!("No-op update");
             }
-            EditResult::Update(_) => {
+            Outcome::Update(_) => {
                 tx.commit().await?;
                 info!("Update applied");
             }
@@ -137,13 +143,49 @@ impl Database {
         Ok(edited)
     }
 
+    #[instrument(skip(guard))]
+    pub async fn single_insert<T: RssStruct, I: Insert<T>>(
+        mut guard: MutexGuard<'_, Self>,
+        insert: I,
+    ) -> Result<T> {
+        let mut tx = guard.transaction().await?;
+        let inserted = tx.insert(insert).await?;
+        info!("Inserted into {}: {inserted:?}", T::table_name());
+        tx.commit().await?;
+        Ok(inserted)
+    }
+
+    #[instrument(skip(guard, feed))]
+    pub async fn handle_parsed(
+        mut guard: MutexGuard<'_, Self>,
+        feed: &Feed,
+        feed_update: ParsedUpdate,
+        item_inserts: Vec<ParsedInsert>,
+    ) -> Result<Outcome<(Feed, u64)>> {
+        let mut tx = guard.transaction().await?;
+        let updated = tx.update(feed.id(), feed_update).await?;
+        let num_inserted = tx.bulk_insert(item_inserts).await?;
+
+        match (updated, num_inserted) {
+            (Outcome::NoOp(feed), 0) => {
+                debug!("No changes after applying updates");
+                tx.rollback().await?;
+                Ok(Outcome::NoOp((feed, 0)))
+            }
+            (Outcome::Update(feed) | Outcome::NoOp(feed), n) => {
+                debug!("Inserted {n} new items");
+                tx.commit().await?;
+                Ok(Outcome::Update((feed, n)))
+            }
+        }
+    }
+
     #[instrument(skip_all)]
     pub async fn fetch_all<'a, T: RssStruct>(
         &mut self,
         query: RssQueryAs<'a, T>,
     ) -> Result<Vec<T>> {
-        let con = self.con()?;
-        query.fetch_all(con).await.map_err(Into::into)
+        query.fetch_all(self.con()?).await.map_err(Into::into)
     }
 
     #[instrument(skip(self))]
@@ -261,5 +303,81 @@ ORDER BY id ASC"
         .fetch_one(self.con())
         .await
         .map_err(Into::into)
+    }
+
+    #[instrument(skip(self))]
+    async fn update<T: RssStruct>(&mut self, id: i64, edit: impl Update<T>) -> Result<Outcome<T>> {
+        let s: T = self.get(id).await?;
+        edit.validate(&s)?;
+
+        let mut builder: LazyBuilder<'_> = Lazy::new(|| {
+            QueryBuilder::new(format!(
+                "UPDATE {} SET commit_timestamp = CURRENT_TIMESTAMP ",
+                T::table_name()
+            ))
+        });
+
+        edit.build_updates(&s, &mut builder);
+
+        let Ok(mut edit) = Lazy::into_value(builder) else {
+            return Ok(Outcome::NoOp(s));
+        };
+
+        Ok(Outcome::Update(
+            edit.push(" WHERE id = ")
+                .push_bind(id)
+                .push(" RETURNING *")
+                .build_query_as()
+                .fetch_one(self.con())
+                .await?,
+        ))
+    }
+
+    fn start_insert<'a, T: RssStruct, I: Insert<T>>() -> QueryBuilder<'a> {
+        let mut builder = QueryBuilder::new(format!("INSERT INTO {}(", T::table_name()));
+
+        let cols = I::columns();
+        let mut sep = builder.separated(", ");
+        for col in cols {
+            sep.push(col);
+        }
+
+        builder.push(") ");
+        builder
+    }
+
+    fn insert_conflict<T: RssStruct, I: Insert<T>>(builder: &mut QueryBuilder<'_>) {
+        match I::on_conflict() {
+            OnConflict::Error => {}
+            OnConflict::Ignore => {
+                builder.push(" ON CONFLICT IGNORE ");
+            }
+        }
+    }
+
+    #[instrument(skip(self))]
+    async fn insert<T: RssStruct, I: Insert<T>>(&mut self, insert: I) -> Result<T> {
+        insert.validate()?;
+
+        let mut builder = Self::start_insert::<T, I>();
+
+        builder.push_values([insert; 1], |mut s, ins| ins.push_values(&mut s));
+
+        Self::insert_conflict::<T, I>(&mut builder);
+
+        Ok(builder.push(" RETURNING *").build_query_as().fetch_one(self.con()).await?)
+    }
+
+    #[instrument(skip(self))]
+    async fn bulk_insert<T: RssStruct, I: Insert<T>>(&mut self, inserts: Vec<I>) -> Result<u64> {
+        inserts.iter().try_for_each(I::validate)?;
+
+        let mut builder = Self::start_insert::<T, I>();
+
+        builder.push_values(inserts, |mut s, ins| ins.push_values(&mut s));
+
+        Self::insert_conflict::<T, I>(&mut builder);
+
+        Ok(builder.build().execute(self.con()).await.map(|r| r.rows_affected())?)
     }
 }

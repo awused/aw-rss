@@ -1,22 +1,18 @@
-use std::io::Cursor;
-use std::time::{Duration, Instant};
-
 use axum::extract::State;
 use axum::Json;
 use color_eyre::eyre::{bail, Context};
-use color_eyre::Result;
+use color_eyre::{Result, Section};
 use once_cell::sync::Lazy;
-use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{Client, StatusCode, Url};
-use rss::Channel;
+use reqwest::Url;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use url::Host;
 
-use crate::com::feed::ParsedUpdate;
-use crate::com::item::ParsedInsert;
-use crate::com::{extract_atom_url, Feed};
-use crate::router::{AppError, AppResult, AppState, RouterState};
+use crate::com::feed::UserInsert;
+use crate::com::{Feed, FetcherAction, RssStruct, CLIENT};
+use crate::database::Database;
+use crate::parsing::check_valid_feed;
+use crate::router::{AppState, HttpError, HttpResult, RouterState};
 
 
 #[derive(Deserialize, Debug)]
@@ -37,42 +33,15 @@ pub enum Response {
     Success { feed: Feed },
     // It'd be cool to actually implement this
     //Candidates { candidates: Vec<String> },
-    Invalid,
 }
 
-// pub(super) async fn handle(
-//     State(state): AppState,
-//     Json(req): Json<Request>,
-// ) -> AppResult<Json<ItemsResponse>> {
 pub(super) async fn handle(
     State(state): AppState,
     Json(req): Json<Request>,
-) -> AppResult<Json<Response>> {
-    add(state, req).await?;
-
-    Ok(Json(Response::Invalid))
+) -> HttpResult<Json<Response>> {
+    Ok(Json(add(state, req).await?))
 }
 
-static CLIENT: Lazy<Client> = Lazy::new(|| {
-    let mut headers = HeaderMap::new();
-    // Workaround for dolphinemu.org, but doesn't seem to break any other feeds.
-    headers.insert("Cache-Control", HeaderValue::from_static("no-cache"));
-
-    // Pretend to be wget. Some sites don't like an empty user agent.
-    // Reddit in particular will _always_ say to retry in a few seconds,
-    // even if you wait hours.
-    headers.insert("User-Agent", HeaderValue::from_static("Wget/1.19.5 (freebsd11.1)"));
-
-
-    Client::builder()
-        .default_headers(headers)
-        .timeout(Duration::from_secs(30))
-        .brotli(true)
-        .gzip(true)
-        .deflate(true)
-        .build()
-        .unwrap()
-});
 
 #[rustfmt::skip]
 static SELECTOR: Lazy<Selector> = Lazy::new(|| {
@@ -85,115 +54,78 @@ static SELECTOR: Lazy<Selector> = Lazy::new(|| {
     .unwrap()
 });
 
-#[instrument(skip(state))]
 pub(super) async fn add(state: RouterState, req: Request) -> Result<Response> {
-    let url =
-        Url::parse(&req.url).wrap_err(AppError::Status(StatusCode::BAD_REQUEST, "Invalid URL"))?;
-
-    if url.scheme() != "http" && url.scheme() != "https" {
-        bail!(AppError::Status(StatusCode::BAD_REQUEST, "URL scheme must be http or https"));
-    }
-
-    let url = unconditional_url_rewrites(url);
-
-    info!("Attempting to load feed at {url}");
-
-    let body = CLIENT.get(url).send().await?.text().await?;
-    let parsed = match parse_feed(&body, None) {
-        Ok(parsed) => parsed,
-        Err(e) => {
-            info!("Failed to parse feed, attempting to parse as HTML");
-            warn!("Errors were: {e}");
-
-            // Html is !Send
-            let next_link = {
-                let doc = Html::parse_document(&body);
-
-                let mut links = doc.select(&SELECTOR).filter_map(|link| link.attr("href"));
-
-                let Some(first) = links.next() else {
-                    bail!(AppError::Status(
-                        StatusCode::BAD_REQUEST,
-                        "Could not parse feed or find feed in HTML"
-                    ));
-                };
-
-                info!("Found URL ({first})");
-                if let Some(second) = links.next() {
-                    warn!("Found second URL, aborting ({second})");
-                    bail!(AppError::Status(
-                        StatusCode::BAD_REQUEST,
-                        "Found multiple feeds in HTML"
-                    ));
-                }
-                first.to_string()
-            };
-
-            let url = Url::parse(&next_link)
-                .wrap_err(AppError::Status(StatusCode::BAD_REQUEST, "Invalid URL"))?;
-
-            if url.scheme() != "http" && url.scheme() != "https" {
-                bail!(AppError::Status(
-                    StatusCode::BAD_REQUEST,
-                    "URL scheme must be http or https"
-                ));
-            }
-
-            info!("Attempting to load feed at {next_link}");
-            let body = CLIENT.get(url).send().await?.text().await?;
-            parse_feed(&body, None)?
-        }
+    let url = if req.force {
+        // It still needs to be a valid http/http URL
+        parse_url(&req.url)?
+    } else {
+        get_valid_feed_url(&req.url).await?
     };
 
-    info!("oh hey");
-    // let text =
-    bail!("{parsed:?}")
+    let insert = UserInsert {
+        url: url.to_string(),
+        user_title: req.user_title,
+    };
+
+    let db = state.db.lock().await;
+    let feed = Database::single_insert(db, insert).await?;
+    state.fetcher_sender.send(FetcherAction::FeedChanged(feed.id()))?;
+    Ok(Response::Success { feed })
 }
 
+#[instrument]
+async fn get_valid_feed_url(url: &str) -> Result<Url> {
+    let url = parse_url(url)?;
 
-#[instrument(skip(body))]
-fn parse_feed(body: &str, feed_id: Option<i64>) -> Result<(ParsedUpdate, Vec<ParsedInsert>)> {
-    let start = Instant::now();
-    let rss_feed = Channel::read_from(Cursor::new(&body));
-    println!("rss parsing {:?}", start.elapsed());
+    info!("Attempting to load feed");
 
-    if let Ok(feed) = rss_feed {
-        debug!("Parsed RSS feed");
-        let update = ParsedUpdate { title: feed.title, link: Some(feed.link) };
+    let body = CLIENT.get(url.clone()).send().await?.text().await?;
+    let Err(e) = check_valid_feed(&body) else {
+        return Ok(url);
+    };
 
-        let Some(feed_id) = feed_id else {
-            return Ok((update, Vec::new()));
-        };
+    info!("Failed to parse feed, attempting to parse as HTML");
+    // This is logged again if the if it fails again, so it's low priority
+    trace!("Errors were: {e}");
 
-        let items = feed.items.into_iter().map(|item| (feed_id, item).into()).collect();
-        return Ok((update, items));
+    let mut e = Some(e);
+    let mut wrapped = move || e.take().unwrap();
+    // Html is !Send
+    let first_link = {
+        let doc = Html::parse_document(&body);
+
+        let mut links = doc.select(&SELECTOR).filter_map(|link| link.attr("href"));
+
+        let first = links
+            .next()
+            .ok_or_else(|| HttpError::bad("Could not parse feed or find feed in HTML"))
+            .with_section(&mut wrapped)?;
+
+        info!("Found URL ({first})");
+        if let Some(second) = links.next() {
+            warn!("Found second URL, aborting ({second})");
+            bail!(HttpError::bad("Found multiple feeds in HTML, TODO Candidates"));
+        }
+        first.to_string()
+    };
+
+    let url = parse_url(&first_link).with_section(&mut wrapped)?;
+
+    info!("Attempting to load feed at {first_link}");
+    let body = CLIENT.get(url.clone()).send().await?.text().await?;
+    check_valid_feed(&body).with_section(&mut wrapped)?;
+
+    Ok(url)
+}
+
+fn parse_url(url: &str) -> Result<Url> {
+    let url = Url::parse(url).wrap_err(HttpError::bad("Invalid URL"))?;
+
+    if url.scheme() != "http" && url.scheme() != "https" {
+        bail!(HttpError::bad("URL scheme must be http or https"));
     }
 
-    let start = Instant::now();
-    let atom_feed = atom_syndication::Feed::read_from(Cursor::new(&body));
-    println!("atom parsing {:?}", start.elapsed());
-
-    if let Ok(feed) = atom_feed {
-        let update = ParsedUpdate {
-            title: feed.title.value,
-            link: extract_atom_url(feed.links),
-        };
-
-        let Some(feed_id) = feed_id else {
-            return Ok((update, Vec::new()));
-        };
-
-        let items = feed.entries.into_iter().map(|entry| (feed_id, entry).into()).collect();
-        return Ok((update, items));
-    }
-
-    error!(
-        "Failed to decode feed rss: ({}) atom: ({})",
-        rss_feed.unwrap_err(),
-        atom_feed.unwrap_err()
-    );
-
-    bail!(AppError::Status(StatusCode::BAD_REQUEST, "Failed to decode feed"));
+    Ok(unconditional_url_rewrites(url))
 }
 
 fn unconditional_url_rewrites(mut url: Url) -> Url {

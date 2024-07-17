@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
-use super::{LazyBuilder, RssStruct, Update, UtcDateTime};
+use super::{Insert, LazyBuilder, RssStruct, Update, UtcDateTime};
 use crate::quirks;
 
 #[derive(Serialize, FromRow)]
@@ -12,18 +13,18 @@ pub struct Feed {
     id: i64,
     pub url: String,
     pub disabled: bool,
-    pub title: String,
-    pub site_url: String,
+    title: String,
+    site_url: String,
     #[serde(skip_serializing_if = "String::is_empty")]
-    pub user_title: String,
+    user_title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category_id: Option<i64>,
+    category_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub failing_since: Option<UtcDateTime>,
+    failing_since: Option<UtcDateTime>,
     #[serde(serialize_with = "UtcDateTime::ts_serialize")]
-    pub commit_timestamp: UtcDateTime,
+    commit_timestamp: UtcDateTime,
     #[serde(serialize_with = "UtcDateTime::ts_serialize")]
-    pub create_timestamp: UtcDateTime,
+    create_timestamp: UtcDateTime,
 }
 
 impl RssStruct for Feed {
@@ -50,6 +51,10 @@ pub struct UserEdit {
 }
 
 impl Update<Feed> for UserEdit {
+    fn validate(&self, _feed: &Feed) -> Result<()> {
+        Ok(())
+    }
+
     fn build_updates(self, feed: &Feed, builder: &mut LazyBuilder<'_>) {
         if let Some(cat) = self.category_id {
             if feed.category_id != Some(cat) {
@@ -80,6 +85,10 @@ pub struct ParsedUpdate {
 }
 
 impl Update<Feed> for ParsedUpdate {
+    fn validate(&self, _feed: &Feed) -> Result<()> {
+        Ok(())
+    }
+
     fn build_updates<'a>(self, feed: &'a Feed, builder: &mut LazyBuilder<'a>) {
         if self.title != feed.title {
             builder.push(", title = ").push_bind(self.title);
@@ -107,10 +116,34 @@ pub struct Failing {
 }
 
 impl Update<Feed> for Failing {
+    fn validate(&self, _feed: &Feed) -> Result<()> {
+        Ok(())
+    }
+
     fn build_updates<'a>(self, s: &'a Feed, builder: &mut LazyBuilder<'a>) {
         if s.failing_since.is_none() {
             builder.push(", failing_since = ").push_bind(self.since);
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct UserInsert {
+    pub url: String,
+    pub user_title: String,
+}
+
+impl Insert<Feed> for UserInsert {
+    fn columns() -> &'static [&'static str] {
+        &["url", "user_title"]
+    }
+
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+
+    fn push_values(self, builder: &mut super::Separated<'_, '_>) {
+        builder.push_bind(self.url).push_bind(self.user_title);
     }
 }
 

@@ -1,19 +1,16 @@
-use std::cmp::min;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 use axum::http::HeaderValue;
 use chrono::format::{Fixed, Item};
 use chrono::{Local, Timelike};
 use tower_http::trace::{MakeSpan, OnResponse};
-use tracing::level_filters::LevelFilter;
 use tracing::{event, Level};
 use tracing_error::ErrorLayer;
-use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
+
+use crate::config::CONFIG;
 
 static DATE_FORMAT: &[Item; 1] = &[Item::Fixed(Fixed::RFC3339)];
 
@@ -64,7 +61,7 @@ impl<B> OnResponse<B> for ResponseFormat {
 
 pub fn init_logging() {
     let filter_layer = EnvFilter::builder()
-        .with_default_directive(LevelFilter::INFO.into())
+        .with_default_directive(CONFIG.log_level.parse().unwrap())
         .from_env_lossy()
         // These are unbelievably spammy
         .add_directive("html5ever=warn".parse().unwrap())

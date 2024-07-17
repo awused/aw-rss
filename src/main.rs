@@ -25,6 +25,7 @@ mod config;
 mod database;
 mod fetcher;
 mod logger;
+mod parsing;
 mod quirks;
 mod router;
 
@@ -92,6 +93,7 @@ async fn main() -> color_eyre::Result<()> {
                 r = &mut router => {
                     if closing::close() {
                         error!("Axum unexpectedly stopped serving: {r:?}");
+                        // It is probably unnecessary to wait for the fetcher
                         timeout(Duration::from_secs(60), &mut fetcher).await??;
                     }
                 },

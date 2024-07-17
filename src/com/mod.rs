@@ -1,15 +1,21 @@
 use std::fmt::Debug;
 use std::marker::Sized;
+use std::time::Duration;
 
-use atom_syndication::Link;
+use axum::body::Body;
+use axum::http::{HeaderMap, HeaderValue, Response};
+use axum::response::IntoResponse;
 use color_eyre::Result;
+use derive_more::From;
+use once_cell::sync::Lazy as SyncLazy;
 use once_cell::unsync::Lazy;
+use reqwest::{Client, StatusCode};
+use serde::{Deserialize, Deserializer};
 use sqlx::prelude::FromRow;
 use sqlx::query::QueryAs;
 use sqlx::sqlite::{SqliteArguments, SqliteRow};
 use sqlx::Sqlite;
-
-use crate::database::Transaction;
+use thiserror::Error;
 
 pub mod category;
 mod date;
@@ -34,12 +40,12 @@ pub enum FetcherAction {
 }
 
 #[derive(Debug)]
-pub enum EditResult<T> {
+pub enum Outcome<T> {
     NoOp(T),
     Update(T),
 }
 
-impl<T> EditResult<T> {
+impl<T> Outcome<T> {
     pub fn take(self) -> T {
         match self {
             Self::NoOp(t) | Self::Update(t) => t,
@@ -55,56 +61,110 @@ impl<T> EditResult<T> {
     }
 }
 
-type QueryBuilder<'a> = sqlx::QueryBuilder<'a, Sqlite>;
-type LazyBuilder<'a> = Lazy<QueryBuilder<'a>>;
-
-pub trait Update<T: RssStruct>: Debug {
-    fn build_updates<'a>(self, s: &'a T, builder: &mut LazyBuilder<'a>);
-}
+pub type QueryBuilder<'a> = sqlx::QueryBuilder<'a, Sqlite>;
+pub type Separated<'a, 'b> = sqlx::query_builder::Separated<'a, 'b, Sqlite, &'static str>;
+pub type LazyBuilder<'a> = Lazy<QueryBuilder<'a>>;
 
 pub trait RssStruct: Sized + for<'r> FromRow<'r, SqliteRow> + Send + Unpin + Debug {
     fn id(&self) -> i64;
 
     fn table_name() -> &'static str;
+}
 
-    async fn update(
-        id: i64,
-        tx: &mut Transaction<'_>,
-        edit: impl Update<Self>,
-    ) -> Result<EditResult<Self>> {
-        let s: Self = tx.get(id).await?;
+pub trait Update<T: RssStruct>: Debug {
+    fn validate(&self, s: &T) -> Result<()>;
 
-        let mut builder: LazyBuilder<'_> = Lazy::new(|| {
-            QueryBuilder::new(format!(
-                "UPDATE {} SET commit_timestamp = CURRENT_TIMESTAMP ",
-                Self::table_name()
-            ))
-        });
+    fn build_updates<'a>(self, s: &'a T, builder: &mut LazyBuilder<'a>);
+}
 
-        edit.build_updates(&s, &mut builder);
+#[derive(Debug)]
+pub enum OnConflict {
+    // No special handling
+    Error,
+    Ignore,
+    //     Update {
+    //         constraint: &'static str,
+    //         // Don't include commit_timestamp
+    //         colums: &'static [&'static str],
+    //     },
+}
 
-        let Ok(mut edit) = Lazy::into_value(builder) else {
-            return Ok(EditResult::NoOp(s));
-        };
+pub trait Insert<T: RssStruct>: Debug {
+    fn columns() -> &'static [&'static str];
 
-        Ok(EditResult::Update(
-            edit.push(" WHERE id = ")
-                .push_bind(id)
-                .push(" RETURNING *")
-                .build_query_as()
-                .fetch_one(tx.con())
-                .await?,
-        ))
+    fn on_conflict() -> OnConflict {
+        OnConflict::Error
+    }
+
+    fn validate(&self) -> Result<()>;
+
+    fn push_values(self, builder: &mut Separated<'_, '_>);
+}
+
+
+pub static CLIENT: SyncLazy<Client> = SyncLazy::new(|| {
+    let mut headers = HeaderMap::new();
+    // Workaround for dolphinemu.org, but doesn't seem to break any other feeds.
+    headers.insert("Cache-Control", HeaderValue::from_static("no-cache"));
+
+    // Pretend to be wget. Some sites don't like an empty user agent.
+    // Reddit in particular will _always_ say to retry in a few seconds,
+    // even if you wait hours.
+    headers.insert("User-Agent", HeaderValue::from_static("Wget/1.19.5 (freebsd11.1)"));
+
+
+    Client::builder()
+        .default_headers(headers)
+        .timeout(Duration::from_secs(30))
+        .brotli(true)
+        .gzip(true)
+        .deflate(true)
+        .build()
+        .unwrap()
+});
+
+#[derive(From, Error, Debug)]
+pub enum HttpError {
+    #[error("{0}")]
+    Report(color_eyre::Report),
+    // #[error("{0}")]
+    // Sql(sqlx::Error),
+    #[error("Error {0:?}: {1}")]
+    Status(StatusCode, &'static str),
+}
+
+impl IntoResponse for HttpError {
+    fn into_response(self) -> Response<Body> {
+        match self {
+            Self::Report(e) => {
+                error!("{e:?}");
+
+                match e.downcast::<Self>() {
+                    Ok(s) => return s.into_response(),
+                    Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                }
+            }
+            // Self::Sql(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            Self::Status(e, s) => (e, s.to_string()),
+        }
+        .into_response()
     }
 }
 
-// alternate > self > nothing > whatever else
-pub fn extract_atom_url(mut links: Vec<Link>) -> Option<String> {
-    links
-        .iter()
-        .position(|a| a.rel == "alternate")
-        .or_else(|| links.iter().position(|a| a.rel == "self"))
-        .or_else(|| links.iter().position(|a| a.rel == ""))
-        .or_else(|| (!links.is_empty()).then_some(0))
-        .map(|i| links.swap_remove(i).href)
+impl HttpError {
+    pub const fn bad(err: &'static str) -> Self {
+        Self::Status(StatusCode::BAD_REQUEST, err)
+    }
+
+    // const fn internal(err: &'static str) -> Self {
+    //     Self::Status(StatusCode::INTERNAL_SERVER_ERROR, err)
+    // }
+}
+
+fn empty_string_is_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() { Ok(None) } else { Ok(Some(s)) }
 }

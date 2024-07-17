@@ -3,7 +3,6 @@ use std::num::NonZeroU32;
 use axum::extract::State;
 use axum::Json;
 use color_eyre::Result;
-use reqwest::StatusCode;
 use serde::Deserialize;
 use sqlx::{QueryBuilder, Sqlite};
 use tokio::sync::MutexGuard;
@@ -11,7 +10,7 @@ use tokio::sync::MutexGuard;
 use super::ItemsResponse;
 use crate::com::{Item, UtcDateTime};
 use crate::database::Database;
-use crate::router::{AppResult, AppState};
+use crate::router::{AppState, HttpError, HttpResult};
 
 
 // This could be cleaned up a bit with enums, but it's not worth it due to the risk of silently
@@ -55,38 +54,36 @@ pub struct ReadBefore {
 pub(super) async fn handle(
     State(state): AppState,
     Json(req): Json<Request>,
-) -> AppResult<Json<ItemsResponse>> {
-    if let Some(e) = req.validate() {
-        return Err((StatusCode::BAD_REQUEST, e).into());
-    }
+) -> HttpResult<Json<ItemsResponse>> {
+    req.validate().map_err(HttpError::bad)?;
 
     let db = state.db.lock().await;
     Ok(Json(req.query(db).await?.into()))
 }
 
 impl Request {
-    fn validate(&self) -> Option<&'static str> {
+    fn validate(&self) -> Result<(), &'static str> {
         if !self.unread && self.read_after.is_none() && self.before.is_none() {
-            return Some("Empty or invalid GetItems request");
+            return Err("Empty or invalid GetItems request");
         }
 
         if self.category_id.is_some() && !self.feed_ids.is_empty() {
-            return Some("Can't get by both categoryId and feedIds");
+            return Err("Can't get by both categoryId and feedIds");
         }
 
         if self.unread && self.feed_ids.is_empty() {
-            return Some("Can only request unread items by feedIds");
+            return Err("Can only request unread items by feedIds");
         }
 
         if self.read_after.is_some() && self.before.is_some() {
-            return Some("Can't get both readAfter and readBefore");
+            return Err("Can't get both readAfter and readBefore");
         }
 
         if self.unread && self.before.is_some() {
-            return Some("Can't get both unread and readBefore");
+            return Err("Can't get both unread and readBefore");
         }
 
-        None
+        Ok(())
     }
 
     fn target_clause(&self, builder: &mut QueryBuilder<'_, Sqlite>) {
@@ -138,7 +135,9 @@ AND items.timestamp >= (
         FROM feeds CROSS JOIN items ON items.feed_id = feeds.id
         WHERE ",
                 );
+
             self.target_clause(&mut builder);
+
             builder
                 .push(" AND items.read = 1 AND items.timestamp < ")
                 .push_bind(before.date)
