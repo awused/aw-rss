@@ -25,7 +25,7 @@ pub struct Category {
     /// Hidden in the nav bar unless open or ?all=true is specified
     pub hidden_nav: bool,
     /// Doesn't contribute to unread counts and doesn't show up in the default list.
-    /// Implied by hidden_nav.
+    /// Implied by `hidden_nav`.
     pub hidden_main: bool,
     #[serde(serialize_with = "UtcDateTime::ts_serialize")]
     pub commit_timestamp: UtcDateTime,

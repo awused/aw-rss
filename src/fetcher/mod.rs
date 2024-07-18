@@ -225,11 +225,11 @@ impl<'a> Manager<'a> {
                 host.trim_start_matches("www.").to_string()
             } else {
                 error!("Got unparseable Feed URL for {feed:?}");
-                "".to_string()
+                String::new()
             }
         } else {
             error!("Got unparseable Feed URL for {feed:?}");
-            "".to_string()
+            String::new()
         };
 
         match self.host_map.entry(host) {

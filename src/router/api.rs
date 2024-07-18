@@ -136,7 +136,7 @@ impl ReadFeedRequest {
         let query = sqlx::query_as(
             "
 UPDATE items
-SET read = 1
+SET read = 1, commit_timestamp = CURRENT_TIMESTAMP
 WHERE feed_id = ? AND read = 0 AND id <= ?
 RETURNING *",
         )

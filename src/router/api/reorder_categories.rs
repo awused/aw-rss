@@ -63,7 +63,7 @@ RETURNING *",
         );
 
         let mut cats: Vec<Category> = db.fetch_all(builder.build_query_as()).await?;
-        cats.sort_by_key(|c| c.id());
+        cats.sort_by_key(RssStruct::id);
         Ok(cats)
     }
 }

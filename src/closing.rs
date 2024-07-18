@@ -40,7 +40,7 @@ impl Drop for CloseOnDrop {
     }
 }
 
-/// Resolves when close() is called
+/// Resolves when `close()` is called
 pub async fn closed_fut() {
     // We only care that it's closed.
     let _ignored = CLOSER.1.recv().await;
