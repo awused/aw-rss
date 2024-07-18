@@ -113,7 +113,7 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
             .as_ref()
             .and_then(|d| dateparser::parse(d).ok())
             .unwrap_or_else(|| {
-                warn!("Got item with no timestamp in {feed:?}: {url:?}");
+                warn!("Got item with no timestamp: {url:?}");
                 Utc::now()
             });
 
@@ -132,13 +132,13 @@ impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
         let title = entry.title.to_string();
         let url = extract_atom_url(entry.links).unwrap_or_default();
         if url.is_empty() {
-            warn!("Got atom item with no url in {feed:?}");
+            warn!("Got atom item with no url");
         }
 
         let key = if !entry.id.is_empty() {
             entry.id
         } else {
-            warn!("Got atom item with no ID, this shouldn't happen {feed:?} {url:?}");
+            warn!("Got atom item with no ID, this shouldn't happen {url:?}");
             entry
                 .published
                 .as_ref()
@@ -150,9 +150,7 @@ impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
                     }
                 })
                 .unwrap_or_else(|| {
-                    error!(
-                        "Got atom item with no ID, no title, and no published date: {feed:?} {url}"
-                    );
+                    error!("Got atom item with no ID, no title, and no published date: {url}");
                     let mut hasher = Sha256::new();
                     hasher.update(
                         entry.content.as_ref().and_then(|c| c.value.as_ref()).unwrap_or(&url),

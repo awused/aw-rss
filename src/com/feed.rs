@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,7 @@ use sqlx::prelude::FromRow;
 use super::{Insert, LazyBuilder, RssStruct, Update, UtcDateTime};
 use crate::quirks;
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize, FromRow, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Feed {
     id: i64,
@@ -100,7 +100,7 @@ impl Update<Feed> for ParsedUpdate {
                 builder.push(", site_url = ").push_bind(link);
             }
         } else if feed.site_url.is_empty() && !feed.site_url.starts_with('!') {
-            warn!("Feed without site link even after update {feed:?}");
+            warn!("Feed has no site link even after update");
             builder.push(", site_url = ").push_bind(&feed.url);
         }
 
@@ -148,16 +148,17 @@ impl Insert<Feed> for UserInsert {
 }
 
 
-impl Debug for Feed {
+impl Display for Feed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Very compact since this gets logged a lot
-        write!(
-            f,
-            "[Feed {}: {}",
-            self.id,
-            self.url,
-            // if self.user_title.is_empty() { &self.title } else { &self.user_title },
-        )?;
+        // Very compact since this gets logged a lot in Context
+        let title = if self.user_title.is_empty() { &self.title } else { &self.user_title };
+        let title = title
+            .char_indices()
+            .take(20)
+            .last()
+            .map_or(&**title, |(n, c)| &title[0..n + c.len_utf8()]);
+
+        write!(f, "[Feed {}: {} ({title})", self.id, self.url,)?;
 
         if self.disabled {
             f.write_str(" disabled")?;

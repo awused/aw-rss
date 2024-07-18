@@ -67,13 +67,13 @@ async fn main() -> color_eyre::Result<()> {
                     error!("Axum unexpectedly stopped serving: {r:?}");
                 }
                 // It is probably unnecessary to wait for the fetcher
-                timeout(Duration::from_secs(60), &mut fetcher).await?;
+                timeout(Duration::from_secs(60), fetcher).await?;
             },
             r = &mut fetcher => {
                 if closing::close() {
                     error!("Fetcher unexpectedly exited: {r:?}");
                 }
-                timeout(Duration::from_secs(60), &mut router).await??;
+                timeout(Duration::from_secs(60), router).await??;
             }
             _ = async {
                 closing::closed_fut().await;

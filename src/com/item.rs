@@ -107,18 +107,18 @@ impl Insert<Item> for ParsedInsert {
 }
 
 
-impl Debug for Item {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "[Item {} - feed {}: {} ({}), {}",
-            self.id, self.feed_id, self.url, self.title, self.timestamp,
-        )?;
-
-        if self.read {
-            f.write_str(" read")?;
-        }
-
-        f.write_str("]")
-    }
-}
+// impl Display for Item {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(
+//             f,
+//             "[Item {} - feed {}: {} ({}), {}",
+//             self.id, self.feed_id, self.url, self.title, self.timestamp,
+//         )?;
+//
+//         if self.read {
+//             f.write_str(" read")?;
+//         }
+//
+//         f.write_str("]")
+//     }
+// }

@@ -8,7 +8,7 @@ use sqlx::prelude::FromRow;
 use super::{Insert, RssStruct, Update, UtcDateTime};
 use crate::com::HttpError;
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize, FromRow, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Category {
     id: i64,
@@ -158,19 +158,19 @@ impl Update<Category> for UserEdit {
     }
 }
 
-impl Debug for Category {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[Category {}: {} ({})", self.id, self.name, self.title,)?;
-
-        if self.disabled {
-            f.write_str(", disabled")?;
-        } else if self.hidden_nav {
-            write!(f, ", hidden_nav")?;
-        } else if self.hidden_main {
-            write!(f, ", hidden_main")?;
-        }
-
-
-        f.write_str("]")
-    }
-}
+// impl Display for Category {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "[Category {}: {} ({})", self.id, self.name, self.title,)?;
+//
+//         if self.disabled {
+//             f.write_str(", disabled")?;
+//         } else if self.hidden_nav {
+//             write!(f, ", hidden_nav")?;
+//         } else if self.hidden_main {
+//             write!(f, ", hidden_main")?;
+//         }
+//
+//
+//         f.write_str("]")
+//     }
+// }

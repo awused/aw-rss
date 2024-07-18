@@ -20,7 +20,7 @@ mod get_items;
 mod reorder_categories;
 
 
-#[derive(Serialize, Debug, From)]
+#[derive(Serialize, From)]
 #[serde(rename_all = "camelCase")]
 struct ItemsResponse {
     items: Vec<Item>,

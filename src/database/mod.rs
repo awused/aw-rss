@@ -118,7 +118,7 @@ impl Database {
     }
 
     #[instrument(skip(guard))]
-    pub async fn single_insert<T: RssStruct, I: Insert<T>>(
+    pub async fn single_insert<T: RssStruct + std::fmt::Debug, I: Insert<T>>(
         mut guard: MutexGuard<'_, Self>,
         insert: I,
     ) -> Result<T> {

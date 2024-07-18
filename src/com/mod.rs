@@ -68,7 +68,7 @@ pub type QueryBuilder<'a> = sqlx::QueryBuilder<'a, Sqlite>;
 pub type Separated<'a, 'b> = sqlx::query_builder::Separated<'a, 'b, Sqlite, &'static str>;
 pub type LazyBuilder<'a> = Lazy<QueryBuilder<'a>>;
 
-pub trait RssStruct: Sized + for<'r> FromRow<'r, SqliteRow> + Send + Unpin + Debug {
+pub trait RssStruct: Sized + for<'r> FromRow<'r, SqliteRow> + Send + Unpin {
     fn id(&self) -> i64;
 
     fn table_name() -> &'static str;

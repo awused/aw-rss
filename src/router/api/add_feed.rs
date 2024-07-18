@@ -26,7 +26,7 @@ pub struct Request {
     force: bool,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "status")]
 pub enum Response {

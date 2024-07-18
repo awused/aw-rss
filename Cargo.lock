@@ -1453,8 +1453,6 @@ checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
 [[package]]
 name = "mapped_futures"
 version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e24baff633ec9f6eb9271bf350809f7d47539e2a42d241916fb4223012aa47fa"
 dependencies = [
  "bisetmap",
  "futures-core",

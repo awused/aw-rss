@@ -3,7 +3,7 @@ use std::fs::OpenOptions;
 use axum::http::HeaderValue;
 use chrono::format::{Fixed, Item};
 use chrono::{Local, Timelike};
-use color_eyre::eyre::bail;
+use color_eyre::eyre::{bail, Context};
 use tower_http::trace::{MakeSpan, OnResponse};
 use tracing::{event, Level};
 use tracing_error::ErrorLayer;
@@ -64,7 +64,7 @@ impl<B> OnResponse<B> for ResponseFormat {
 
 pub fn init_logging() -> color_eyre::Result<()> {
     let filter_layer = EnvFilter::builder()
-        .with_default_directive(CONFIG.log_level.parse().unwrap())
+        .with_default_directive(CONFIG.log_level.parse().wrap_err("Invalid log_level")?)
         .from_env_lossy()
         // These are unbelievably spammy
         .add_directive("html5ever=warn".parse().unwrap())
