@@ -51,7 +51,7 @@ async fn try_file(uri: Uri) -> impl IntoResponse {
     ([(header::CONTENT_TYPE, mime.as_ref())], file.data).into_response()
 }
 
-pub async fn route(listener: TcpListener, state: RouterState) -> color_eyre::Result<()> {
+pub async fn serve(listener: TcpListener, state: RouterState) -> color_eyre::Result<()> {
     let service = ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()

@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::marker::PhantomData;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::rc::Rc;
@@ -7,8 +6,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use async_channel::{bounded, Receiver, Sender};
-use color_eyre::eyre::bail;
-use color_eyre::Result;
 use once_cell::sync::Lazy;
 
 use crate::spawn_thread;
@@ -33,37 +30,23 @@ pub struct CloseOnDrop {
 
 impl Drop for CloseOnDrop {
     fn drop(&mut self) {
-        if !closed() {
+        if close() {
             // This means something else panicked and at least one thread did not shut down cleanly.
-            fatal(format!(
+            error!(
                 "CloseOnDrop for {} was dropped without closing::close() being called.",
                 thread::current().name().unwrap_or("unnamed")
-            ));
+            );
         }
     }
 }
 
-pub fn closed() -> bool {
-    CLOSED.load(Ordering::Relaxed)
-}
-
-pub fn closed_err() -> Result<()> {
-    if closed() {
-        bail!("Application is closed")
-    }
-    Ok(())
-}
-
+/// Resolves when close() is called
 pub async fn closed_fut() {
     // We only care that it's closed.
     let _ignored = CLOSER.1.recv().await;
 }
 
-pub async fn closed_fut_err() -> Result<Infallible> {
-    closed_fut().await;
-    bail!("Application is closed");
-}
-
+/// returns false if we were already closed
 pub fn close() -> bool {
     if !CLOSED.swap(true, Ordering::Relaxed) {
         let mut o = CLOSER.0.lock().expect("CLOSER lock poisoned");
@@ -76,24 +59,6 @@ pub fn close() -> bool {
         true
     } else {
         false
-    }
-}
-
-// Logs the error and closes the application.
-// Saves the first fatal error to a crash log file in the system default temp directory.
-pub fn fatal(msg: impl AsRef<str>) {
-    let msg = msg.as_ref();
-
-    error!("{msg}");
-
-    if close() {
-        // let path = temp_dir().join(format!("aw-rss_crash_{}", process::id()));
-        // let Ok(mut file) = std::fs::File::options().write(true).create_new(true).open(&path) else
-        // {     error!("Couldn't open {path:?} for logging fatal error");
-        //     return;
-        // };
-        //
-        // drop(file.write_all(msg.as_bytes()));
     }
 }
 
@@ -122,7 +87,8 @@ pub fn init() {
             let mut it = match SignalsInfo::<SignalOnly>::new(sigs) {
                 Ok(i) => i,
                 Err(e) => {
-                    fatal(format!("Error registering signal handlers: {e:?}"));
+                    error!("Error registering signal handlers: {e:?}");
+                    close();
                     return;
                 }
             };
@@ -133,7 +99,8 @@ pub fn init() {
                 it.handle().close();
             }
         })) {
-            fatal(format!("Signal thread panicked unexpectedly: {e:?}"));
+            error!("Signal thread panicked unexpectedly: {e:?}");
+            close();
         };
     });
 

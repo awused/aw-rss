@@ -86,7 +86,6 @@ impl Database {
         con.close().await.map_err(Into::into)
     }
 
-    // TODO -- remove these
     #[instrument(skip(guard))]
     pub async fn get<T: RssStruct>(mut guard: MutexGuard<'_, Self>, id: i64) -> Result<T> {
         sqlx::query_as(&format!("SELECT * FROM {} WHERE id = ?", T::table_name()))
@@ -130,7 +129,7 @@ impl Database {
         Ok(inserted)
     }
 
-    #[instrument(skip(guard, feed))]
+    #[instrument(skip_all)]
     pub async fn handle_parsed(
         mut guard: MutexGuard<'_, Self>,
         feed: &Feed,
@@ -143,7 +142,7 @@ impl Database {
 
         match (updated, num_inserted) {
             (Outcome::NoOp(feed), 0) => {
-                debug!("No changes after applying updates");
+                trace!("No changes after applying updates");
                 tx.rollback().await?;
                 Ok(Outcome::NoOp((feed, 0)))
             }
@@ -332,8 +331,8 @@ ORDER BY id ASC"
     fn insert_conflict<T: RssStruct, I: Insert<T>>(builder: &mut QueryBuilder<'_>) {
         match I::on_conflict() {
             OnConflict::Error => {}
-            OnConflict::Ignore => {
-                builder.push(" ON CONFLICT IGNORE ");
+            OnConflict::Ignore(constraint) => {
+                builder.push(" ON CONFLICT").push(constraint).push(" DO NOTHING ");
             }
         }
     }
@@ -351,13 +350,32 @@ ORDER BY id ASC"
         Ok(builder.push(" RETURNING *").build_query_as().fetch_one(self.con()).await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(count = inserts.len()))]
     async fn bulk_insert<T: RssStruct, I: Insert<T>>(&mut self, inserts: Vec<I>) -> Result<u64> {
+        if inserts.is_empty() {
+            return Ok(0);
+        }
+
         inserts.iter().try_for_each(I::validate)?;
 
         let mut builder = Self::start_insert::<T, I>();
 
-        builder.push_values(inserts, |mut s, ins| ins.push_values(&mut s));
+        // Default sqlite limit for versions 3.32.0+
+        let hint = I::binds_count_hint();
+        if inserts.len() * hint > 32766 {
+            error!(
+                "Trying to insert too much: {} inserts would need {} binds, which is over the \
+                 sqlite maximum. Skipping older items.",
+                inserts.len(),
+                inserts.len() * hint
+            );
+
+            builder.push_values(inserts.into_iter().take(32766 / hint), |mut s, ins| {
+                ins.push_values(&mut s)
+            });
+        } else {
+            builder.push_values(inserts, |mut s, ins| ins.push_values(&mut s));
+        }
 
         Self::insert_conflict::<T, I>(&mut builder);
 

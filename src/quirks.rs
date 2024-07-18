@@ -2,7 +2,6 @@ use crate::com::Feed;
 
 // Quirks not ported over:
 // - fictionpress.net/fanfiction.net republishing items
-// - mangadex host delays (TODO)
 
 pub fn site_url(new_link: String, feed: &Feed) -> String {
     if new_link.starts_with("https://konachan.com/") {

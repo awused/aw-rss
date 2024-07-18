@@ -16,6 +16,8 @@ port = 9092
 
 # Log file, leave blank to log to stdout
 # aw-rss truncates this file on every start.
+#
+# Must be an absolute path if present.
 # log_file = "/path/to/file.log"
 
 # Log level, as per RUST_LOG, defaults to Info
@@ -40,6 +42,6 @@ dedupe = true
 # back off aggressively but will never run their javascript.
 #
 # NOT ENABLED
-cloudflare_domains = [
-  "mangadex.org"
-]
+# cloudflare_domains = [
+#   "mangadex.org"
+# ]

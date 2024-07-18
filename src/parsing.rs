@@ -13,23 +13,22 @@ use crate::com::item::ParsedInsert;
 use crate::com::{Feed, RssStruct};
 
 #[derive(Debug)]
-struct Parsed {
-    feed: ParsedUpdate,
-    items: Vec<ParsedInsert>,
-    ttl: Option<Duration>,
+pub struct ParsedFeed {
+    pub update: ParsedUpdate,
+    pub items: Vec<ParsedInsert>,
+    pub ttl: Option<Duration>,
 }
 
-#[instrument(skip(body))]
-pub fn parse_feed(feed: &Feed, body: &str) -> Result<Parsed> {
+pub fn parse_feed(feed: &Feed, body: &str) -> Result<ParsedFeed> {
     parse(body, Some(feed))
 }
 
-#[instrument(skip(body))]
 pub fn check_valid_feed(body: &str) -> Result<()> {
     parse(body, None).map(|_| ())
 }
 
-fn parse(body: &str, feed: Option<&Feed>) -> Result<Parsed> {
+#[instrument(skip_all)]
+fn parse(body: &str, feed: Option<&Feed>) -> Result<ParsedFeed> {
     let rss_feed = Channel::read_from(Cursor::new(&body));
 
     if let Ok(parsed) = rss_feed {
@@ -39,11 +38,7 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<Parsed> {
             link: Some(parsed.link),
         };
 
-        let mut out = Parsed {
-            feed: update,
-            items: Vec::new(),
-            ttl: None,
-        };
+        let mut out = ParsedFeed { update, items: Vec::new(), ttl: None };
 
         let Some(feed) = feed else {
             return Ok(out);
@@ -67,11 +62,7 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<Parsed> {
             link: extract_atom_url(parsed.links),
         };
 
-        let mut out = Parsed {
-            feed: update,
-            items: Vec::new(),
-            ttl: None,
-        };
+        let mut out = ParsedFeed { update, items: Vec::new(), ttl: None };
 
         let Some(feed) = feed else {
             return Ok(out);
@@ -128,7 +119,7 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
 
         Self {
             feed_id: feed.id(),
-            key: key.into(),
+            key,
             title,
             url,
             timestamp: timestamp.into(),
@@ -174,7 +165,7 @@ impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
 
         Self {
             feed_id: feed.id(),
-            key: key.into(),
+            key,
             title,
             url,
             timestamp: timestamp.into(),

@@ -27,6 +27,9 @@ pub use date::UtcDateTime;
 pub use feed::Feed;
 pub use item::Item;
 
+const HTTP_TIMEOUT: Duration = Duration::from_secs(30);
+
+
 pub type RssQueryAs<'a, T> = QueryAs<'a, Sqlite, T, SqliteArguments<'a>>;
 
 #[derive(Debug)]
@@ -81,7 +84,8 @@ pub trait Update<T: RssStruct>: Debug {
 pub enum OnConflict {
     // No special handling
     Error,
-    Ignore,
+    // The constraint, example "(feed_id, key)"
+    Ignore(&'static str),
     //     Update {
     //         constraint: &'static str,
     //         // Don't include commit_timestamp
@@ -91,6 +95,10 @@ pub enum OnConflict {
 
 pub trait Insert<T: RssStruct>: Debug {
     fn columns() -> &'static [&'static str];
+
+    fn binds_count_hint() -> usize {
+        0
+    }
 
     fn on_conflict() -> OnConflict {
         OnConflict::Error
@@ -115,7 +123,7 @@ pub static CLIENT: SyncLazy<Client> = SyncLazy::new(|| {
 
     Client::builder()
         .default_headers(headers)
-        .timeout(Duration::from_secs(30))
+        .timeout(HTTP_TIMEOUT)
         .brotli(true)
         .gzip(true)
         .deflate(true)
@@ -155,10 +163,6 @@ impl HttpError {
     pub const fn bad(err: &'static str) -> Self {
         Self::Status(StatusCode::BAD_REQUEST, err)
     }
-
-    // const fn internal(err: &'static str) -> Self {
-    //     Self::Status(StatusCode::INTERNAL_SERVER_ERROR, err)
-    // }
 }
 
 fn empty_string_is_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

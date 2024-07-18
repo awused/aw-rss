@@ -79,7 +79,7 @@ async fn get_valid_feed_url(url: &str) -> Result<Url> {
 
     info!("Attempting to load feed");
 
-    let body = CLIENT.get(url.clone()).send().await?.text().await;
+    let body = CLIENT.get(url.clone()).send().await?.text().await?;
     let Err(e) = check_valid_feed(&body) else {
         return Ok(url);
     };

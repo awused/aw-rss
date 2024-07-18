@@ -13,10 +13,11 @@ use crate::config::CONFIG;
 pub struct Item {
     id: i64,
     feed_id: i64,
-    // Unfortunately not guaranteed to be utf-8 in practice
-    #[serde(skip)]
-    #[allow(dead_code)]
-    key: Vec<u8>,
+    // Unfortunately not guaranteed to be utf-8 in practice,
+    // but we don't really need it in code.
+    // #[serde(skip)]
+    // #[allow(dead_code)]
+    // key: Vec<u8>,
     title: String,
     url: String,
     timestamp: UtcDateTime,
@@ -55,7 +56,8 @@ impl Update<Item> for UserEdit {
 #[derive(Debug)]
 pub struct ParsedInsert {
     pub feed_id: i64,
-    pub key: Vec<u8>,
+    // Force strings on insert, even though we might have some invalid utf-8 in the DB
+    pub key: String,
     pub title: String,
     pub url: String,
     pub timestamp: UtcDateTime,
@@ -65,15 +67,19 @@ thread_local! {
     static DEDUPE: Lazy<bool> = Lazy::new(|| CONFIG.dedupe);
 }
 
-const DEDUPE_COLUMNS: [&str; 6] = ["feed_id", "key", "title", "url", "timetamp", "read"];
+const DEDUPE_COLUMNS: [&str; 6] = ["feed_id", "key", "title", "url", "timestamp", "read"];
 
 impl Insert<Item> for ParsedInsert {
     fn columns() -> &'static [&'static str] {
         if DEDUPE.with(|b| **b) { &DEDUPE_COLUMNS } else { &DEDUPE_COLUMNS[0..5] }
     }
 
+    fn binds_count_hint() -> usize {
+        7
+    }
+
     fn on_conflict() -> OnConflict {
-        OnConflict::Ignore
+        OnConflict::Ignore("(feed_id, key)")
     }
 
     fn validate(&self) -> Result<()> {
@@ -93,7 +99,7 @@ impl Insert<Item> for ParsedInsert {
             builder
                 .push(" (SELECT EXISTS (SELECT url FROM items WHERE url = ")
                 .push_bind_unseparated(self.url)
-                .push_unseparated("feed_id != ")
+                .push_unseparated(" AND feed_id != ")
                 .push_bind_unseparated(self.feed_id)
                 .push_unseparated(")) ");
         }

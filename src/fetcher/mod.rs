@@ -40,14 +40,12 @@ struct Manager<'a> {
     host_map: HashMap<String, &'static HostData>,
     active_feeds: HashMap<i64, Rc<Event>>,
     poll_deadline: Instant,
-    context: &'a Context<'a>,
+
+    // Can be borrowed by tasks
+    db: &'a Mutex<Database>,
+    rerun_failing: &'a Event,
 }
 
-// Stays constant, can be borrowed from in futures
-struct Context<'a> {
-    db: &'a Mutex<Database>,
-    rerun_failing: Event,
-}
 
 #[derive(Debug)]
 struct FeedFetcher<'a> {
@@ -67,18 +65,18 @@ impl<'a> Manager<'a> {
     // This should only ever exit if something is seriously broken
     #[instrument(skip_all)]
     async fn run(mut self) {
-        // The code will be MUCH nicer once this is named
+        // The code will be MUCH nicer once this is nameable (don't want to box)
         let mut tasks = MappedFutures::new();
 
-        // TODO -- move this all into a poll_db function
         let initial = self.poll_db(&mut tasks).await.expect("Failed to load initial feeds");
-        info!("Loaded {} initial feeds", initial.len());
 
         for (id, feed) in initial {
             let fetcher = self.build_fetcher(feed);
             assert!(self.active_feeds.insert(id, fetcher.rerun.clone()).is_none());
             assert!(tasks.insert(id, fetcher.run()));
         }
+
+        info!("Loaded {} initial feeds", self.active_feeds.len());
 
         loop {
             select! {
@@ -93,6 +91,10 @@ impl<'a> Manager<'a> {
                         }
                     };
 
+                    if !new.is_empty() {
+                        info!("Starting {} new feeds after DB poll from manual edits", new.len());
+                    }
+
                     for (id, feed) in new {
                         let fetcher = self.build_fetcher(feed);
                         assert!(self.active_feeds.insert(id, fetcher.rerun.clone()).is_none());
@@ -101,8 +103,8 @@ impl<'a> Manager<'a> {
                 }
                 msg = self.receiver.recv() => {
                     let Some(msg) = msg else {
-                        if !closing::closed() {
-                            closing::fatal("Channel closed unexpectedly");
+                        if closing::close() {
+                            error!("Channel closed unexpectedly");
                         }
                         break;
                     };
@@ -132,7 +134,7 @@ impl<'a> Manager<'a> {
 
         // We cannot trust the commit timestamp in the presence of user edits, so this is a full
         // scan.
-        let feeds = Database::current_feeds(self.context.db.lock().await).await?;
+        let feeds = Database::current_feeds(self.db.lock().await).await?;
 
         debug!("Loaded {} active feeds", feeds.len());
 
@@ -161,7 +163,7 @@ impl<'a> Manager<'a> {
 
         match action {
             Action::RerunFailing => {
-                let n = self.context.rerun_failing.notify_relaxed(usize::MAX);
+                let n = self.rerun_failing.notify_relaxed(usize::MAX);
                 info!("Notified approximately {n} failing tasks");
             }
             Action::Rerun(id) => {
@@ -172,13 +174,14 @@ impl<'a> Manager<'a> {
                 info!("Notified {n} feeds to rerun");
             }
             Action::FeedChanged(id) => {
-                let db = self.context.db.lock().await;
+                let db = self.db.lock().await;
                 let feed: Feed = Database::get(db, id).await?;
 
                 if feed.disabled && self.active_feeds.remove(&feed.id()).is_some() {
-                    debug!("Cancelling task for disabled feed: {feed:?}");
+                    info!("Cancelling task for disabled feed: {feed:?}");
                     assert!(tasks.cancel(&feed.id()));
                 } else if !feed.disabled && !self.active_feeds.contains_key(&feed.id()) {
+                    info!("Cancelling task for newly enabled feed: {feed:?}");
                     return Ok(Some((feed.id(), self.build_fetcher(feed))));
                 }
             }
@@ -195,12 +198,12 @@ impl<'a> Manager<'a> {
         debug!("Starting task");
         FeedFetcher {
             feed,
-            db: self.context.db,
+            db: self.db,
             host_data,
             failing_timeout: None,
             next_fetch: Instant::now(),
             rerun,
-            rerun_failing: &self.context.rerun_failing,
+            rerun_failing: self.rerun_failing,
         }
     }
 
@@ -219,7 +222,7 @@ impl<'a> Manager<'a> {
             }
         } else if let Ok(url) = Url::parse(&feed.url) {
             if let Some(host) = url.host_str() {
-                host.to_string()
+                host.trim_start_matches("www.").to_string()
             } else {
                 error!("Got unparseable Feed URL for {feed:?}");
                 "".to_string()
@@ -240,13 +243,14 @@ impl<'a> Manager<'a> {
 }
 
 
-pub async fn run_fetcher(db: &Mutex<Database>, receiver: UnboundedReceiver<Action>) {
+pub async fn run(db: &Mutex<Database>, receiver: UnboundedReceiver<Action>) {
     Manager {
         receiver,
         active_feeds: HashMap::new(),
         host_map: HashMap::new(),
         poll_deadline: Instant::now(),
-        context: &Context { db, rerun_failing: Event::new() },
+        db,
+        rerun_failing: &Event::new(),
     }
     .run()
     .await
