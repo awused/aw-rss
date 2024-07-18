@@ -13,7 +13,7 @@ use futures_util::StreamExt;
 use mapped_futures::mapped_futures::MappedFutures;
 use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 use tokio::time::{sleep_until, Instant};
 use url::Url;
 
@@ -47,7 +47,6 @@ struct Manager<'a> {
 }
 
 
-#[derive(Debug)]
 struct FeedFetcher<'a> {
     feed: Feed,
     db: &'a Mutex<Database>,
@@ -68,7 +67,8 @@ impl<'a> Manager<'a> {
         // The code will be MUCH nicer once this is nameable (don't want to box)
         let mut tasks = MappedFutures::new();
 
-        let initial = self.poll_db(&mut tasks).await.expect("Failed to load initial feeds");
+        let db = self.db.lock().await;
+        let initial = self.poll_db(db, &mut tasks).await.expect("Failed to load initial feeds");
 
         for (id, feed) in initial {
             let fetcher = self.build_fetcher(feed);
@@ -78,12 +78,38 @@ impl<'a> Manager<'a> {
 
         info!("Loaded {} initial feeds", self.active_feeds.len());
 
+        let mut pending_msg = None;
+
         loop {
             select! {
                 biased;
                 _ = closing::closed_fut() => break,
-                _ = sleep_until(self.poll_deadline) => {
-                    let new = match self.poll_db(&mut tasks).await {
+                // This is two sections to guarantee that we don't lose a message in a cancelled
+                // future.
+                msg = self.receiver.recv(), if pending_msg.is_none() => {
+                    if msg.is_none() {
+                        if closing::close() {
+                            error!("Channel closed unexpectedly");
+                        }
+                        break;
+                    };
+                    pending_msg = msg;
+                }
+                guard = self.db.lock(), if pending_msg.is_some() => {
+                    match self.handle(guard, &mut tasks, pending_msg.take().unwrap()).await {
+                        Ok(None) => {},
+                        Ok(Some((id, fetcher))) => {
+                            assert!(self.active_feeds.insert(id, fetcher.rerun.clone()).is_none());
+                            assert!(tasks.insert(id, fetcher.run()));
+                        }
+                        Err(e) => error!("{e:?}")
+                    }
+                }
+                guard = async {
+                    sleep_until(self.poll_deadline).await;
+                    self.db.lock().await
+                } => {
+                    let new = match self.poll_db(guard, &mut tasks).await {
                         Ok(new) => new,
                         Err(e) => {
                             error!("{e:?}");
@@ -101,23 +127,6 @@ impl<'a> Manager<'a> {
                         assert!(tasks.insert(id, fetcher.run()));
                     }
                 }
-                msg = self.receiver.recv() => {
-                    let Some(msg) = msg else {
-                        if closing::close() {
-                            error!("Channel closed unexpectedly");
-                        }
-                        break;
-                    };
-
-                    match self.handle(&mut tasks, msg).await {
-                        Ok(None) => {},
-                        Ok(Some((id, fetcher))) => {
-                            assert!(self.active_feeds.insert(id, fetcher.rerun.clone()).is_none());
-                            assert!(tasks.insert(id, fetcher.run()));
-                        }
-                        Err(e) => error!("{e:?}")
-                    }
-                }
                 _ = tasks.next(), if !tasks.is_empty() => {
                     unreachable!()
                 }
@@ -128,13 +137,14 @@ impl<'a> Manager<'a> {
     #[instrument(skip_all)]
     async fn poll_db(
         &mut self,
+        db: MutexGuard<'a, Database>,
         tasks: &mut MappedFutures<i64, impl Future<Output = Infallible>>,
     ) -> Result<HashMap<i64, Feed>> {
         self.poll_deadline += POLL_DURATION;
 
         // We cannot trust the commit timestamp in the presence of user edits, so this is a full
         // scan.
-        let feeds = Database::current_feeds(self.db.lock().await).await?;
+        let feeds = Database::current_feeds(db).await?;
 
         debug!("Loaded {} active feeds", feeds.len());
 
@@ -153,9 +163,10 @@ impl<'a> Manager<'a> {
         Ok(alive)
     }
 
-    #[instrument(skip(self, tasks))]
+    #[instrument(skip(self, db, tasks))]
     async fn handle(
         &mut self,
+        db: MutexGuard<'a, Database>,
         tasks: &mut MappedFutures<i64, impl Future<Output = Infallible>>,
         action: Action,
     ) -> Result<Option<(i64, FeedFetcher<'a>)>> {
@@ -174,14 +185,13 @@ impl<'a> Manager<'a> {
                 info!("Notified {n} feeds to rerun");
             }
             Action::FeedChanged(id) => {
-                let db = self.db.lock().await;
                 let feed: Feed = Database::get(db, id).await?;
 
                 if feed.disabled && self.active_feeds.remove(&feed.id()).is_some() {
-                    info!("Cancelling task for disabled feed: {feed:?}");
+                    info!("Cancelling task for disabled feed: {feed}");
                     assert!(tasks.cancel(&feed.id()));
                 } else if !feed.disabled && !self.active_feeds.contains_key(&feed.id()) {
-                    info!("Cancelling task for newly enabled feed: {feed:?}");
+                    info!("Creating task for newly enabled feed: {feed}");
                     return Ok(Some((feed.id(), self.build_fetcher(feed))));
                 }
             }
@@ -190,7 +200,7 @@ impl<'a> Manager<'a> {
         Ok(None)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), fields(%feed))]
     fn build_fetcher(&mut self, feed: Feed) -> FeedFetcher<'a> {
         let host_data = self.insert_host(&feed);
         let rerun = Rc::new(Event::new());
@@ -220,16 +230,16 @@ impl<'a> Manager<'a> {
             } else {
                 split[0].to_string()
             }
-        } else if let Ok(url) = Url::parse(&feed.url) {
-            if let Some(host) = url.host_str() {
-                host.trim_start_matches("www.").to_string()
-            } else {
-                error!("Got unparseable Feed URL for {feed:?}");
-                String::new()
-            }
         } else {
-            error!("Got unparseable Feed URL for {feed:?}");
-            String::new()
+            Url::parse(&feed.url)
+                .ok()
+                .and_then(|url| {
+                    url.host_str().map(|host| host.trim_start_matches("www.").to_string())
+                })
+                .unwrap_or_else(|| {
+                    error!("Got unparseable Feed URL");
+                    String::new()
+                })
         };
 
         match self.host_map.entry(host) {

@@ -133,7 +133,7 @@ impl<'a> FeedFetcher<'a> {
         select(sleep, select(self.rerun.listen(), self.rerun_failing.listen())).await;
     }
 
-    #[instrument(skip(self), fields(feed = ?self.feed), level = "error")]
+    #[instrument(skip(self), fields(feed = %self.feed), level = "error")]
     pub(super) async fn run(mut self) -> Infallible {
         loop {
             match self.fetch().await {
