@@ -54,7 +54,7 @@ WITH updates(id, sort_position) AS (
             "))
 UPDATE categories
 SET
-    sort_position = updates.sort_position, commit_timestamp = CURRENT_TIMESTAMP
+    sort_position = updates.sort_position
 FROM
     updates
 WHERE

@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use color_eyre::eyre::bail;
 use color_eyre::Result;
+use once_cell::unsync::Lazy;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
@@ -122,37 +123,39 @@ impl Update<Category> for UserEdit {
     }
 
     fn build_updates<'a>(self, s: &'a Category, builder: &mut super::LazyBuilder<'a>) {
+        let mut sep = Lazy::new(|| { builder }.separated(", "));
+
         if self.disabled {
             // Disabling categories is a weird case because they can't be re-enabled yet.
             // But it should be possible in the future, so feeds.category_id isn't nulled out.
             // The name is set to a unique but invalid name so it won't conflict in the future.
             //
             // Manual restoration is possible.
-            builder.push(", disabled = 1, name = ").push_bind(s.id.to_string());
+            sep.push(" disabled = 1, name = ").push_bind_unseparated(s.id.to_string());
             return;
         }
 
         if let Some(name) = self.name {
             if s.name != name {
-                builder.push(", name = ").push_bind(name);
+                sep.push(" name = ").push_bind_unseparated(name);
             }
         }
 
         if let Some(title) = self.title {
             if s.title != title {
-                builder.push(", title = ").push_bind(title);
+                sep.push(" title = ").push_bind_unseparated(title);
             }
         }
 
         if let Some(hnav) = self.hidden_nav {
             if s.hidden_nav != hnav {
-                builder.push(", hidden_nav = ").push_bind(hnav);
+                sep.push(" hidden_nav = ").push_bind_unseparated(hnav);
             }
         }
 
         if let Some(hmain) = self.hidden_main {
             if s.hidden_main != hmain {
-                builder.push(", hidden_main = ").push_bind(hmain);
+                sep.push(" hidden_main = ").push_bind_unseparated(hmain);
             }
         }
     }

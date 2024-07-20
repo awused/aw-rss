@@ -13,8 +13,8 @@ use tokio::sync::MutexGuard;
 use crate::com::feed::ParsedUpdate;
 use crate::com::item::ParsedInsert;
 use crate::com::{
-    Category, Feed, Insert, Item, LazyBuilder, OnConflict, Outcome, QueryBuilder, RssQueryAs,
-    RssStruct, Update, UtcDateTime,
+    Category, Feed, Insert, Item, OnConflict, Outcome, QueryBuilder, RssQueryAs, RssStruct, Update,
+    UtcDateTime,
 };
 use crate::config::CONFIG;
 
@@ -292,16 +292,12 @@ ORDER BY id ASC"
         let s: T = self.get(id).await?;
         edit.validate(&s)?;
 
-        let mut builder: LazyBuilder<'_> = Lazy::new(|| {
-            QueryBuilder::new(format!(
-                "UPDATE {} SET commit_timestamp = CURRENT_TIMESTAMP ",
-                T::table_name()
-            ))
-        });
+        let mut builder: Lazy<QueryBuilder<'_>> =
+            Lazy::new(|| QueryBuilder::new(format!("UPDATE {} SET ", T::table_name())));
 
         edit.build_updates(&s, &mut builder);
 
-        let Ok(mut edit) = Lazy::into_value(builder) else {
+        let Some(edit) = Lazy::get_mut(&mut builder) else {
             return Ok(Outcome::NoOp(s));
         };
 

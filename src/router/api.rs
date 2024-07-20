@@ -136,7 +136,7 @@ impl ReadFeedRequest {
         let query = sqlx::query_as(
             "
 UPDATE items
-SET read = 1, commit_timestamp = CURRENT_TIMESTAMP
+SET read = 1
 WHERE feed_id = ? AND read = 0 AND id <= ?
 RETURNING *",
         )
@@ -145,7 +145,7 @@ RETURNING *",
 
         let mut unsorted = db.fetch_all(query).await?;
 
-        unsorted.sort_by_key(|i: &Item| i.id());
+        unsorted.sort_by_key(Item::id);
 
         Ok(unsorted)
     }

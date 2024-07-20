@@ -32,7 +32,6 @@ export interface Feed {
 
 export interface Item {
   readonly commitTimestamp: number;
-  readonly description?: string;
   readonly feedId: number;
   readonly id: number;
   readonly read: boolean;

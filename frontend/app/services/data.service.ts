@@ -48,9 +48,14 @@ interface ServerUpdates {
 }
 
 interface GetItemsRequest {
+  // At most one of categoryId and feedIds can be set
   categoryId?: number;
   feedIds?: number[];
-  includeFeeds?: boolean;
+
+  // includeFeeds?: boolean;
+
+  // Exactly one of unread, readAfter, and (readBefore, readBeforeCount) must be set
+  // Unread can only be set with feedIds, since it is only used for backfilling.
   unread?: boolean;
   readBefore?: Date;
   readBeforeCount?: number;
@@ -59,7 +64,6 @@ interface GetItemsRequest {
 
 interface GetItemsResponse {
   items: Item[];
-  feeds?: Feed[];
 }
 
 

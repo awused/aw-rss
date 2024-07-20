@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use color_eyre::Result;
+use once_cell::unsync::Lazy;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
@@ -56,23 +57,25 @@ impl Update<Feed> for UserEdit {
     }
 
     fn build_updates(self, feed: &Feed, builder: &mut LazyBuilder<'_>) {
+        let mut sep = Lazy::new(|| { builder }.separated(", "));
+
         if let Some(cat) = self.category_id {
             if feed.category_id != Some(cat) {
-                builder.push(", category_id = ").push_bind(cat);
+                sep.push(" category_id = ").push_bind_unseparated(cat);
             }
         } else if self.clear_category && feed.category_id.is_some() {
-            builder.push(", category_id = NULL ");
+            sep.push(" category_id = NULL ");
         }
 
         if let Some(disable) = self.disabled {
             if disable != feed.disabled {
-                builder.push(", disabled = ").push_bind(disable);
+                sep.push(" disabled = ").push_bind_unseparated(disable);
             }
         }
 
         if let Some(ut) = self.user_title {
             if ut != feed.user_title {
-                builder.push(", user_title = ").push_bind(ut);
+                sep.push(" user_title = ").push_bind_unseparated(ut);
             }
         }
     }
@@ -90,22 +93,24 @@ impl Update<Feed> for ParsedUpdate {
     }
 
     fn build_updates<'a>(self, feed: &'a Feed, builder: &mut LazyBuilder<'a>) {
+        let mut sep = Lazy::new(|| { builder }.separated(", "));
+
         if self.title != feed.title {
-            builder.push(", title = ").push_bind(self.title);
+            sep.push(" title = ").push_bind_unseparated(self.title);
         }
 
         if let Some(link) = self.link {
             let link = quirks::site_url(link, feed);
             if link != feed.site_url {
-                builder.push(", site_url = ").push_bind(link);
+                sep.push(" site_url = ").push_bind_unseparated(link);
             }
         } else if feed.site_url.is_empty() && !feed.site_url.starts_with('!') {
             warn!("Feed has no site link even after update");
-            builder.push(", site_url = ").push_bind(&feed.url);
+            sep.push(" site_url = ").push_bind_unseparated(&feed.url);
         }
 
         if feed.failing_since.is_some() {
-            builder.push(", failing_since = NULL ");
+            sep.push(" failing_since = NULL ");
         }
     }
 }
@@ -122,7 +127,7 @@ impl Update<Feed> for Failing {
 
     fn build_updates<'a>(self, s: &'a Feed, builder: &mut LazyBuilder<'a>) {
         if s.failing_since.is_none() {
-            builder.push(", failing_since = ").push_bind(self.since);
+            builder.push(" failing_since = ").push_bind(self.since);
         }
     }
 }

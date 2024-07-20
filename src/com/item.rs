@@ -48,7 +48,7 @@ impl Update<Item> for UserEdit {
 
     fn build_updates(self, item: &Item, builder: &mut LazyBuilder<'_>) {
         if item.read != self.read {
-            builder.push(", read = ").push_bind(self.read);
+            builder.push(" read = ").push_bind(self.read);
         }
     }
 }
