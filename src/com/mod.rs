@@ -9,6 +9,7 @@ use color_eyre::Result;
 use derive_more::From;
 use once_cell::sync::Lazy as SyncLazy;
 use once_cell::unsync::Lazy;
+use reqwest::header::{CACHE_CONTROL, USER_AGENT};
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Deserializer};
 use sqlx::prelude::FromRow;
@@ -113,12 +114,12 @@ pub trait Insert<T: RssStruct>: Debug {
 pub static CLIENT: SyncLazy<Client> = SyncLazy::new(|| {
     let mut headers = HeaderMap::new();
     // Workaround for dolphinemu.org, but doesn't seem to break any other feeds.
-    headers.insert("Cache-Control", HeaderValue::from_static("no-cache"));
+    headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 
     // Pretend to be wget. Some sites don't like an empty user agent.
     // Reddit in particular will _always_ say to retry in a few seconds,
     // even if you wait hours.
-    headers.insert("User-Agent", HeaderValue::from_static("Wget/1.19.5 (freebsd11.1)"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("Wget/1.19.5 (freebsd11.1)"));
 
 
     Client::builder()

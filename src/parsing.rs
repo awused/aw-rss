@@ -73,7 +73,7 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<ParsedFeed> {
         return Ok(out);
     }
 
-    info!("Failed to decode feed as rss or atom");
+    debug!("Failed to decode feed as rss or atom");
     Err(eyre!("Failed to decode feed")
         .section(rss_feed.unwrap_err())
         .section(atom_feed.unwrap_err()))

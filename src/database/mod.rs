@@ -124,7 +124,8 @@ impl Database {
     ) -> Result<T> {
         let mut tx = guard.transaction().await?;
         let inserted = tx.insert(insert).await?;
-        info!("Inserted into {}: {inserted:?}", T::table_name());
+        info!("Inserted into {}", T::table_name());
+        trace!("Value inserted was {inserted:?}");
         tx.commit().await?;
         Ok(inserted)
     }

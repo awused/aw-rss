@@ -9,6 +9,7 @@ use std::time::Duration;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
 use event_listener::Event;
+use fetch::{Headers, Status};
 use futures_util::StreamExt;
 use mapped_futures::mapped_futures::MappedFutures;
 use tokio::select;
@@ -51,7 +52,7 @@ struct FeedFetcher<'a> {
     feed: Feed,
     db: &'a Mutex<Database>,
     host_data: &'static HostData,
-    failing_timeout: Option<Duration>,
+    status: Status,
     // Based on Feed TTL
     next_fetch: Instant,
     rerun: Rc<Event>,
@@ -210,7 +211,7 @@ impl<'a> Manager<'a> {
             feed,
             db: self.db,
             host_data,
-            failing_timeout: None,
+            status: Status::Success(Headers::default()),
             next_fetch: Instant::now(),
             rerun,
             rerun_failing: self.rerun_failing,
