@@ -60,7 +60,7 @@ struct Response {
 impl<'a> FeedFetcher<'a> {
     #[instrument(level = "info", skip_all)]
     async fn fetch_http(&mut self) -> Result<Response> {
-        debug!("Fetching");
+        trace!("Fetching HTTP feed");
 
         let mut headers = self.status.take_headers();
 
@@ -84,8 +84,9 @@ impl<'a> FeedFetcher<'a> {
 
     #[instrument(level = "info", skip_all)]
     async fn run_executable(&mut self) -> Result<Response> {
-        // If this fails, something unsafe has happened.
+        // If this fails, something unsafe has happened and we should crash
         assert!(self.feed.url.starts_with('!'));
+        trace!("Running external executable");
 
         let mut args = Shlex::new(&self.feed.url[1..]);
         let mut cmd = Command::new(args.next().ok_or_eyre("Invalid command line string")?);
@@ -131,7 +132,7 @@ impl<'a> FeedFetcher<'a> {
             headers.ttl = ttl.or(headers.ttl);
             headers.etag = extension_etag.or(headers.etag);
 
-            trace!("Parsed {} items and feed update: {update:?}", items.len());
+            debug!("Parsed {} items and feed update: {update:?}", items.len());
             // trace!("Items {items:?}");
 
             // The time spent waiting for the DB lock and writing values is unimportant for

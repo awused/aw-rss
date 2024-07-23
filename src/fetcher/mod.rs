@@ -142,9 +142,10 @@ impl<'a> Manager<'a> {
     ) -> Result<HashMap<i64, Feed>> {
         self.poll_deadline += POLL_DURATION;
 
-        // We cannot trust the commit timestamp in the presence of user edits, so this is a full
-        // scan.
-        let feeds = Database::current_feeds(db).await?;
+        // We cannot trust the commit timestamp if wall time rolls back, so do a full scan.
+        // With this scan in place, the worst case is that a user might need to refresh their
+        // client, but the server will always pick up all Feed changes.
+        let feeds = Database::active_feeds(db).await?;
 
         debug!("Loaded {} active feeds", feeds.len());
 
@@ -154,7 +155,7 @@ impl<'a> Manager<'a> {
             if alive.remove(k).is_some() {
                 true
             } else {
-                debug!("Cancelling task for disabled feed: {k}");
+                info!("Cancelling task for disabled feed: {k}");
                 assert!(tasks.cancel(k));
                 false
             }

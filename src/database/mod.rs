@@ -19,8 +19,15 @@ use crate::com::{
 use crate::config::CONFIG;
 
 #[derive(Debug, From)]
-pub struct Transaction<'a>(sqlx::Transaction<'a, Sqlite>);
+pub struct Transaction<'a>(Option<sqlx::Transaction<'a, Sqlite>>);
 
+impl Drop for Transaction<'_> {
+    fn drop(&mut self) {
+        if self.0.is_some() {
+            warn!("Transaction dropped without being explicitly committed or rolled back");
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Database {
@@ -156,7 +163,7 @@ impl Database {
     }
 
     #[instrument(skip(guard))]
-    pub async fn current_feeds(mut guard: MutexGuard<'_, Self>) -> Result<Vec<Feed>> {
+    pub async fn active_feeds(mut guard: MutexGuard<'_, Self>) -> Result<Vec<Feed>> {
         sqlx::query_as("SELECT * FROM feeds WHERE disabled = 0")
             .fetch_all(guard.con()?)
             .await
@@ -180,14 +187,14 @@ impl Database {
     }
 
     pub async fn transaction(&mut self) -> Result<Transaction> {
-        Ok(self.con()?.begin().await?.into())
+        Ok(Transaction(self.con()?.begin().await?.into()))
     }
 }
 
 
 impl Transaction<'_> {
     pub fn con(&mut self) -> &mut SqliteConnection {
-        &mut self.0
+        self.0.as_mut().unwrap()
     }
 
     #[instrument(skip_all)]
@@ -198,13 +205,13 @@ impl Transaction<'_> {
     }
 
     #[instrument(skip_all)]
-    pub async fn commit(self) -> Result<()> {
-        self.0.commit().await.map_err(Into::into)
+    pub async fn commit(mut self) -> Result<()> {
+        self.0.take().unwrap().commit().await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]
-    pub async fn rollback(self) -> Result<()> {
-        self.0.rollback().await.map_err(Into::into)
+    pub async fn rollback(mut self) -> Result<()> {
+        self.0.take().unwrap().rollback().await.map_err(Into::into)
     }
 
     #[instrument(skip_all)]

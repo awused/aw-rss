@@ -33,7 +33,7 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<ParsedFeed> {
     let rss_feed = Channel::read_from(Cursor::new(&body));
 
     if let Ok(mut parsed) = rss_feed {
-        debug!("Parsed RSS feed");
+        trace!("Parsed RSS feed");
         let update = ParsedUpdate {
             title: parsed.title,
             link: Some(parsed.link),
@@ -67,7 +67,7 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<ParsedFeed> {
     let atom_feed = atom_syndication::Feed::read_from(Cursor::new(&body));
 
     if let Ok(mut parsed) = atom_feed {
-        debug!("Parsed atom feed");
+        trace!("Parsed atom feed");
         let update = ParsedUpdate {
             title: parsed.title.value,
             link: extract_atom_url(parsed.links),
