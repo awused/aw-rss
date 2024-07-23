@@ -17,6 +17,7 @@ pub struct ParsedFeed {
     pub update: ParsedUpdate,
     pub items: Vec<ParsedInsert>,
     pub ttl: Option<Duration>,
+    pub extension_etag: Option<String>,
 }
 
 pub fn parse_feed(feed: &Feed, body: &str) -> Result<ParsedFeed> {
@@ -31,14 +32,24 @@ pub fn check_valid_feed(body: &str) -> Result<()> {
 fn parse(body: &str, feed: Option<&Feed>) -> Result<ParsedFeed> {
     let rss_feed = Channel::read_from(Cursor::new(&body));
 
-    if let Ok(parsed) = rss_feed {
+    if let Ok(mut parsed) = rss_feed {
         debug!("Parsed RSS feed");
         let update = ParsedUpdate {
             title: parsed.title,
             link: Some(parsed.link),
         };
 
-        let mut out = ParsedFeed { update, items: Vec::new(), ttl: None };
+        let mut out = ParsedFeed {
+            update,
+            items: Vec::new(),
+            ttl: None,
+            extension_etag: parsed
+                .extensions
+                .remove("aw-rss")
+                .and_then(|mut m| m.remove("etag"))
+                .and_then(|mut exts| exts.pop())
+                .and_then(|e| e.value),
+        };
 
         let Some(feed) = feed else {
             return Ok(out);
@@ -55,14 +66,24 @@ fn parse(body: &str, feed: Option<&Feed>) -> Result<ParsedFeed> {
 
     let atom_feed = atom_syndication::Feed::read_from(Cursor::new(&body));
 
-    if let Ok(parsed) = atom_feed {
+    if let Ok(mut parsed) = atom_feed {
         debug!("Parsed atom feed");
         let update = ParsedUpdate {
             title: parsed.title.value,
             link: extract_atom_url(parsed.links),
         };
 
-        let mut out = ParsedFeed { update, items: Vec::new(), ttl: None };
+        let mut out = ParsedFeed {
+            update,
+            items: Vec::new(),
+            ttl: None,
+            extension_etag: parsed
+                .extensions
+                .remove("aw-rss")
+                .and_then(|mut m| m.remove("etag"))
+                .and_then(|mut exts| exts.pop())
+                .and_then(|e| e.value),
+        };
 
         let Some(feed) = feed else {
             return Ok(out);

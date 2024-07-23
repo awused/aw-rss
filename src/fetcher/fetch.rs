@@ -3,11 +3,12 @@ use std::string::ToString;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::{eyre, OptionExt};
 use color_eyre::{Result, Section, SectionExt};
 use futures_util::future::select;
 use reqwest::header::{ETAG, EXPIRES, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
 use reqwest::{RequestBuilder, StatusCode};
+use shlex::Shlex;
 use tokio::process::Command;
 use tokio::time::Instant;
 use tokio::{pin, time};
@@ -42,7 +43,9 @@ enum Body {
 
 #[derive(Debug, Default)]
 pub(super) struct Headers {
-    expires: Option<DateTime<Utc>>,
+    // A duration calculated using the expires header
+    expires: Option<Duration>,
+    ttl: Option<Duration>,
     last_modified: Option<String>,
     etag: Option<String>,
 }
@@ -59,17 +62,14 @@ impl<'a> FeedFetcher<'a> {
     async fn fetch_http(&mut self) -> Result<Response> {
         debug!("Fetching");
 
-        let mut req = CLIENT.get(&self.feed.url);
-        if let Status::Success(headers) = &self.status {
-            req = headers.apply(req);
-        }
+        let mut headers = self.status.take_headers();
 
-        let resp = req.send().await?;
+        let resp = headers.apply(CLIENT.get(&self.feed.url)).send().await?;
 
-        let headers = Headers::from_response(&resp);
+        headers.merge_from(&resp);
 
         let body = if resp.status() == StatusCode::NOT_MODIFIED {
-            trace!("Not modified");
+            debug!("Not modified");
             Body::NotModified
         } else if resp.status().is_success() {
             Body::Success(resp.text().await?)
@@ -87,21 +87,26 @@ impl<'a> FeedFetcher<'a> {
         // If this fails, something unsafe has happened.
         assert!(self.feed.url.starts_with('!'));
 
-        let cmd = Command::new("sh")
-            .arg("-c")
-            .arg(&self.feed.url[1..])
-            .kill_on_drop(true)
-            .output();
+        let mut args = Shlex::new(&self.feed.url[1..]);
+        let mut cmd = Command::new(args.next().ok_or_eyre("Invalid command line string")?);
+        cmd.args(args).kill_on_drop(true);
 
-        let output = time::timeout(EXECUTABLE_TIMEOUT, cmd).await??;
+        let headers = self.status.take_headers();
+        if let Some(etag) = &headers.etag {
+            cmd.arg("--etag").arg(etag);
+        }
+
+        let output = time::timeout(EXECUTABLE_TIMEOUT, cmd.output()).await??;
 
         let stdout = String::from_utf8(output.stdout)?;
 
         if output.status.success() {
-            Ok(Response {
-                body: Body::Success(stdout),
-                headers: Headers::default(),
-            })
+            if stdout.len() < 100 && stdout.trim() == "not modified" {
+                debug!("Not modified");
+                Ok(Response { body: Body::NotModified, headers })
+            } else {
+                Ok(Response { body: Body::Success(stdout), headers })
+            }
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(eyre!("Error running command: {:?}", output.status)
@@ -115,41 +120,29 @@ impl<'a> FeedFetcher<'a> {
         // We only want one in-flight request per host
         let _guard = self.host_data.lock.lock().await;
 
-        let Response { body, headers } = match self.host_data.kind {
+        let Response { body, mut headers } = match self.host_data.kind {
             HostKind::Http => self.fetch_http().await?,
             HostKind::Executable => self.run_executable().await?,
         };
 
-        let ttl = if let Body::Success(body) = body {
-            let ParsedFeed { update, items, ttl } =
+        if let Body::Success(body) = body {
+            let ParsedFeed { update, items, ttl, extension_etag } =
                 parse_feed(&self.feed, &body).with_section(|| body.header("Body: "))?;
+            headers.ttl = ttl.or(headers.ttl);
+            headers.etag = extension_etag.or(headers.etag);
 
-            trace!("Parsed {} items feed: {update:?}", items.len());
+            trace!("Parsed {} items and feed update: {update:?}", items.len());
             // trace!("Items {items:?}");
 
             // The time spent waiting for the DB lock and writing values is unimportant for
             // calculating the next_fetch time.
             let db = self.db.lock().await;
             Database::handle_parsed(db, &self.feed, update, items).await?;
-            ttl
-        } else {
-            None
-        };
+        }
 
-        trace!("ttl: {ttl:?}, headers: {headers:?}");
+        trace!("{headers:?}");
 
-        // rss ttl > expired header > default -> clamp(min/max)
-        let poll_duration = ttl
-            .or_else(|| {
-                headers
-                    .expires
-                    .and_then(|d| d.signed_duration_since(Utc::now()).abs().to_std().ok())
-            })
-            .unwrap_or(DEFAULT_POLL_PERIOD)
-            .clamp(MIN_POLL_PERIOD, MAX_POLL_PERIOD);
-        trace!("Calculated sleep duration {poll_duration:?}");
-
-        self.next_fetch = Instant::now() + poll_duration;
+        self.next_fetch = headers.next_fetch();
         self.status = Status::Success(headers);
         Ok(())
     }
@@ -202,26 +195,38 @@ impl Status {
             Self::Failing(dur) => Some(*dur),
         }
     }
+
+    fn take_headers(&mut self) -> Headers {
+        match self {
+            Self::Success(h) => std::mem::take(h),
+            Self::Failing(_) => Headers::default(),
+        }
+    }
 }
 
 impl Headers {
-    fn from_response(resp: &reqwest::Response) -> Self {
-        let expires = resp
+    fn merge_from(&mut self, resp: &reqwest::Response) {
+        self.expires = resp
             .headers()
             .get(EXPIRES)
             .and_then(|h| h.to_str().ok())
             .and_then(|e| DateTime::parse_from_rfc2822(e).ok())
-            .map(|d| d.to_utc());
+            .and_then(|d| d.signed_duration_since(Utc::now()).abs().to_std().ok())
+            .or(self.expires);
 
         let last_modified = resp
             .headers()
             .get(LAST_MODIFIED)
-            .and_then(|h| h.to_str().ok().map(ToString::to_string))
+            .and_then(|h| h.to_str().ok())
             .filter(|e| DateTime::parse_from_rfc2822(e).is_ok());
+        if self.last_modified.as_deref() != last_modified {
+            self.last_modified = last_modified.map(ToString::to_string);
+        }
 
-        let etag = resp.headers().get(ETAG).and_then(|h| h.to_str().ok().map(ToString::to_string));
-
-        Self { expires, last_modified, etag }
+        let etag = resp.headers().get(ETAG).and_then(|h| h.to_str().ok());
+        if self.etag.as_deref() != etag {
+            self.etag = etag.map(ToString::to_string);
+        }
     }
 
     fn apply(&self, mut req: RequestBuilder) -> RequestBuilder {
@@ -234,5 +239,17 @@ impl Headers {
         }
 
         req
+    }
+
+    fn next_fetch(&self) -> Instant {
+        // rss ttl > expired header > default -> clamp(min/max)
+        let poll_duration = self
+            .ttl
+            .or(self.expires)
+            .unwrap_or(DEFAULT_POLL_PERIOD)
+            .clamp(MIN_POLL_PERIOD, MAX_POLL_PERIOD);
+        trace!("Calculated sleep duration {poll_duration:?}");
+
+        Instant::now() + poll_duration
     }
 }

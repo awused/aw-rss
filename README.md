@@ -61,6 +61,11 @@ In place of a url place a shell command prepended by an exclamation point.
 
 Example: `INSERT INTO feeds(url) VALUES('!my-command arg1 arg2 arg3');`
 
+If the feed produced has an `aw-rss:etag` extension, that will be passed back to
+the program using an appended `--etag` parameter. If the program prints
+"not modified" as its only output and exits normally it will be handled as an
+HTTP not modified response.
+
 ## Local Development
 
 You'll have to edit proxy.conf.json to match the server configuration.

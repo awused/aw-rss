@@ -53,7 +53,6 @@ struct FeedFetcher<'a> {
     db: &'a Mutex<Database>,
     host_data: &'static HostData,
     status: Status,
-    // Based on Feed TTL
     next_fetch: Instant,
     rerun: Rc<Event>,
     rerun_failing: &'a Event,

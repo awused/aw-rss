@@ -5,7 +5,6 @@ use chrono::format::StrftimeItems;
 use chrono::{DateTime, Timelike, Utc};
 use derive_more::From;
 use serde::{ser, Deserialize, Serialize};
-use sqlx::database::{HasArguments, HasValueRef};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
 use sqlx::sqlite::SqliteArgumentValue;
@@ -21,17 +20,20 @@ const TIMESTAMP_FORMAT: StrftimeItems<'_> = StrftimeItems::new("%F %T");
 pub struct UtcDateTime(DateTime<Utc>);
 
 impl<'q> Encode<'q, Sqlite> for UtcDateTime {
-    fn encode_by_ref(&self, buf: &mut <Sqlite as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Sqlite as sqlx::Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.push(SqliteArgumentValue::Text(Cow::Owned(format!(
             "{}",
             self.0.with_nanosecond(0).unwrap().format_with_items(TIMESTAMP_FORMAT)
         ))));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for UtcDateTime {
-    fn decode(value: <Sqlite as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <Sqlite as sqlx::Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Self(DateTime::<Utc>::decode(value)?))
     }
 }
