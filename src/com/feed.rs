@@ -15,7 +15,7 @@ pub struct Feed {
     pub url: String,
     pub disabled: bool,
     title: String,
-    site_url: String,
+    pub site_url: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     user_title: String,
     #[serde(skip_serializing_if = "Option::is_none")]

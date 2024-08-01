@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use crate::com::feed::ParsedUpdate;
 use crate::com::item::ParsedInsert;
 use crate::com::{Feed, RssStruct};
+use crate::quirks::item_url;
 
 #[derive(Debug)]
 pub struct ParsedFeed {
@@ -118,7 +119,11 @@ pub fn extract_atom_url(mut links: Vec<Link>) -> Option<String> {
 impl From<(&Feed, rss::Item)> for ParsedInsert {
     fn from((feed, item): (&Feed, rss::Item)) -> Self {
         let title = item.title.clone().unwrap_or_default();
-        let url = item.link.unwrap_or_default();
+        let url = item_url(item.link.unwrap_or_default(), feed);
+        if url.is_empty() {
+            warn!("Got rss item with no url");
+        }
+
         let key = item
             .guid
             .and_then(|g| (!g.value.is_empty()).then_some(g.value))
@@ -151,7 +156,7 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
 impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
     fn from((feed, entry): (&Feed, atom_syndication::Entry)) -> Self {
         let title = entry.title.to_string();
-        let url = extract_atom_url(entry.links).unwrap_or_default();
+        let url = item_url(extract_atom_url(entry.links).unwrap_or_default(), feed);
         if url.is_empty() {
             warn!("Got atom item with no url");
         }
