@@ -21,9 +21,22 @@ pub fn site_url(new_link: String, feed: &Feed) -> String {
     }
 }
 
+// Handle guid changing for the same item, this is not a good solution.
+pub fn item_key(item_key: String, feed: &Feed) -> String {
+    if !item_key.starts_with('/')
+        || (!feed.site_url.starts_with("https://forums.spacebattles.com/")
+            && !feed.site_url.starts_with("https://forums.sufficientvelocity.com/"))
+    {
+        return item_key;
+    }
+
+    // SB/SV use urls as guids, so delegating to item_url is fine as the code is right now.
+    item_url(item_key, feed)
+}
+
 // Some feeds on spacebattles produce invalid URLs, but some of this code can be good for invalid
 // URLs in general.
-pub fn item_url(item_url: String, feed: &Feed) -> String {
+pub fn item_url(mut item_url: String, feed: &Feed) -> String {
     if !item_url.starts_with("/") {
         return item_url;
     }
@@ -37,29 +50,24 @@ pub fn item_url(item_url: String, feed: &Feed) -> String {
         return item_url;
     }
 
-    url.set_path("");
-    url.set_query(None);
-    url.set_fragment(None);
-
-    let Ok(mut url) = url.join(&item_url) else {
-        return item_url;
-    };
-
-    if url
+    let sbsv = url
         .host_str()
-        .is_some_and(|h| h == "forums.spacebattles.com" || h == "forums.sufficientvelocity.com")
-    {
-        // SB/SV have started producing complete and utter garbage
-        // The fragment contains query params which is just broken.
-        url.set_query(None);
-        if let Some(frag) = url.fragment() {
-            let clean_fragment = frag.split('?').next().unwrap().to_string();
+        .is_some_and(|h| h == "forums.spacebattles.com" || h == "forums.sufficientvelocity.com");
 
-            url.set_fragment(Some(&clean_fragment));
+    if sbsv {
+        // /page-1257#post-103747651 -> /post-103747651
+        if let Some((a, b)) = item_url.split_once("/page-") {
+            if let Some((_, d)) = b.split_once("#post-") {
+                item_url = a.to_string() + "/post-" + d;
+            }
         }
     } else {
         warn!("Got invalid URL {item_url} for non-SB/SV feed");
     }
 
-    url.to_string()
+    url.set_path("");
+    url.set_query(None);
+    url.set_fragment(None);
+
+    url.join(&item_url).map(|u| u.to_string()).unwrap_or(item_url)
 }

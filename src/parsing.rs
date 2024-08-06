@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use crate::com::feed::ParsedUpdate;
 use crate::com::item::ParsedInsert;
 use crate::com::{Feed, RssStruct};
-use crate::quirks::item_url;
+use crate::quirks::{item_key, item_url};
 
 #[derive(Debug)]
 pub struct ParsedFeed {
@@ -133,6 +133,7 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
                 hasher.update(item.description.as_ref().unwrap_or(&url));
                 format!("{:X}", hasher.finalize())
             });
+        let key = item_key(key, feed);
 
         let timestamp = item
             .pub_date
@@ -184,6 +185,7 @@ impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
                     format!("{:X}", hasher.finalize())
                 })
         };
+        let key = item_key(key, feed);
 
         let timestamp = entry.published.unwrap_or(entry.updated).to_utc();
 
