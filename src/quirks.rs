@@ -69,5 +69,15 @@ pub fn item_url(mut item_url: String, feed: &Feed) -> String {
     url.set_query(None);
     url.set_fragment(None);
 
-    url.join(&item_url).map(|u| u.to_string()).unwrap_or(item_url)
+
+    let Ok(mut url) = url.join(&item_url) else {
+        return item_url;
+    };
+
+    if sbsv {
+        // Saw some /post-103747651?page=1234 urls, for now kill them too
+        url.set_query(None)
+    }
+
+    url.to_string()
 }
