@@ -169,10 +169,6 @@ impl Display for Feed {
             f.write_str(" disabled")?;
         }
 
-        if let Some(s) = self.failing_since {
-            write!(f, ", failing: {s}")?;
-        }
-
         f.write_str("]")
     }
 }

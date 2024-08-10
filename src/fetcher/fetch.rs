@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use color_eyre::eyre::{eyre, OptionExt};
 use color_eyre::{Result, Section, SectionExt};
 use futures_util::future::select;
+use humantime::format_duration;
 use reqwest::header::{ETAG, EXPIRES, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
 use reqwest::{RequestBuilder, StatusCode};
 use shlex::Shlex;
@@ -148,7 +149,7 @@ impl<'a> FeedFetcher<'a> {
         Ok(())
     }
 
-    async fn wait(&mut self) {
+    async fn wait(&self) {
         let sleep = time::sleep_until(self.next_fetch);
         pin!(sleep);
         select(sleep, self.rerun.listen()).await;
@@ -172,7 +173,7 @@ impl<'a> FeedFetcher<'a> {
             .min(MAX_POLL_PERIOD);
         self.status = Status::Failing(dur);
 
-        warn!("Retrying in {dur:?}");
+        warn!("Retrying in {}", format_duration(dur));
         let sleep = time::sleep(dur);
         pin!(sleep);
         select(sleep, select(self.rerun.listen(), self.rerun_failing.listen())).await;
