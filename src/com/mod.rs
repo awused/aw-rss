@@ -6,7 +6,7 @@ use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Response};
 use axum::response::IntoResponse;
 use color_eyre::Result;
-use derive_more::From;
+use derive_more::derive::From;
 use once_cell::sync::Lazy as SyncLazy;
 use once_cell::unsync::Lazy;
 use reqwest::header::{CACHE_CONTROL, USER_AGENT};

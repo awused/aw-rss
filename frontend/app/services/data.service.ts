@@ -620,7 +620,7 @@ export class DataService {
             .pipe(
                 map((results) => {
                   const resp = results[0];
-                  const u = new Updates(false, [], resp.feeds, resp.items);
+                  const u = new Updates(false, [], [], resp.items);
                   let allRead = false;
                   let minRead: Date|undefined;
                   let feedIds = req.feedIds;

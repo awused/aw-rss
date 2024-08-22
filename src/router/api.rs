@@ -6,7 +6,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, TimeDelta, Utc};
 use color_eyre::Result;
-use derive_more::From;
+use derive_more::derive::From;
 use serde::{Deserialize, Serialize};
 use tokio::sync::MutexGuard;
 

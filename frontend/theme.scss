@@ -46,7 +46,8 @@
     background-color: mat.get-color-from-palette($accent);
   }
 
-  .warn-bg {
+  .warn-bg,
+  .warn-bg.mat-mdc-snack-bar-container .mdc-snackbar__surface {
     background-color: mat.get-color-from-palette($warn);
   }
 }

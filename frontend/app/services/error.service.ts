@@ -17,7 +17,7 @@ export class ErrorService {
     if (error instanceof HttpErrorResponse &&
         typeof error.error === 'string' &&
         error.error.indexOf('<html>') === -1) {
-      m = `${error.statusText}: ${error.error}`;
+      m = `${error.status}: ${error.error}`;
     } else if (error instanceof Error || error instanceof HttpErrorResponse) {
       m = error.message;
     } else {

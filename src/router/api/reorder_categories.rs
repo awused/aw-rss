@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum::Json;
 use color_eyre::Result;
-use derive_more::From;
+use derive_more::derive::From;
 use serde::{Deserialize, Serialize};
 use sqlx::QueryBuilder;
 use tokio::sync::MutexGuard;
