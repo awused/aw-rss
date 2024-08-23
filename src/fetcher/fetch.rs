@@ -216,6 +216,15 @@ impl Headers {
             .and_then(|d| d.signed_duration_since(Utc::now()).abs().to_std().ok())
             .or(self.expires);
 
+        if !resp.status().is_success() {
+            // Only take new etag/last-modified headers from real fetches, do not trust them from
+            // failures or 304s. At least some feed generators (SB/SV) are broken and will set
+            // last-modified to the fetch time and then keep the "real" time in the past despite
+            // recent updates.
+            return;
+        }
+
+
         let last_modified = resp
             .headers()
             .get(LAST_MODIFIED)
@@ -225,19 +234,20 @@ impl Headers {
             self.last_modified = last_modified.map(ToString::to_string);
         }
 
-        let etag = resp.headers().get(ETAG).and_then(|h| h.to_str().ok());
+        let etag = resp.headers().get(ETAG).and_then(|h| h.to_str().ok()).filter(|e| !e.is_empty());
         if self.etag.as_deref() != etag {
             self.etag = etag.map(ToString::to_string);
         }
     }
 
     fn apply(&self, mut req: RequestBuilder) -> RequestBuilder {
-        if let Some(last_modified) = &self.last_modified {
-            req = req.header(IF_MODIFIED_SINCE, last_modified);
-        }
-
+        // etag _should_ be more reliable than last-modified, and doesn't suffer from resolution
+        // limits, so trust etag alone even when both are present.
+        // I've found some sites can change etag without properly updating last-modified.
         if let Some(etag) = &self.etag {
             req = req.header(IF_NONE_MATCH, etag)
+        } else if let Some(last_modified) = &self.last_modified {
+            req = req.header(IF_MODIFIED_SINCE, last_modified);
         }
 
         req
