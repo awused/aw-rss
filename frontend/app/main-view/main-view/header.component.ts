@@ -1,8 +1,5 @@
 import {Component,
-        EventEmitter,
-        Input,
-        OnInit,
-        Output} from '@angular/core';
+        Input} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
 import {ConfirmationDialogComponent} from 'frontend/app/admin/confirmation-dialog/confirmation-dialog.component';
 import {EditCategoryDialogComponent} from 'frontend/app/admin/edit-category-dialog/edit-category-dialog.component';
@@ -18,7 +15,7 @@ import {MutateService} from 'frontend/app/services/mutate.service';
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss']
 })
-export class MainViewHeaderComponent implements OnInit {
+export class MainViewHeaderComponent {
   @Input()
   public feed?: Feed;
   @Input()
@@ -29,8 +26,6 @@ export class MainViewHeaderComponent implements OnInit {
   @Input()
   public maxItemId?: number;
 
-  @Output()
-  public fuzzyFilterString = new EventEmitter<string>();
   public fuzzyString: string;
 
 
@@ -93,9 +88,5 @@ export class MainViewHeaderComponent implements OnInit {
   handleFuzzy(value: string) {
     this.fuzzyString = value;
     this.fuzzyFilterService.pushFuzzyFilterString(value);
-  }
-
-  ngOnInit() {
-    this.fuzzyFilterString.emit(this.fuzzyString);
   }
 }

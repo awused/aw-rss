@@ -60,3 +60,16 @@ a.title:hover {
 .filler {
   flex: 1 1 auto;
 }
+
+.header {
+  box-sizing: border-box;
+  display: flex;
+  height: 52px;
+  padding: 9px 0;
+}
+
+
+mat-form-field {
+  width: auto;
+  max-width: 33%;
+}

@@ -19,6 +19,11 @@
         <mat-icon>launch</mat-icon>
       </a>
       <div class="spacer"></div>
+      <mat-form-field style=" margin-bottom: -1.3em; margin-top: -9px;">
+        <input matInput
+               [value]="fuzzyString"
+               (input)="handleFuzzy($event.target.value)">
+      </mat-form-field>
       <div class="unread"
            *ngIf="unread">
         ({{unread}})

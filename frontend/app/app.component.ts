@@ -7,6 +7,7 @@ import {Router} from '@angular/router';
 import {Observable} from 'rxjs';
 
 import {AddDialogComponent} from './admin/add-dialog/add-dialog.component';
+import {FuzzyFilterService} from './services/fuzzy-filter.service';
 import {MobileService} from './services/mobile.service';
 import {RefreshService} from './services/refresh.service';
 
@@ -21,18 +22,22 @@ export class AppComponent {
   public unread = 0;
   public title = 'Aw-RSS';
   public link?: string;
+  public fuzzyString: string;
 
   constructor(
       private readonly dialog: MatDialog,
-      private readonly mobileService: MobileService,
+      mobileService: MobileService,
       private readonly titleService: Title,
       private readonly refreshService: RefreshService,
-      private readonly router: Router) {
+      private readonly router: Router,
+      private readonly fuzzyFilterService: FuzzyFilterService) {
     // Uncertain if I actually want to update the page's title constantly,
     // or just the bar at the top
     this.titleService.setTitle(this.title);
 
     this.mobile = mobileService.mobile();
+
+    this.fuzzyString = this.fuzzyFilterService.getFuzzyFilterString();
     // TODO -- Auto close sidenav on navigation
   }
 
@@ -68,5 +73,10 @@ export class AppComponent {
 
   public isRefreshing(): boolean {
     return this.refreshService.isRefreshing();
+  }
+
+  handleFuzzy(value: string) {
+    this.fuzzyString = value;
+    this.fuzzyFilterService.pushFuzzyFilterString(value);
   }
 }
