@@ -1,11 +1,12 @@
 use std::marker::PhantomData;
-use std::panic::{catch_unwind, AssertUnwindSafe};
+#[cfg(target_family = "unix")]
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use async_channel::{bounded, Receiver, Sender};
+use async_channel::{Receiver, Sender, bounded};
 use once_cell::sync::Lazy;
 
 use crate::spawn_thread;
@@ -70,8 +71,8 @@ pub fn init() {
         use std::os::raw::c_int;
 
         use signal_hook::consts::TERM_SIGNALS;
-        use signal_hook::iterator::exfiltrator::SignalOnly;
         use signal_hook::iterator::SignalsInfo;
+        use signal_hook::iterator::exfiltrator::SignalOnly;
 
         let _cod = CloseOnDrop::default();
 
@@ -107,13 +108,11 @@ pub fn init() {
     #[cfg(windows)]
     spawn_thread("signals", || {
         ctrlc::set_handler(|| {
-            if closed() {
+            info!("Received closing signal, shutting down");
+            if !close() {
                 // When terminated by a second term signal, exit with exit code 1.
                 std::process::exit(1);
             }
-
-            info!("Received closing signal, shutting down");
-            close();
         })
         .expect("Error registering signal handlers.");
     });

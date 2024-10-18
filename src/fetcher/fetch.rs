@@ -245,7 +245,7 @@ impl Headers {
         // limits, so trust etag alone even when both are present.
         // I've found some sites can change etag without properly updating last-modified.
         if let Some(etag) = &self.etag {
-            req = req.header(IF_NONE_MATCH, etag)
+            req = req.header(IF_NONE_MATCH, etag);
         } else if let Some(last_modified) = &self.last_modified {
             req = req.header(IF_MODIFIED_SINCE, last_modified);
         }
