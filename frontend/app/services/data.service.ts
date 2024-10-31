@@ -30,6 +30,7 @@ import {LoadingService} from './loading.service';
 import {RefreshService} from './refresh.service';
 
 const READ_ITEMS_PAGE_SIZE = 100;
+const MIN_LOCAL_READ_ITEMS = 10;
 
 interface CurrentState {
   timestamp: number;
@@ -199,16 +200,31 @@ export class DataService {
       const fd = this.feedMetadata.get(f.feedId);
       if (fd) {
         const readAfter = fd.readAfter;
-        // It's possible for readAfter to be set by a category/all call, but for no read items to
-        // actually be present for this feed.
-        const hasLocalRead = fd.allRead ||
-            (readAfter !== undefined &&
-             !!this.data.items.find(
-                 (it) => it.feedId === f.feedId && it.read && new Date(it.timestamp) >= readAfter));
 
-        if (!hasLocalRead) {
-          fetches.push(
-              this.fetchMoreReadForFeed(f.feedId));
+        const hasEnoughLocalRead = () => {
+          if (readAfter === undefined) {
+            return false;
+          }
+
+          let count = 0;
+          for (let it of this.data.items) {
+            if (!it.read || it.feedId !== f.feedId || new Date(it.timestamp) < readAfter) {
+              continue;
+            }
+
+            count++;
+            if (count >= MIN_LOCAL_READ_ITEMS) {
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        // It's possible for readAfter to be set by a category/all call, but for no/few read items
+        // to actually be present for this feed.
+        if (!fd.allRead && !hasEnoughLocalRead()) {
+          fetches.push(this.fetchMoreReadForFeed(f.feedId));
         }
       }
     } else if (f.categoryName !== undefined) {
@@ -227,15 +243,30 @@ export class DataService {
         const itemInCategory =
             ((it: Item) => this.feedMetadata.get(it.feedId)?.feed.categoryId === categoryId);
 
-        // It's possible for readAfter to be set by an all feeds read call, but for no read items to
-        // actually be present for this category.
-        const hasLocalRead = cd.allRead ||
-            (readAfter !== undefined &&
-             !!this.data.items.find(
-                 (it) => it.read && new Date(it.timestamp) >= readAfter && itemInCategory(it)));
+        const hasEnoughLocalRead = () => {
+          if (readAfter === undefined) {
+            return false;
+          }
 
-        if (!hasLocalRead) {
-          fetches.push(this.fetchMoreReadForCategory(categoryId));
+          let count = 0;
+          for (let it of this.data.items) {
+            if (!it.read || new Date(it.timestamp) < readAfter || !itemInCategory(it)) {
+              continue;
+            }
+
+            count++;
+            if (count >= MIN_LOCAL_READ_ITEMS) {
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        // It's possible for readAfter to be set by an all feeds read call, but for no/few read
+        // items to actually be present for this category.
+        if (!cd.allRead && !hasEnoughLocalRead()) {
+          fetches.push(this.fetchMoreReadForCategory(cd.category.id));
         }
       }
     } else if (!this.hasRead()) {
