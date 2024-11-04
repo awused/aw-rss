@@ -27,8 +27,8 @@
   </mat-form-field>
   <button class="read-button"
           (click)="markFeedAsRead()"
-          *ngIf="feed && maxItemId !== undefined"
-          [disabled]="!!fuzzyString"
+          *ngIf="feed"
+          [disabled]="!!fuzzyString || maxItemId === undefined"
           matTooltip="Mark all items read"
           mat-icon-button>
     <mat-icon>archive</mat-icon>
