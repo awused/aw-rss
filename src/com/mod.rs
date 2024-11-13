@@ -12,10 +12,10 @@ use once_cell::unsync::Lazy;
 use reqwest::header::{CACHE_CONTROL, USER_AGENT};
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Deserializer};
+use sqlx::Sqlite;
 use sqlx::prelude::FromRow;
 use sqlx::query::QueryAs;
 use sqlx::sqlite::{SqliteArguments, SqliteRow};
-use sqlx::Sqlite;
 use thiserror::Error;
 
 pub mod category;
@@ -30,8 +30,8 @@ pub use item::Item;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 
-
 pub type RssQueryAs<'a, T> = QueryAs<'a, Sqlite, T, SqliteArguments<'a>>;
+
 
 #[derive(Debug)]
 pub enum Action {
@@ -123,6 +123,7 @@ pub static CLIENT: SyncLazy<Client> = SyncLazy::new(|| {
 
 
     Client::builder()
+        .use_rustls_tls()
         .default_headers(headers)
         .timeout(HTTP_TIMEOUT)
         .brotli(true)
