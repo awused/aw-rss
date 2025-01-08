@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use url::Url;
 
 use crate::com::Feed;
@@ -22,16 +23,21 @@ pub fn site_url(new_link: String, feed: &Feed) -> String {
 }
 
 // Handle guid changing for the same item, this is not a good solution.
-pub fn item_key(item_key: String, feed: &Feed) -> String {
-    if !item_key.starts_with('/')
-        || (!feed.site_url.starts_with("https://forums.spacebattles.com/")
-            && !feed.site_url.starts_with("https://forums.sufficientvelocity.com/"))
+pub fn item_key(item_key: String, feed: &Feed, timestamp: DateTime<Utc>) -> String {
+    if item_key.starts_with('/')
+        && (feed.site_url.starts_with("https://forums.spacebattles.com/")
+            || feed.site_url.starts_with("https://forums.sufficientvelocity.com/"))
     {
-        return item_key;
+        // SB/SV use urls as guids, so delegating to item_url is fine as the code is right now.
+        return item_url(item_key, feed);
     }
 
-    // SB/SV use urls as guids, so delegating to item_url is fine as the code is right now.
-    item_url(item_key, feed)
+    if feed.site_url.starts_with("https://secure.runescape.com") {
+        // Caught them reusing URLs and GUIDs for different items
+        return item_key + &timestamp.to_rfc3339();
+    }
+
+    item_key
 }
 
 // Some feeds on spacebattles produce invalid URLs, but some of this code can be good for invalid

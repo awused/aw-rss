@@ -133,7 +133,6 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
                 hasher.update(item.description.as_ref().unwrap_or(&url));
                 format!("{:X}", hasher.finalize())
             });
-        let key = item_key(key, feed);
 
         let timestamp = item
             .pub_date
@@ -143,6 +142,8 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
                 warn!("Got item with no timestamp: {url:?}");
                 Utc::now()
             });
+
+        let key = item_key(key, feed, timestamp);
 
         Self {
             feed_id: feed.id(),
@@ -185,9 +186,10 @@ impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
                     format!("{:X}", hasher.finalize())
                 })
         };
-        let key = item_key(key, feed);
 
         let timestamp = entry.published.unwrap_or(entry.updated).to_utc();
+
+        let key = item_key(key, feed, timestamp);
 
         Self {
             feed_id: feed.id(),
