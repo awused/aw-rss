@@ -295,10 +295,10 @@ export class DataService {
       return of(undefined);
     }
 
-    const readBefore = fd.readAfter || new Date(this.timestamp * 1000);
     return this.getItems({
       feedIds: [id],
-      readBefore
+      readBefore: fd.readAfter,
+      readBeforeCount: READ_ITEMS_PAGE_SIZE
     });
   }
 
@@ -308,10 +308,10 @@ export class DataService {
       return of(undefined);
     }
 
-    const readBefore = cm.readAfter || new Date(this.timestamp * 1000);
     return this.getItems({
       categoryId: id,
-      readBefore
+      readBefore: cm.readAfter,
+      readBeforeCount: READ_ITEMS_PAGE_SIZE
     });
   }
 
@@ -320,8 +320,10 @@ export class DataService {
       return of(undefined);
     }
 
-    const readBefore = this.readAfter || new Date(this.timestamp * 1000);
-    return this.getItems({readBefore});
+    return this.getItems({
+      readBefore: this.readAfter,
+      readBeforeCount: READ_ITEMS_PAGE_SIZE
+    });
   }
 
   public updates(): Observable<Updates> {
@@ -631,10 +633,6 @@ export class DataService {
   }
 
   private getItems(req: GetItemsRequest): Observable<void> {
-    if (req.readBefore && !req.readBeforeCount) {
-      req.readBeforeCount = READ_ITEMS_PAGE_SIZE;
-    }
-
     let oldFeeds = new Set<number>();
     if (req.categoryId !== undefined) {
       oldFeeds = this.getFeedsInCategory(req.categoryId);
@@ -657,7 +655,7 @@ export class DataService {
                   let feedIds = req.feedIds;
                   let pushEmpty = false;
 
-                  if (req.readBefore) {
+                  if (req.readBeforeCount) {
                     minRead = req.readBefore;
 
                     resp.items.forEach((item: Item) => {
@@ -667,9 +665,7 @@ export class DataService {
                       }
                     });
 
-                    const pageSize = req.readBeforeCount ||
-                        READ_ITEMS_PAGE_SIZE;
-                    if (resp.items.length < pageSize) {
+                    if (resp.items.length < req.readBeforeCount) {
                       // It's possible for some feeds inside a category to have
                       // allRead but for this to be false, but that's fine.
                       allRead = true;

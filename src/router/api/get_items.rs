@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
-use axum::extract::State;
 use axum::Json;
+use axum::extract::State;
 use color_eyre::Result;
 use serde::Deserialize;
 use sqlx::{QueryBuilder, Sqlite};
@@ -44,8 +44,9 @@ pub struct ReadBefore {
     // Fetch _at least_ readBeforeCount items before this timestamp (exclusive)
     // Guaranteed that all existing read items between ReadBefore and the minimum
     // timestamp in the response are fetched.
+    // If absent, the implicit value is the end of time.
     #[serde(rename = "readBefore")]
-    date: UtcDateTime,
+    date: Option<UtcDateTime>,
     #[serde(rename = "readBeforeCount")]
     count: NonZeroU32,
 }
@@ -122,9 +123,13 @@ WHERE
             // This grabs at least count items, but ensures that we get all items with
             // the same timestamp as the count'th oldest read item in the query.
 
+            builder.push(" AND items.read = 1 ");
+
+            if let Some(date) = &before.date {
+                builder.push(" AND items.timestamp < ").push_bind(date);
+            }
+
             builder
-                .push(" AND items.read = 1 AND items.timestamp < ")
-                .push_bind(before.date)
                 // All lines after this are just for getting the minimum timestamp
                 .push(
                     "
@@ -138,9 +143,13 @@ AND items.timestamp >= (
 
             self.target_clause(&mut builder);
 
+            builder.push(" AND items.read = 1 ");
+
+            if let Some(date) = &before.date {
+                builder.push(" AND items.timestamp < ").push_bind(date);
+            }
+
             builder
-                .push(" AND items.read = 1 AND items.timestamp < ")
-                .push_bind(before.date)
                 .push(" ORDER BY items.timestamp DESC LIMIT ")
                 .push_bind(before.count.get())
                 .push(" )) ");
