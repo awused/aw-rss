@@ -14,8 +14,8 @@ export interface TimeRange {
 // Filters for applying updates or filtering data
 // By default everything is kept unconditionally
 export interface Filters {
-  // Discard all invalid (disabled, read, etc) feeds or items
-  // unread items for discarded feeds are also "invalid"
+  // Discard all invalid/disabled feeds and categories.
+  // All items for disabled feeds (even unread) are excluded.
   readonly validOnly?: boolean;
   // Exclude items that have been read.
   readonly unreadOnly?: boolean;

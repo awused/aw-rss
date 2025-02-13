@@ -55,7 +55,7 @@ interface GetItemsRequest {
 
   // includeFeeds?: boolean;
 
-  // Exactly one of unread, readAfter, and (readBefore, readBeforeCount) must be set
+  // Exactly one of unread, readAfter, and (readBefore?, readBeforeCount) must be set
   // Unread can only be set with feedIds, since it is only used for backfilling.
   unread?: boolean;
   readBefore?: Date;
@@ -175,7 +175,7 @@ export class DataService {
       fetches.push(this.fetchDisabledFeeds());
     }
 
-    if (!f.unreadOnly) {
+    if (!f.unreadOnly && !f.excludeItems) {
       fetches.push(
           this.waitForInitialFetch()
               .pipe(
@@ -682,7 +682,7 @@ export class DataService {
                   // It could be better solved by preventing concurrent updates and refreshes.
                   const mustReplay = this.mergeMetadata(u, req.unread)[0];
 
-                  if (req.categoryId === undefined && !feedIds && req.readBefore) {
+                  if (req.categoryId === undefined && !feedIds && req.readBeforeCount) {
                     this.readAfter = readAfter;
                     this.allRead = allRead;
 
@@ -705,7 +705,7 @@ export class DataService {
                     }
                   }
 
-                  if (req.categoryId !== undefined && req.readBefore) {
+                  if (req.categoryId !== undefined && req.readBeforeCount) {
                     const cm = this.categoryMetadata.get(req.categoryId);
                     if (cm) {
                       const newFeeds = this.getFeedsInCategory(req.categoryId);
