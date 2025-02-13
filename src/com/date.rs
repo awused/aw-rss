@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 
 use chrono::format::StrftimeItems;
 use chrono::{DateTime, Timelike, Utc};
-use derive_more::derive::From;
+use derive_more::From;
 use serde::{ser, Deserialize, Serialize};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;

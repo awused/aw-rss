@@ -6,14 +6,14 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, TimeDelta, Utc};
 use color_eyre::Result;
-use derive_more::derive::From;
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 use tokio::sync::MutexGuard;
 
 use super::{AppState, HttpResult};
-use crate::com::{category, feed, item, Action, Category, Feed, Item, RssStruct};
-use crate::database::Database;
 use crate::RouterState;
+use crate::com::{Action, Category, Feed, Item, RssStruct, category, feed, item};
+use crate::database::Database;
 
 mod add_feed;
 mod get_items;
@@ -210,22 +210,22 @@ pub(super) fn api_router() -> Router<RouterState> {
     Router::new()
         // Items
         .route("/items", post(get_items::handle))
-        .route("/items/:id/read", post(item_read))
-        .route("/items/:id/unread", post(item_unread))
+        .route("/items/{id}/read", post(item_read))
+        .route("/items/{id}/unread", post(item_unread))
 
         // Feeds
         .route("/feeds/disabled", get(disabled_feeds))
         .route("/feeds/add", post(add_feed::handle))
         .route("/feeds/rerun-failing", post(rerun_failing))
-        .route("/feeds/:id/edit", post(feed_edit))
-        .route("/feeds/:id/read", post(feed_read))
-        .route("/feeds/:id/rerun", post(feed_rerun))
+        .route("/feeds/{id}/edit", post(feed_edit))
+        .route("/feeds/{id}/read", post(feed_read))
+        .route("/feeds/{id}/rerun", post(feed_rerun))
 
         // Categories
         .route("/categories/add", post(category_add))
         .route("/categories/reorder", post(reorder_categories::handle))
-        .route("/categories/:id/edit", post(category_edit))
+        .route("/categories/{id}/edit", post(category_edit))
 
         .route("/current", get(current))
-        .route("/updates/:timestamp", get(updates))
+        .route("/updates/{timestamp}", get(updates))
 }

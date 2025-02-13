@@ -3,15 +3,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use api::api_router;
+use axum::Router;
 use axum::extract::State;
-use axum::http::{header, Uri};
+use axum::http::{Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::Router;
 use rust_embed::Embed;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::UnboundedSender;
 use tower::ServiceBuilder;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
@@ -65,7 +65,7 @@ pub async fn serve(listener: TcpListener, state: RouterState) -> color_eyre::Res
 
     let app = Router::new()
         .nest("/api", api_router())
-        .route("/*file", get(try_file))
+        .route("/{*file}", get(try_file))
         .route("/", get(try_file))
         .layer(
             service, // .layer(TimeoutLayer::new(Duration::from_secs(1)))

@@ -71,14 +71,14 @@ export class DataFilter {
 
   constructor(
       refresh: boolean,
-      private readonly f: Filters) {
-    this.itemIds = new Set(f.itemIds || []);
-    this.keepExisting = !refresh && !!f.keepUnlessRefresh;
+      private readonly filter: Filters) {
+    this.itemIds = new Set(filter.itemIds || []);
+    this.keepExisting = !refresh && !!filter.keepUnlessRefresh;
   }
 
   keepExistingCategory = (c: Category): boolean => {
-    if (this.f.categoryName !== undefined) {
-      if (this.f.categoryName === c.name) {
+    if (this.filter.categoryName !== undefined) {
+      if (this.filter.categoryName === c.name) {
         this.categoryId = c.id;
         return true;
       }
@@ -93,8 +93,8 @@ export class DataFilter {
   };
 
   addNewCategory = (c: Category): boolean => {
-    if (this.f.categoryName !== undefined) {
-      if (this.f.categoryName === c.name) {
+    if (this.filter.categoryName !== undefined) {
+      if (this.filter.categoryName === c.name) {
         this.categoryId = c.id;
         return true;
       }
@@ -102,19 +102,19 @@ export class DataFilter {
     }
 
     if (!c.disabled &&
-        this.f.isMainView && (c.hiddenMain || c.hiddenNav)) {
+        this.filter.isMainView && (c.hiddenMain || c.hiddenNav)) {
       // hiddenMain categories are only included when referenced
       // directly by name
       this.excludedCategories.add(c.id);
       return false;
     }
 
-    return !this.f.validOnly || !c.disabled;
+    return !this.filter.validOnly || !c.disabled;
   };
 
   keepExistingFeed = (f: Feed): boolean => {
-    if (this.f.feedId !== undefined) {
-      if (this.f.feedId === f.id) {
+    if (this.filter.feedId !== undefined) {
+      if (this.filter.feedId === f.id) {
         this.includedFeedIds.add(f.id);
         return true;
       }
@@ -139,15 +139,15 @@ export class DataFilter {
   };
 
   addNewFeed = (f: Feed): boolean => {
-    if (this.f.feedId !== undefined) {
-      if (this.f.feedId === f.id) {
+    if (this.filter.feedId !== undefined) {
+      if (this.filter.feedId === f.id) {
         this.includedFeedIds.add(f.id);
         return true;
       }
       return false;
     }
 
-    if (this.f.validOnly && f.disabled) {
+    if (this.filter.validOnly && f.disabled) {
       return false;
     }
 
@@ -156,7 +156,7 @@ export class DataFilter {
       return false;
     }
 
-    if (this.f.categoryName &&
+    if (this.filter.categoryName &&
         (this.categoryId === undefined || f.categoryId !== this.categoryId)) {
       return false;
     }
@@ -185,7 +185,7 @@ export class DataFilter {
       }
     }
 
-    if (this.f.unreadOnly && i.read) {
+    if (this.filter.unreadOnly && i.read) {
       return false;
     }
 
@@ -193,7 +193,7 @@ export class DataFilter {
       return false;
     }
 
-    if (this.f.feedId !== undefined && this.f.feedId !== i.feedId) {
+    if (this.filter.feedId !== undefined && this.filter.feedId !== i.feedId) {
       return false;
     }
 

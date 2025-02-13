@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use color_eyre::Result;
-use derive_more::derive::From;
+use derive_more::From;
 use once_cell::unsync::Lazy;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{migrate, Connection, Sqlite, SqliteConnection};
