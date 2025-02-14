@@ -1,17 +1,17 @@
 use std::fs::OpenOptions;
 
-use axum::http::HeaderValue;
+use axum::body::HttpBody;
 use chrono::format::{Fixed, Item};
 use chrono::{Local, Timelike};
-use color_eyre::eyre::{bail, Context};
+use color_eyre::eyre::{Context, bail};
 use tower_http::trace::{MakeSpan, OnResponse};
-use tracing::{event, Level};
+use tracing::{Level, event};
 use tracing_error::ErrorLayer;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::EnvFilter;
 
 use crate::config::CONFIG;
 
@@ -41,7 +41,7 @@ impl<B> MakeSpan<B> for RequestSpan {
 #[derive(Debug, Clone, Copy)]
 pub struct ResponseFormat {}
 
-impl<B> OnResponse<B> for ResponseFormat {
+impl<B: HttpBody> OnResponse<B> for ResponseFormat {
     fn on_response(
         self,
         response: &axum::http::Response<B>,
@@ -51,11 +51,14 @@ impl<B> OnResponse<B> for ResponseFormat {
         let status = response.status();
         let status = status.canonical_reason().unwrap_or_else(|| status.as_str());
 
-        if let Some(size) = response.headers().get("content-length").and_then(|b: &HeaderValue| {
-            let bytes: usize = b.to_str().ok()?.parse().ok()?;
-            Some(humansize::SizeFormatter::new(bytes, humansize::WINDOWS))
-        }) {
-            event!(Level::INFO, status, "finished {:?} {}", latency, size);
+        if let Some(bytes) = response.size_hint().exact() {
+            event!(
+                Level::INFO,
+                status,
+                "finished {:?} {}",
+                latency,
+                humansize::SizeFormatter::new(bytes, humansize::WINDOWS)
+            );
         } else {
             event!(Level::INFO, status, "finished {:?} no body", latency,);
         }
