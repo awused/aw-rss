@@ -69,6 +69,7 @@ struct Updates {
     feeds: Vec<Feed>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     categories: Vec<Category>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     must_refresh: bool,
 }
 
