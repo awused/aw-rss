@@ -3,7 +3,7 @@ use std::string::ToString;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use color_eyre::eyre::{eyre, OptionExt};
+use color_eyre::eyre::{OptionExt, eyre};
 use color_eyre::{Result, Section, SectionExt};
 use futures_util::future::select;
 use humantime::format_duration;
@@ -16,10 +16,10 @@ use tokio::{pin, time};
 
 use super::FeedFetcher;
 use crate::com::feed::Failing;
-use crate::com::{RssStruct, CLIENT};
+use crate::com::{CLIENT, RssStruct};
 use crate::database::Database;
 use crate::fetcher::HostKind;
-use crate::parsing::{parse_feed, ParsedFeed};
+use crate::parsing::{ParsedFeed, parse_feed};
 
 const DEFAULT_POLL_PERIOD: Duration = Duration::from_secs(60 * 30);
 // 6 Hours
@@ -58,7 +58,7 @@ struct Response {
 
 
 // TODO -- implement Future or IntoFuture and make this nameable once imp Trait works properly
-impl<'a> FeedFetcher<'a> {
+impl FeedFetcher<'_> {
     #[instrument(level = "info", skip_all)]
     async fn fetch_http(&mut self) -> Result<Response> {
         trace!("Fetching HTTP feed");
