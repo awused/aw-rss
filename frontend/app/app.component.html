@@ -42,6 +42,7 @@
                  [opened]="(mobile | async) !== true || openNav"
                  [mode]="(mobile | async) ? 'over' : 'side'"
                  [fixedTopGap]="(mobile | async)  ? 56 : 0"
+                 [autoFocus]="false"
                  fixedInViewport
                  disableClose>
       <awrss-nav (unreadCount)="unread = $event"
