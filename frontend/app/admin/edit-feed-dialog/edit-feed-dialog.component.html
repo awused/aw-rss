@@ -1,6 +1,4 @@
-<h2 mat-dialog-title>
-  {{ feed | feedTitle }}
-</h2>
+<h2 mat-dialog-title>{{feed | feedTitle}}</h2>
 <form [formGroup]="feedForm"
       (ngSubmit)="submit(feedForm.value)"
       autocomplete="off"
