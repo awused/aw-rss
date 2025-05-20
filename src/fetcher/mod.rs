@@ -1,21 +1,21 @@
 use std::boxed::Box;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::convert::Infallible;
 use std::future::Future;
 use std::rc::Rc;
 use std::time::Duration;
 
-use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
+use color_eyre::eyre::OptionExt;
 use event_listener::Event;
 use fetch::{Headers, Status};
 use futures_util::StreamExt;
-use mapped_futures::mapped_futures::MappedFutures;
+use mapped_futures::MappedFutures;
 use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::{Mutex, MutexGuard};
-use tokio::time::{sleep_until, Instant};
+use tokio::time::{Instant, sleep_until};
 use url::Url;
 
 use crate::closing;

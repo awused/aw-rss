@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use color_eyre::eyre::bail;
 use color_eyre::Result;
+use color_eyre::eyre::bail;
 use once_cell::unsync::Lazy;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;

@@ -6,7 +6,7 @@ use api::api_router;
 use axum::Router;
 use axum::extract::State;
 use axum::http::{Uri, header};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use rust_embed::Embed;
 use tokio::net::TcpListener;
@@ -39,7 +39,7 @@ type HttpResult<T> = core::result::Result<T, HttpError>;
 #[folder = "dist/"]
 struct Dist;
 
-async fn try_file(uri: Uri) -> impl IntoResponse {
+async fn try_file(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
 
     let (file, path) = match Dist::get(path) {

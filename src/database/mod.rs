@@ -7,7 +7,7 @@ use color_eyre::Result;
 use derive_more::From;
 use once_cell::unsync::Lazy;
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{migrate, Connection, Sqlite, SqliteConnection};
+use sqlx::{Connection, Sqlite, SqliteConnection, migrate};
 use tokio::sync::MutexGuard;
 
 use crate::com::feed::ParsedUpdate;
