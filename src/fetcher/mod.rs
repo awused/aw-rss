@@ -30,15 +30,23 @@ enum HostKind {
     Executable,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct HostData {
+    // Increases by 1 each time a feed starts failing
+    // Drops by 1 every time a feed succeeds
+    // Used to increase starting timeouts when many feeds are failing for one host.
+    failing_feeds: u64,
+}
+
+#[derive(Debug)]
+struct Host {
     kind: HostKind,
-    lock: Mutex<()>,
+    lock: Mutex<HostData>,
 }
 
 struct Manager<'a> {
     receiver: UnboundedReceiver<Action>,
-    host_map: HashMap<String, &'static HostData>,
+    host_map: HashMap<String, &'static Host>,
     active_feeds: HashMap<i64, Rc<Event>>,
     poll_deadline: Instant,
 
@@ -51,7 +59,7 @@ struct Manager<'a> {
 struct FeedFetcher<'a> {
     feed: Feed,
     db: &'a Mutex<Database>,
-    host_data: &'static HostData,
+    host: &'static Host,
     status: Status,
     next_fetch: Instant,
     rerun: Rc<Event>,
@@ -203,14 +211,14 @@ impl<'a> Manager<'a> {
 
     #[instrument(skip(self), fields(%feed))]
     fn build_fetcher(&mut self, feed: Feed) -> FeedFetcher<'a> {
-        let host_data = self.insert_host(&feed);
+        let host = self.insert_host(&feed);
         let rerun = Rc::new(Event::new());
 
         debug!("Starting task");
         FeedFetcher {
             feed,
             db: self.db,
-            host_data,
+            host,
             status: Status::Success(Headers::default()),
             next_fetch: Instant::now(),
             rerun,
@@ -218,7 +226,7 @@ impl<'a> Manager<'a> {
         }
     }
 
-    fn insert_host(&mut self, feed: &Feed) -> &'static HostData {
+    fn insert_host(&mut self, feed: &Feed) -> &'static Host {
         let mut kind = HostKind::Http;
 
         let host = if feed.url.starts_with('!') {
@@ -246,7 +254,7 @@ impl<'a> Manager<'a> {
         match self.host_map.entry(host) {
             Entry::Occupied(o) => o.into_mut(),
             Entry::Vacant(v) => {
-                let data = Box::leak(HostData { kind, lock: Mutex::new(()) }.into());
+                let data = Box::leak(Host { kind, lock: Mutex::default() }.into());
                 v.insert(data)
             }
         }

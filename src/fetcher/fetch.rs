@@ -11,10 +11,11 @@ use reqwest::header::{ETAG, EXPIRES, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODI
 use reqwest::{RequestBuilder, StatusCode};
 use shlex::Shlex;
 use tokio::process::Command;
+use tokio::sync::MutexGuard;
 use tokio::time::Instant;
 use tokio::{pin, time};
 
-use super::FeedFetcher;
+use super::{FeedFetcher, HostData};
 use crate::com::feed::Failing;
 use crate::com::{CLIENT, RssStruct};
 use crate::database::Database;
@@ -119,10 +120,7 @@ impl FeedFetcher<'_> {
 
     #[instrument(level = "error", skip_all, err(Debug))]
     async fn fetch(&mut self) -> Result<()> {
-        // We only want one in-flight request per host
-        let _guard = self.host_data.lock.lock().await;
-
-        let Response { body, mut headers } = match self.host_data.kind {
+        let Response { body, mut headers } = match self.host.kind {
             HostKind::Http => self.fetch_http().await?,
             HostKind::Executable => self.run_executable().await?,
         };
@@ -146,6 +144,7 @@ impl FeedFetcher<'_> {
 
         self.next_fetch = headers.next_fetch();
         self.status = Status::Success(headers);
+
         Ok(())
     }
 
@@ -155,23 +154,29 @@ impl FeedFetcher<'_> {
         select(sleep, self.rerun.listen()).await;
     }
 
-    async fn fail(&mut self) {
+    async fn fail(&mut self, mut guard: MutexGuard<'_, HostData>) {
         let failing = Failing { since: Utc::now().into() };
+
+        let dur = if let Some(dur) = self.status.failing_timeout() {
+            dur * 2
+        } else {
+            // Only increment failing feeds when this starts failing
+            guard.failing_feeds += 1;
+            Duration::from_secs(guard.failing_feeds.saturating_mul(60))
+        };
+        drop(guard);
 
         let db = self.db.lock().await;
 
+        // Update the DB even if we think this was already failing, in case something else edited
+        // the DB.
         #[allow(clippy::significant_drop_in_scrutinee)]
         match Database::single_edit(db, self.feed.id(), failing).await {
             Ok(o) => self.feed = o.take(),
             Err(e) => error!("{:?}", e.wrap_err("Failed to mark feed as failing")),
         }
 
-        let dur = self
-            .status
-            .failing_timeout()
-            .map_or(Duration::from_secs(60), |d| d * 2)
-            .min(MAX_POLL_PERIOD);
-        self.status = Status::Failing(dur);
+        self.status = Status::Failing(dur.min(MAX_POLL_PERIOD));
 
         warn!("Retrying in {}", format_duration(dur));
         let sleep = time::sleep(dur);
@@ -182,9 +187,17 @@ impl FeedFetcher<'_> {
     #[instrument(level = "error", skip(self), fields(feed = %self.feed))]
     pub(super) async fn run(mut self) -> Infallible {
         loop {
+            // We only want one in-flight request per host
+            let mut guard = self.host.lock.lock().await;
             match self.fetch().await {
-                Ok(_) => self.wait().await,
-                Err(_) => self.fail().await,
+                Ok(_) => {
+                    // Every time any feed succeeds, decrement, so small numbers of failing feeds
+                    // cannot lock down a host.
+                    guard.failing_feeds = guard.failing_feeds.saturating_sub(1);
+                    drop(guard);
+                    self.wait().await;
+                }
+                Err(_) => self.fail(guard).await,
             }
         }
     }
