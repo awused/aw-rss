@@ -104,7 +104,7 @@ impl Update<Feed> for ParsedUpdate {
             if link != feed.site_url {
                 sep.push(" site_url = ").push_bind_unseparated(link);
             }
-        } else if feed.site_url.is_empty() && !feed.site_url.starts_with('!') {
+        } else if feed.site_url.is_empty() && !feed.url.starts_with('!') {
             warn!("Feed has no site link even after update");
             sep.push(" site_url = ").push_bind_unseparated(&feed.url);
         }

@@ -170,7 +170,6 @@ impl FeedFetcher<'_> {
 
         // Update the DB even if we think this was already failing, in case something else edited
         // the DB.
-        #[allow(clippy::significant_drop_in_scrutinee)]
         match Database::single_edit(db, self.feed.id(), failing).await {
             Ok(o) => self.feed = o.take(),
             Err(e) => error!("{:?}", e.wrap_err("Failed to mark feed as failing")),
