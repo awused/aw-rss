@@ -18,15 +18,19 @@
       },
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular-devkit/build-angular:application",
           "options": {
             "allowedCommonJsDependencies": [
               "fuzzy/lib/fuzzy.js"
             ],
-            "outputPath": "dist/",
+            "outputPath": {
+              "base": "dist/",
+              "browser": ""
+            },
             "index": "frontend/index.html",
-            "main": "frontend/main.ts",
-            "polyfills": "frontend/polyfills.ts",
+            "polyfills": [
+              "frontend/polyfills.ts"
+            ],
             "tsConfig": "frontend/tsconfig.app.json",
             "assets": [
               "frontend/favicon.ico",
@@ -44,7 +48,8 @@
                 "frontend"
               ]
             },
-            "scripts": []
+            "scripts": [],
+            "browser": "frontend/main.ts"
           },
           "configurations": {
             "production": {
@@ -58,9 +63,7 @@
               "namedChunks": false,
               "aot": true,
               "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
-              "serviceWorker": true
+              "serviceWorker": "ngsw-config.json"
             }
           }
         },
