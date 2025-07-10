@@ -26,6 +26,7 @@ services:
     volumes:
       - ./frontend:/aw-rss/frontend:ro
       - ./dist:/aw-rss/parent-dist:rw
+      - ./node_modules:/aw-rss/node_modules_out:rw
       - ./package.json:/aw-rss/parent-package.json:rw
       - ./package-lock.json:/aw-rss/parent-lock.json:rw
     command: bash

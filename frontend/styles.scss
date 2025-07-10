@@ -3,10 +3,6 @@
 html {
   color: white;
   background-color: #303030;
-  --mdc-typography-button-text-transform: uppercase;
-  --mdc-dialog-supporting-text-size: 14px;
-  --mdc-typography-body1-font-size: 14px;
-  --mdc-typography-body1-line-height: 20px;
 }
 
 [mattooltipposition] {
@@ -33,6 +29,11 @@ html {
 mat-dialog-actions {
   flex-direction: row-reverse;
   justify-content: end !important;
+}
+
+[mat-button] {
+  // This isn't safe for internationalization
+  // text-transform: uppercase !important;
 }
 
 // These must be global scoped

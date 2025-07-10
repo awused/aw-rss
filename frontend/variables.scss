@@ -21,3 +21,5 @@ $theme: mat.define-dark-theme((color: (primary: $awrss-primary,
 $primary: map-get($theme, primary);
 $accent: map-get($theme, accent);
 $warn: map-get($theme, warn);
+
+$--mdc-text-button-label-text-transform: uppercase;

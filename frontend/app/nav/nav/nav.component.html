@@ -7,7 +7,7 @@
           mat-button-right>
     <mat-icon>refresh</mat-icon>
   </button>
-  <a class="link mat-title"
+  <a class="link mat-headline-6"
      routerLink="/">
     <div class="title">
       Aw-RSS
@@ -19,7 +19,7 @@
     </div>
   </a>
 </div>
-<a class="home-link link mat-subheading-1"
+<a class="home-link link mat-body-1"
    *ngIf="isMobile"
    routerLink=""
    routerLinkActive="active"
@@ -63,7 +63,7 @@
                                 [expandedHeight]="'48px'">
       <div class="link-div"
            (click)="$event.stopPropagation()">
-        <a class="link mat-subheading-2"
+        <a class="link mat-subtitle-1"
            routerLink="/category/{{nc.cData.category.name}}"
            draggable="false"
            ondragstart="return false;">
@@ -110,7 +110,7 @@
                 [cdkDragData]="fd"
                 (cdkDragStarted)="dragStarted($event)">
     </awrss-feed>
-    <div class="uncategorized-target mat-title"
+    <div class="uncategorized-target mat-headline-6"
          *ngIf="dragging">
       {{draggingCategory ? 'End' : 'Uncategorized'}}
     </div>
@@ -118,7 +118,7 @@
                          [class.hidden]="dragging"
                          *ngIf="uncategorizedReadFeeds.length">
       <mat-expansion-panel-header>
-        <div class="mat-subheading-2 read-feeds">
+        <div class="mat-subtitle-1 read-feeds">
           Read Feeds
         </div>
       </mat-expansion-panel-header>
