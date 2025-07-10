@@ -1,12 +1,12 @@
 import {Component,
-        Input} from '@angular/core';
+        EventEmitter,
+        Input,
+        Output} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
-import {ConfirmationDialogComponent} from 'frontend/app/admin/confirmation-dialog/confirmation-dialog.component';
 import {EditCategoryDialogComponent} from 'frontend/app/admin/edit-category-dialog/edit-category-dialog.component';
 import {EditFeedDialogComponent} from 'frontend/app/admin/edit-feed-dialog/edit-feed-dialog.component';
 import {Category,
         Feed} from 'frontend/app/models/entities';
-import {FeedTitlePipe} from 'frontend/app/pipes/feed-title.pipe';
 import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
@@ -23,15 +23,17 @@ export class MainViewHeaderComponent {
   @Input()
   public mobile = false;
 
+  @Output()
+  public markAsRead = new EventEmitter<void>();
+
   @Input()
-  public maxItemId?: number;
+  public enableMarkAsRead?: boolean;
 
   public fuzzyString: string;
 
 
   constructor(
       private readonly dialog: MatDialog,
-      private readonly feedTitle: FeedTitlePipe,
       private readonly mutateService: MutateService,
       public readonly fuzzyFilterService: FuzzyFilterService) {
     this.fuzzyString = this.fuzzyFilterService.getFuzzyFilterString();
@@ -50,31 +52,8 @@ export class MainViewHeaderComponent {
   }
 
 
-  public markFeedAsRead() {
-    // TODO -- enable fuzzy filtering for marking all as read
-    if (!this.feed || !this.maxItemId || this.fuzzyString) {
-      return;
-    }
-
-    const feed = this.feed;
-    const maxItemId = this.maxItemId;
-
-    this.dialog.open<any, any, boolean>(ConfirmationDialogComponent, {
-                 data: {
-                   title: 'Confirm Action',
-                   text: [
-                     `Mark all items read for
-                     ${this.feedTitle.transform(this.feed)}?`,
-                     `This action is irreversible.`
-                   ]
-                 }
-               })
-        .beforeClosed()
-        .subscribe((result) => {
-          if (result) {
-            this.mutateService.markFeedAsRead(feed.id, maxItemId);
-          }
-        });
+  public handleMarkReadClick() {
+    this.markAsRead.emit();
   }
 
   public rerunFeed() {

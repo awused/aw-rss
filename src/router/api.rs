@@ -12,7 +12,9 @@ use tokio::sync::MutexGuard;
 
 use super::{AppState, HttpResult};
 use crate::RouterState;
-use crate::com::{Action, Category, Feed, Item, RssStruct, category, feed, item};
+use crate::com::{
+    Action, Category, Feed, HttpError, Item, QueryBuilder, RssStruct, category, feed, item,
+};
 use crate::database::Database;
 
 mod add_feed;
@@ -154,11 +156,57 @@ RETURNING *",
 
 async fn feed_read(
     State(state): AppState,
-    Path(id): Path<i64>,
+    Path(feed_id): Path<i64>,
     Json(req): Json<ReadFeedRequest>,
 ) -> HttpResult<Json<ItemsResponse>> {
     let db = state.db.lock().await;
-    Ok(Json(req.apply(db, id).await?.into()))
+    Ok(Json(req.apply(db, feed_id).await?.into()))
+}
+
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ReadItemsRequest {
+    // feed_id is more for safety, may be removed
+    feed_id: i64,
+    item_ids: Vec<i64>,
+}
+
+impl ReadItemsRequest {
+    async fn apply(self, mut db: MutexGuard<'_, Database>) -> Result<Vec<Item>> {
+        let mut query = QueryBuilder::new(
+            "
+UPDATE items
+SET read = 1
+WHERE feed_id = ",
+        );
+        query.push_bind(self.feed_id).push(" AND id IN ( ");
+
+        let mut sep = query.separated(", ");
+        self.item_ids.iter().for_each(|id| {
+            sep.push_bind(id);
+        });
+
+        query.push(" ) RETURNING *");
+
+        let mut unsorted = db.fetch_all(query.build_query_as()).await?;
+
+        unsorted.sort_by_key(Item::id);
+
+        Ok(unsorted)
+    }
+}
+
+async fn items_read(
+    State(state): AppState,
+    Json(req): Json<ReadItemsRequest>,
+) -> HttpResult<Json<ItemsResponse>> {
+    if req.item_ids.is_empty() || req.item_ids.len() > 500 {
+        return Err(HttpError::bad("Must have between 1 and 500 items to mark as read"));
+    }
+
+    let db = state.db.lock().await;
+    Ok(Json(req.apply(db).await?.into()))
 }
 
 #[derive(Deserialize, Debug)]
@@ -213,6 +261,7 @@ pub(super) fn api_router() -> Router<RouterState> {
         .route("/items", post(get_items::handle))
         .route("/items/{id}/read", post(item_read))
         .route("/items/{id}/unread", post(item_unread))
+        .route("/items/read", post(items_read))
 
         // Feeds
         .route("/feeds/disabled", get(disabled_feeds))

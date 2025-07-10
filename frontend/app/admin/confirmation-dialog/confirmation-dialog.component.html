@@ -8,6 +8,8 @@
     Cancel
   </button>
   <button mat-button
+          [disabled]="disabled"
+          [color]="data.dangerous ? 'warn' : ''"
           [mat-dialog-close]="true">
     Confirm
   </button>

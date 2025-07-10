@@ -12,8 +12,8 @@ use database::Database;
 use router::RouterState;
 use tokio::net::TcpListener;
 use tokio::pin;
-use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio::time::{sleep, timeout};
 
 #[macro_use]
@@ -53,6 +53,8 @@ async fn main() -> color_eyre::Result<()> {
     let db = Arc::new(Mutex::new(Database::new().await?));
 
     let listener = TcpListener::bind((&*CONFIG.host, CONFIG.port)).await?;
+
+    info!("Listening on {listener:?}");
 
     #[allow(clippy::redundant_pub_crate)]
     {

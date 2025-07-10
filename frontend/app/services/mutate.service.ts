@@ -206,6 +206,25 @@ export class MutateService {
     return obs;
   }
 
+  public markBulkItemsAsRead(
+      feedId: number,
+      itemIds: number[],
+      ): Observable<void> {
+    const url = `/api/items/read`;
+
+    this.loadingService.startLoading();
+    const obs =
+        this.http.post<{items: Item[]}>(url, {feedId, itemIds})
+            .pipe(
+                map((response: {items: Item[]}) =>
+                        this.dataService.pushUpdates(
+                            new Updates(false, [], [], response.items))),
+                share());
+
+    this.subscribe(obs);
+    return obs;
+  }
+
   // For now, this is fire and forget
   public rerunFeed(
       feedId: number,

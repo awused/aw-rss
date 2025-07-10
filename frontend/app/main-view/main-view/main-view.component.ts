@@ -3,9 +3,11 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
+import {MatDialog} from '@angular/material/dialog';
 import {ActivatedRoute,
         ParamMap,
         Router} from '@angular/router';
+import {ConfirmationDialogComponent} from 'frontend/app/admin/confirmation-dialog/confirmation-dialog.component';
 import {EMPTY_FILTERED_DATA,
         FilteredData,
         Updates} from 'frontend/app/models/data';
@@ -17,9 +19,11 @@ import {
 } from 'frontend/app/models/entities';
 import {Filters,
         PartialFilters} from 'frontend/app/models/filter';
+import {FeedTitlePipe} from 'frontend/app/pipes/feed-title.pipe';
 import {DataService} from 'frontend/app/services/data.service';
 import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MobileService} from 'frontend/app/services/mobile.service';
+import {MutateService} from 'frontend/app/services/mutate.service';
 import {ParamService} from 'frontend/app/services/param.service';
 import {filter as fuzzyFilter,
         FilterOptions} from 'fuzzy/lib/fuzzy.js';
@@ -32,6 +36,8 @@ import {
   takeUntil,
   tap
 } from 'rxjs/operators';
+
+const MAX_FUZZY_READ_ITEMS: number = 500;
 
 @Component({
   selector: 'awrss-main-view',
@@ -64,7 +70,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
   public category?: Category;
   public feed?: Feed;
-  public maxItemId?: number;
+  public enableMarkAsRead: boolean = false;
   public fuzzyItems: Item[] = [];
   public mobile: Observable<boolean>;
 
@@ -76,8 +82,11 @@ export class MainViewComponent implements OnInit, OnDestroy {
       private readonly route: ActivatedRoute,
       private readonly router: Router,
       private readonly dataService: DataService,
+      private readonly dialog: MatDialog,
+      private readonly feedTitlePipe: FeedTitlePipe,
       private readonly paramService: ParamService,
       private readonly mobileService: MobileService,
+      private readonly mutateService: MutateService,
       private readonly fuzzyFilterService: FuzzyFilterService) {
     this.mobile = this.mobileService.mobile();
     this.handleFuzzy(this.fuzzyFilterService.getFuzzyFilterString());
@@ -118,17 +127,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
               this.fuzzyItems = this.sortedItems;
             }
 
-            if (this.feed && this.filteredData.items.length) {
-              this.maxItemId =
-                  this.filteredData
-                      .items[this.filteredData.items.length - 1]
-                      .id;
-              // Could do better if counting unread was moved out of NavComponent.
-              // But other work is O(n) anyway.
-              if (!this.filteredData.items.find((i) => !i.read)) {
-                this.maxItemId = undefined;
-              }
-            }
+            this.enableMarkAsRead = !!this.feed && !!this.fuzzyItems.find((i) => !i.read);
 
             if (this.category) {
               this.category = this.dataService.getCategory(this.category.id);
@@ -299,6 +298,71 @@ export class MainViewComponent implements OnInit, OnDestroy {
         });
   }
 
+  public markAsRead() {
+    if (!this.enableMarkAsRead || !this.feed) {
+      return;
+    }
+
+    const feed = this.feed;
+
+    if (!this.fuzzyFilterString) {
+      const maxItemId = this.filteredData.items[this.filteredData.items.length - 1].id;
+
+      this.dialog.open<any, any, boolean>(ConfirmationDialogComponent, {
+                   data: {
+                     title: 'Confirm Action',
+                     text: [
+                       `Mark all items read for
+                     ${this.feedTitlePipe.transform(feed)}?`,
+                       `This action is irreversible.`
+                     ],
+                     dangerous: true,
+                   }
+                 })
+          .beforeClosed()
+          .subscribe((result) => {
+            if (result) {
+              this.mutateService.markFeedAsRead(feed.id, maxItemId);
+            }
+          });
+
+      return;
+    }
+
+
+    let itemIds = this.fuzzyItems.filter((it) => !it.read).map((it) => it.id);
+    if (itemIds.length == 0) {
+      // This shouldn't be possible
+      return;
+    }
+
+    let msg =
+        `Mark the ${itemIds.length} visible unread item${itemIds.length > 1 ? 's' : ''} as read?`;
+
+    if (itemIds.length > MAX_FUZZY_READ_ITEMS) {
+      msg = `Mark the bottom ${
+          MAX_FUZZY_READ_ITEMS} of the ${itemIds.length} visible unread items as read?`;
+      itemIds = itemIds.slice(-MAX_FUZZY_READ_ITEMS);
+    }
+
+    this.dialog.open<any, any, boolean>(ConfirmationDialogComponent, {
+                 data: {
+                   title: 'Confirm Action',
+                   text: [
+                     msg,
+                     `This action is irreversible.`
+                   ],
+                   dangerous: true,
+                 }
+               })
+        .beforeClosed()
+        .subscribe((result) => {
+          if (result) {
+            this.mutateService.markBulkItemsAsRead(feed.id, itemIds);
+          }
+        });
+  }
+
   private handleFuzzy(filterString: string) {
     this.fuzzyFilterString = filterString;
     if (this.fuzzyFilterString) {
@@ -309,6 +373,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
     } else {
       this.fuzzyItems = this.sortedItems;
     }
+
+    this.enableMarkAsRead = !!this.feed && !!this.fuzzyItems.find((i) => !i.read);
   }
 
   private handleNewFilteredData(fd: FilteredData) {
@@ -352,15 +418,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
       this.fuzzyItems = this.sortedItems;
     }
 
-    if (this.feed && fd.items.length) {
-      this.maxItemId =
-          fd.items[this.filteredData.items.length - 1].id;
-      // Could do better if counting unread was moved out of NavComponent.
-      // But other work is O(n) anyway.
-      if (!fd.items.find((i) => !i.read)) {
-        this.maxItemId = undefined;
-      }
-    }
+    this.enableMarkAsRead = !!this.feed && !!this.fuzzyItems.find((i) => !i.read);
   }
 
   private paramsToFilters(p: ParamMap): Filters|undefined {

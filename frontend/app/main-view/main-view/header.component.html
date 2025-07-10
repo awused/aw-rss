@@ -26,10 +26,10 @@
            (input)="handleFuzzy($event.target.value)">
   </mat-form-field>
   <button class="read-button"
-          (click)="markFeedAsRead()"
+          (click)="handleMarkReadClick()"
           *ngIf="feed"
-          [disabled]="!!fuzzyString || maxItemId === undefined"
-          matTooltip="Mark all items read"
+          [disabled]="!enableMarkAsRead"
+          matTooltip="Mark all visible items read"
           mat-icon-button>
     <mat-icon>archive</mat-icon>
   </button>
