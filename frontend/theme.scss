@@ -33,15 +33,15 @@
 
   // Create theme specfic styles
   .primary-bg {
-    background-color: mat.get-color-from-palette($primary, 700);
+    background-color: mat.m2-get-color-from-palette($primary, 700);
   }
 
   .primary-dark-bg {
-    background-color: mat.get-color-from-palette($primary, 900)
+    background-color: mat.m2-get-color-from-palette($primary, 900)
   }
 
   .secondary-bg {
-    background-color: mat.get-color-from-palette($primary, 800)
+    background-color: mat.m2-get-color-from-palette($primary, 800)
   }
 
   .primary-text {
@@ -49,16 +49,16 @@
   }
 
   .accent-text {
-    color: mat.get-color-from-palette($accent);
+    color: mat.m2-get-color-from-palette($accent);
   }
 
   .accent-bg {
-    background-color: mat.get-color-from-palette($accent);
+    background-color: mat.m2-get-color-from-palette($accent);
   }
 
   .warn-bg,
   .warn-bg.mat-mdc-snack-bar-container .mdc-snackbar__surface {
-    background-color: mat.get-color-from-palette($warn);
+    background-color: mat.m2-get-color-from-palette($warn);
   }
 }
 

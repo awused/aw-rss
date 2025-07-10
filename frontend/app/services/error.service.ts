@@ -1,4 +1,4 @@
-import {HttpErrorResponse} from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import {Injectable} from '@angular/core';
 import {MatSnackBar,
         MatSnackBarDismiss} from '@angular/material/snack-bar';

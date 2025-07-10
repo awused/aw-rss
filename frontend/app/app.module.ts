@@ -1,4 +1,4 @@
-import {HttpClientModule} from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import {NgModule} from '@angular/core';
 import {MAT_DIALOG_DEFAULT_OPTIONS} from '@angular/material/dialog';
 import {BrowserModule,
@@ -18,44 +18,36 @@ import {MaterialModule} from './material/material.module';
 import {NavModule} from './nav/nav.module';
 import {PipesModule} from './pipes/pipes.module';
 
-@NgModule({
-  declarations: [
-    AppComponent,
-  ],
-  imports: [
-    BrowserModule,
-    // After BrowserModule
-    HttpClientModule,
-    BrowserAnimationsModule,
-    // Before MainView
-    AdminModule,
-    MainViewModule,
-    NavModule,
-    PipesModule,
-    AppRoutingModule,  // last
-    MaterialModule,
-    DirectivesModule,
-    ServiceWorkerModule.register(
-        '/ngsw-worker.js', {enabled: environment.production})
-  ],
-  providers: [
-    Title,
-    {
-      provide: MAT_DIALOG_DEFAULT_OPTIONS,
-      useValue: {
-        minWidth: '360px',
-        maxWidth: '800px',
-        panelClass: 'mat-typography',
-        hasBackdrop: true,
-        closeOnNavigation: true,
-      }
-    },
-    {
-      provide: HAMMER_LOADER,
-      useValue: () => new Promise(() => {})
-    }
-  ],
-  bootstrap: [AppComponent]
-})
+@NgModule({ declarations: [
+        AppComponent,
+    ],
+    bootstrap: [AppComponent], imports: [BrowserModule,
+        BrowserAnimationsModule,
+        // Before MainView
+        AdminModule,
+        MainViewModule,
+        NavModule,
+        PipesModule,
+        AppRoutingModule, // last
+        MaterialModule,
+        DirectivesModule,
+        ServiceWorkerModule.register('/ngsw-worker.js', { enabled: environment.production })], providers: [
+        Title,
+        {
+            provide: MAT_DIALOG_DEFAULT_OPTIONS,
+            useValue: {
+                minWidth: '360px',
+                maxWidth: '800px',
+                panelClass: 'mat-typography',
+                hasBackdrop: true,
+                closeOnNavigation: true,
+            }
+        },
+        {
+            provide: HAMMER_LOADER,
+            useValue: () => new Promise(() => { })
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ] })
 export class AppModule {
 }

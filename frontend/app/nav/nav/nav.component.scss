@@ -108,7 +108,7 @@
       }
 
       &.failing {
-        background-color: mat.get-color-from-palette($warn, darker) !important;
+        background-color: mat.m2-get-color-from-palette($warn, darker) !important;
 
         .link,
         .unread {
@@ -126,7 +126,7 @@
     }
 
     &.failing .unread {
-      color: mat.get-color-from-palette($warn, darker);
+      color: mat.m2-get-color-from-palette($warn, darker);
     }
 
     &.active {
@@ -138,7 +138,7 @@
       }
 
       &.failing {
-        background-color: mat.get-color-from-palette($warn, darker);
+        background-color: mat.m2-get-color-from-palette($warn, darker);
 
         .link,
         .unread {
@@ -164,7 +164,7 @@
 }
 
 .uncategorized-target {
-  background-color: mat.get-color-from-palette($primary, darker);
+  background-color: mat.m2-get-color-from-palette($primary, darker);
   margin: 0;
   padding: 84px 0;
   text-align: center;

@@ -21,7 +21,7 @@
   }
 
   &.failing .time {
-    color: mat.get-color-from-palette($warn);
+    color: mat.m2-get-color-from-palette($warn);
   }
 }
 
@@ -41,14 +41,14 @@
 }
 
 .active {
-  background-color: mat.get-color-from-palette($primary, lighter);
+  background-color: mat.m2-get-color-from-palette($primary, lighter);
 
   .link {
     color: black;
   }
 
   &.failing {
-    background-color: mat.get-color-from-palette($warn, darker);
+    background-color: mat.m2-get-color-from-palette($warn, darker);
 
     .time {
       color: black;
