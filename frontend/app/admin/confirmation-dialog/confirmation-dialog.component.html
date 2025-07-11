@@ -1,6 +1,8 @@
 <h2 mat-dialog-title>{{data.title}}</h2>
 <mat-dialog-content>
-  <p *ngFor="let line of text">{{line}}</p>
+  @for (line of text; track line) {
+    <p>{{line}}</p>
+  }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button

@@ -12,19 +12,22 @@
       {{fd.feed | feedTitle}}
     </div>
     <div class="spacer"></div>
-    <div class="time"
-         matTooltip="Failing since {{fd.feed.failingSince | date:'yyyy-MM-dd HH:mm'}}"
-         *ngIf="fd.feed.failingSince">
-      ({{fd.failingSinceString}})
-    </div>
-    <div class="unread"
-         *ngIf="!fd.feed.failingSince && fd.unread.size">
-      ({{fd.unread.size}})
-    </div>
-    <div class="time"
-         matTooltip="Last new item {{fd.lastItem | date:'yyyy-MM-dd HH:mm'}}"
-         *ngIf="!fd.feed.failingSince && !fd.unread.size && fd.lastItem">
-      ({{fd.lastItemString}})
-    </div>
+    @if (fd.feed.failingSince) {
+      <div class="time"
+           matTooltip="Failing since {{fd.feed.failingSince | date:'yyyy-MM-dd HH:mm'}}">
+        ({{fd.failingSinceString}})
+      </div>
+    }
+    @if (!fd.feed.failingSince && fd.unread.size) {
+      <div class="unread">
+        ({{fd.unread.size}})
+      </div>
+    }
+    @if (!fd.feed.failingSince && !fd.unread.size && fd.lastItem) {
+      <div class="time"
+           matTooltip="Last new item {{fd.lastItem | date:'yyyy-MM-dd HH:mm'}}">
+        ({{fd.lastItemString}})
+      </div>
+    }
   </a>
 </div>

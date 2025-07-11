@@ -1,142 +1,156 @@
-<div class="header primary-dark-bg"
-     *ngIf="!isMobile">
-  <button (click)="refresh()"
-          aria-label="Refresh"
-          [disabled]="isRefreshing()"
-          mat-icon-button
-          mat-button-right>
-    <mat-icon>refresh</mat-icon>
-  </button>
-  <a class="link mat-headline-6"
-     routerLink="/">
+@if (!isMobile) {
+  <div class="header primary-dark-bg">
+    <button (click)="refresh()"
+            aria-label="Refresh"
+            [disabled]="isRefreshing()"
+            mat-icon-button
+            mat-button-right>
+      <mat-icon>refresh</mat-icon>
+    </button>
+    <a class="link mat-headline-6"
+       routerLink="/">
+      <div class="title">
+        Aw-RSS
+      </div>
+      <div class="spacer"></div>
+      @if (mainUnread) {
+        <div class="unread">
+          ({{mainUnread}})
+        </div>
+      }
+    </a>
+  </div>
+}
+@if (isMobile) {
+  <a class="home-link link mat-body-1"
+     routerLink=""
+     routerLinkActive="active"
+     [routerLinkActiveOptions]="{exact:true}">
     <div class="title">
-      Aw-RSS
+      All Feeds
     </div>
     <div class="spacer"></div>
-    <div class="unread"
-         *ngIf="mainUnread">
-      ({{mainUnread}})
-    </div>
+    @if (mainUnread) {
+      <div class="unread">
+        ({{mainUnread}})
+      </div>
+    }
   </a>
-</div>
-<a class="home-link link mat-body-1"
-   *ngIf="isMobile"
-   routerLink=""
-   routerLinkActive="active"
-   [routerLinkActiveOptions]="{exact:true}">
-  <div class="title">
-    All Feeds
-  </div>
-  <div class="spacer"></div>
-  <div class="unread"
-       *ngIf="mainUnread">
-    ({{mainUnread}})
-  </div>
-</a>
+}
 <!-- TODO
-   https://github.com/angular/material2/pull/14732
-   [cdkDragStartDelay]="isMobile ? 1000 : 0"
+https://github.com/angular/material2/pull/14732
+[cdkDragStartDelay]="isMobile ? 1000 : 0"
 
-   on every draggable so we don't break scrolling
+on every draggable so we don't break scrolling
 
-  Then remove the hacky right padding on the menu on mobile.
+Then remove the hacky right padding on the menu on mobile.
 -->
 <div class="body"
      [class.has-header]="!isMobile"
      cdkDropListGroup>
-  <mat-expansion-panel *ngFor="let nc of navCategories; let evenC = even; let oddC = odd"
-                       class="category"
-                       [class.should-hide]="shouldHideCategory(nc.cData.category)"
-                       [expanded]="expanded[nc.cData.category.id]"
-                       (opened)="expanded[nc.cData.category.id] = true"
-                       (closed)="expanded[nc.cData.category.id] = false"
-                       cdkDropList
-                       [cdkDropListData]="nc.cData"
-                       (cdkDropListDropped)="dragDropped($event)"
-                       (mouseenter)="dropTarget = nc.cData"
-                       (mouseleave)="dropTarget = undefined">
-    <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
-                                [class.primary-bg]="evenC"
-                                [class.active]="selectedCategoryName === nc.cData.category.name"
-                                [class.failing]="nc.cData.failing.size !== 0"
-                                [collapsedHeight]="'48px'"
-                                [expandedHeight]="'48px'">
-      <div class="link-div"
-           (click)="$event.stopPropagation()">
-        <a class="link mat-subtitle-1"
-           routerLink="/category/{{nc.cData.category.name}}"
-           draggable="false"
-           ondragstart="return false;">
-          <div class="title">
-            {{nc.cData.category.title}}
-          </div>
-          <div class="spacer"></div>
-          <div class="unread"
-               *ngIf="nc.cData.unread">
-            ({{nc.cData.unread}})
-          </div>
-          <div class="unread"
-               *ngIf="!nc.cData.unread && nc.cData.failing.size !== 0">
-            !!
-          </div>
-        </a>
-      </div>
-    </mat-expansion-panel-header>
-    <ng-template matExpansionPanelContent>
-      <awrss-feed [class.hidden]="dragging"
-                  *ngFor="let fd of nc.fData; let even = even; let odd = odd;"
-                  [class.primary-dark-bg]="oddC ? odd : !odd"
-                  [class.primary-bg]="oddC ? even : !even"
-                  [fd]="fd"
-                  cdkDrag
-                  [cdkDragDisabled]="isMobile"
-                  [cdkDragData]="fd"
-                  (cdkDragStarted)="dragStarted($event)">
-      </awrss-feed>
-    </ng-template>
-  </mat-expansion-panel>
-  <div class="uncategorized"
-       (mouseenter)="dropTarget = 'uncategorized'"
-       (mouseleave)="dropTarget = undefined"
-       cdkDropList
-       (cdkDropListDropped)="dragDropped($event)">
-    <awrss-feed [class.hidden]="dragging"
-                *ngFor="let fd of uncategorizedFeeds; let even = even; let odd = odd;"
-                [class.primary-dark-bg]="odd"
-                [class.primary-bg]="even"
-                [fd]="fd"
-                cdkDrag
-                [cdkDragDisabled]="isMobile"
-                [cdkDragData]="fd"
-                (cdkDragStarted)="dragStarted($event)">
-    </awrss-feed>
-    <div class="uncategorized-target mat-headline-6"
-         *ngIf="dragging">
-      {{draggingCategory ? 'End' : 'Uncategorized'}}
-    </div>
-    <mat-expansion-panel class="uncategorized"
-                         [class.hidden]="dragging"
-                         *ngIf="uncategorizedReadFeeds.length">
-      <mat-expansion-panel-header>
-        <div class="mat-subtitle-1 read-feeds">
-          Read Feeds
+  @for (nc of navCategories; track nc; let evenC = $even; let oddC = $odd) {
+    <mat-expansion-panel class="category"
+                         [class.should-hide]="shouldHideCategory(nc.cData.category)"
+                         [expanded]="expanded[nc.cData.category.id]"
+                         (opened)="expanded[nc.cData.category.id] = true"
+                         (closed)="expanded[nc.cData.category.id] = false"
+                         cdkDropList
+                         [cdkDropListData]="nc.cData"
+                         (cdkDropListDropped)="dragDropped($event)"
+                         (mouseenter)="dropTarget = nc.cData"
+                         (mouseleave)="dropTarget = undefined">
+      <mat-expansion-panel-header [class.primary-dark-bg]="oddC"
+                                  [class.primary-bg]="evenC"
+                                  [class.active]="selectedCategoryName === nc.cData.category.name"
+                                  [class.failing]="nc.cData.failing.size !== 0"
+                                  [collapsedHeight]="'48px'"
+                                  [expandedHeight]="'48px'">
+        <div class="link-div"
+             (click)="$event.stopPropagation()">
+          <a class="link mat-subtitle-1"
+             routerLink="/category/{{nc.cData.category.name}}"
+             draggable="false"
+             ondragstart="return false;">
+            <div class="title">
+              {{nc.cData.category.title}}
+            </div>
+            <div class="spacer"></div>
+            @if (nc.cData.unread) {
+              <div class="unread">
+                ({{nc.cData.unread}})
+              </div>
+            }
+            @if (!nc.cData.unread && nc.cData.failing.size !== 0) {
+              <div class="unread">
+                !!
+              </div>
+            }
+          </a>
         </div>
       </mat-expansion-panel-header>
       <ng-template matExpansionPanelContent>
-        <div cdkDropList
-             (cdkDropListDropped)="dragDropped($event)">
-          <awrss-feed *ngFor="let fd of uncategorizedReadFeeds; let even = even; let odd = odd;"
-                      [class.primary-dark-bg]="odd"
-                      [class.primary-bg]="even"
+        @for (fd of nc.fData; track fd; let even = $even; let odd = $odd) {
+          <awrss-feed [class.hidden]="dragging"
+                      [class.primary-dark-bg]="oddC ? odd : !odd"
+                      [class.primary-bg]="oddC ? even : !even"
                       [fd]="fd"
                       cdkDrag
                       [cdkDragDisabled]="isMobile"
                       [cdkDragData]="fd"
                       (cdkDragStarted)="dragStarted($event)">
           </awrss-feed>
-        </div>
+        }
       </ng-template>
     </mat-expansion-panel>
+  }
+  <div class="uncategorized"
+       (mouseenter)="dropTarget = 'uncategorized'"
+       (mouseleave)="dropTarget = undefined"
+       cdkDropList
+       (cdkDropListDropped)="dragDropped($event)">
+    @for (fd of uncategorizedFeeds; track fd; let even = $even; let odd = $odd)
+    {
+      <awrss-feed [class.hidden]="dragging"
+                  [class.primary-dark-bg]="odd"
+                  [class.primary-bg]="even"
+                  [fd]="fd"
+                  cdkDrag
+                  [cdkDragDisabled]="isMobile"
+                  [cdkDragData]="fd"
+                  (cdkDragStarted)="dragStarted($event)">
+      </awrss-feed>
+    }
+    @if (dragging) {
+      <div class="uncategorized-target mat-headline-6">
+        {{draggingCategory ? 'End' : 'Uncategorized'}}
+      </div>
+    }
+    @if (uncategorizedReadFeeds.length) {
+      <mat-expansion-panel class="uncategorized"
+                           [class.hidden]="dragging">
+        <mat-expansion-panel-header>
+          <div class="mat-subtitle-1 read-feeds">
+            Read Feeds
+          </div>
+        </mat-expansion-panel-header>
+        <ng-template matExpansionPanelContent>
+          <div cdkDropList
+               (cdkDropListDropped)="dragDropped($event)">
+            @for (fd of uncategorizedReadFeeds; track fd; let even = $even; let
+          odd = $odd) {
+              <awrss-feed [class.primary-dark-bg]="odd"
+                          [class.primary-bg]="even"
+                          [fd]="fd"
+                          cdkDrag
+                          [cdkDragDisabled]="isMobile"
+                          [cdkDragData]="fd"
+                          (cdkDragStarted)="dragStarted($event)">
+              </awrss-feed>
+            }
+          </div>
+        </ng-template>
+      </mat-expansion-panel>
+    }
   </div>
 
   <div class="buttons"

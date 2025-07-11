@@ -1,11 +1,12 @@
-<awrss-main-view-header *ngIf="(mobile | async) !== true"
-                        class="header"
-                        [mobile]="false"
-                        [feed]="feed"
-                        [category]="category"
-                        [enableMarkAsRead]="enableMarkAsRead"
-                        (markAsRead)="markAsRead()">
-</awrss-main-view-header>
+@if ((mobile | async) !== true) {
+  <awrss-main-view-header class="header"
+                          [mobile]="false"
+                          [feed]="feed"
+                          [category]="category"
+                          [enableMarkAsRead]="enableMarkAsRead"
+                          (markAsRead)="markAsRead()">
+  </awrss-main-view-header>
+}
 
 <div class="viewport"
      [class.mobile]="mobile | async"
@@ -29,19 +30,22 @@
     </awrss-item>
   </cdk-virtual-scroll-viewport>
 
-  <div class="show-more primary-dark-bg"
-       *ngIf="!hasAllRead">
-    <button [disabled]="loadingMore"
-            *ngIf="!hasRead"
-            (click)="showRead()"
-            mat-button>
-      Show Read
-    </button>
-    <button [disabled]="loadingMore"
-            *ngIf="hasRead"
-            (click)="showMoreRead()"
-            mat-button>
-      Show More
-    </button>
-  </div>
+  @if (!hasAllRead) {
+    <div class="show-more primary-dark-bg">
+      @if (!hasRead) {
+        <button [disabled]="loadingMore"
+                (click)="showRead()"
+                mat-button>
+          Show Read
+        </button>
+      }
+      @if (hasRead) {
+        <button [disabled]="loadingMore"
+                (click)="showMoreRead()"
+                mat-button>
+          Show More
+        </button>
+      }
+    </div>
+  }
 </div>

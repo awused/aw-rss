@@ -12,12 +12,16 @@
                  name="url"
                  formControlName="url"
                  autofocus>
-          <mat-error *ngIf="feedForm.controls['url'].hasError('pattern')">
-            URL must be HTTP or HTTPS
-          </mat-error>
-          <mat-error *ngIf="feedForm.controls['url'].hasError('required')">
-            URL is required
-          </mat-error>
+          @if (feedForm.controls['url'].hasError('pattern')) {
+            <mat-error>
+              URL must be HTTP or HTTPS
+            </mat-error>
+          }
+          @if (feedForm.controls['url'].hasError('required')) {
+            <mat-error>
+              URL is required
+            </mat-error>
+          }
         </mat-form-field>
         <mat-form-field>
           <mat-label>Title Override</mat-label>
@@ -58,27 +62,33 @@
                  name="name"
                  formControlName="name"
                  placeholder="Name">
-          <mat-error *ngIf="categoryForm.controls['name'].hasError('pattern')">
-            Name must start with a letter and contain only lowercase letters,
-            numbers, and hyphens.
-          </mat-error>
-          <mat-error *ngIf="categoryForm.controls['name'].hasError('required')">
-            Name is required
-          </mat-error>
-          <mat-error
-                     *ngIf="categoryForm.controls['name'].hasError('nameTaken')">
-            Name must be unique
-          </mat-error>
+          @if (categoryForm.controls['name'].hasError('pattern')) {
+            <mat-error>
+              Name must start with a letter and contain only lowercase letters,
+              numbers, and hyphens.
+            </mat-error>
+          }
+          @if (categoryForm.controls['name'].hasError('required')) {
+            <mat-error>
+              Name is required
+            </mat-error>
+          }
+          @if (categoryForm.controls['name'].hasError('nameTaken')) {
+            <mat-error>
+              Name must be unique
+            </mat-error>
+          }
         </mat-form-field>
         <mat-form-field>
           <input matInput
                  name="title"
                  formControlName="title"
                  placeholder="Title">
-          <mat-error
-                     *ngIf="categoryForm.controls['title'].hasError('required')">
-            Title is required
-          </mat-error>
+          @if (categoryForm.controls['title'].hasError('required')) {
+            <mat-error>
+              Title is required
+            </mat-error>
+          }
         </mat-form-field>
         <mat-form-field>
           <mat-label>Visibility</mat-label>

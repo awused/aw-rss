@@ -10,25 +10,33 @@
       <input matInput
              name="name"
              formControlName="name">
-      <mat-error *ngIf="categoryForm.controls['name'].hasError('pattern')">
-        Name must start with a letter and contain only lowercase letters,
-        numbers, and hyphens.
-      </mat-error>
-      <mat-error *ngIf="categoryForm.controls['name'].hasError('required')">
-        Name is required
-      </mat-error>
-      <mat-error *ngIf="categoryForm.controls['name'].hasError('nameTaken')">
-        Name must be unique
-      </mat-error>
+      @if (categoryForm.controls['name'].hasError('pattern')) {
+        <mat-error>
+          Name must start with a letter and contain only lowercase letters,
+          numbers, and hyphens.
+        </mat-error>
+      }
+      @if (categoryForm.controls['name'].hasError('required')) {
+        <mat-error>
+          Name is required
+        </mat-error>
+      }
+      @if (categoryForm.controls['name'].hasError('nameTaken')) {
+        <mat-error>
+          Name must be unique
+        </mat-error>
+      }
     </mat-form-field>
     <mat-form-field>
       <mat-label>Title</mat-label>
       <input matInput
              name="title"
              formControlName="title">
-      <mat-error *ngIf="categoryForm.controls['title'].hasError('required')">
-        Title is required
-      </mat-error>
+      @if (categoryForm.controls['title'].hasError('required')) {
+        <mat-error>
+          Title is required
+        </mat-error>
+      }
     </mat-form-field>
     <mat-form-field>
       <mat-label>Visibility</mat-label>

@@ -1,41 +1,45 @@
 <div class="mat-typography"
      [class.fixed-layout]="(mobile | async) !== true">
-  <mat-toolbar class="awrss-toolbar"
-               *ngIf="mobile | async">
-    <button (click)="openNav = !openNav"
-            aria-label="Toggle menu"
-            mat-icon-button>
-      <mat-icon>menu</mat-icon>
-    </button>
-    <h1 class="header">
-      <div *ngIf="!link"
-           class="title">{{title}}</div>
-      <a *ngIf="link"
-         [href]="link | urlSanitize"
-         rel="noopener"
-         target="_blank"
-         class="title external-link">
-        {{title}}
-        <mat-icon>launch</mat-icon>
-      </a>
-      <div class="spacer"></div>
-      <mat-form-field style=" margin-bottom: -1.3em; margin-top: -9px;">
-        <input matInput
-               [value]="fuzzyString"
-               (input)="handleFuzzy($event.target.value)">
-      </mat-form-field>
-      <div class="unread"
-           *ngIf="unread">
-        ({{unread}})
-      </div>
-    </h1>
-    <button (click)="refresh()"
-            aria-label="Refresh"
-            [disabled]="isRefreshing()"
-            mat-icon-button>
-      <mat-icon>refresh</mat-icon>
-    </button>
-  </mat-toolbar>
+  @if (mobile | async) {
+    <mat-toolbar class="awrss-toolbar">
+      <button (click)="openNav = !openNav"
+              aria-label="Toggle menu"
+              mat-icon-button>
+        <mat-icon>menu</mat-icon>
+      </button>
+      <h1 class="header">
+        @if (!link) {
+          <div class="title">{{title}}</div>
+        }
+        @if (link) {
+          <a [href]="link | urlSanitize"
+             rel="noopener"
+             target="_blank"
+             class="title external-link">
+            {{title}}
+            <mat-icon>launch</mat-icon>
+          </a>
+        }
+        <div class="spacer"></div>
+        <mat-form-field style=" margin-bottom: -1.3em; margin-top: -9px;">
+          <input matInput
+                 [value]="fuzzyString"
+                 (input)="handleFuzzy($event.target.value)">
+        </mat-form-field>
+        @if (unread) {
+          <div class="unread">
+            ({{unread}})
+          </div>
+        }
+      </h1>
+      <button (click)="refresh()"
+              aria-label="Refresh"
+              [disabled]="isRefreshing()"
+              mat-icon-button>
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </mat-toolbar>
+  }
   <mat-sidenav-container (backdropClick)="openNav = false"
                          fullscreen>
     <mat-sidenav #snav

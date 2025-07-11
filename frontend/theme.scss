@@ -3,7 +3,7 @@
 
 :root {
   @include mat.button-overrides(( // This isn't safe for internationalization
-      label-text-transform: uppercase,
+      text-label-text-transform: uppercase,
     ));
 }
 

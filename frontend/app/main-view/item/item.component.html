@@ -1,15 +1,18 @@
-<div *ngIf="showFeed || (showCategory && category)"
-     class="header primary-text"
-     (mouseenter)="itemHover = false"
-     (mouseleave)="itemHover = true">
-  <a *ngIf="showCategory && category"
-     class="category-link mat-body-strong"
-     [class.category-pad]="showFeed"
-     routerLink="/category/{{category.name}}">{{category.title}}</a>
-  <a *ngIf="showFeed"
-     class="feed-link mat-body-strong"
-     routerLink="/feed/{{feed.id}}">{{feed | feedTitle}}</a>
-</div>
+@if (showFeed || (showCategory && category)) {
+  <div class="header primary-text"
+       (mouseenter)="itemHover = false"
+       (mouseleave)="itemHover = true">
+    @if (showCategory && category) {
+      <a class="category-link mat-body-strong"
+         [class.category-pad]="showFeed"
+         routerLink="/category/{{category.name}}">{{category.title}}</a>
+    }
+    @if (showFeed) {
+      <a class="feed-link mat-body-strong"
+         routerLink="/feed/{{feed.id}}">{{feed | feedTitle}}</a>
+    }
+  </div>
+}
 <a class="link primary-text"
    [class.item-hover]="itemHover"
    [class.no-header]="!showFeed && !(showCategory && category)"

@@ -1,23 +1,26 @@
 <div class="header primary-dark-bg"
      [class.mobile]="mobile">
-  <h2 *ngIf="!mobile"
-      class="title">
-    <a *ngIf="feed && feed.siteUrl"
-       class="site-link"
-       [href]="feed.siteUrl | urlSanitize"
-       matTooltip="{{feed | feedTitle}}"
-       rel="noopener"
-       target="_blank">
-      <div class="feed-title">
-        {{feed | feedTitle}}
-      </div>
-      <mat-icon>launch</mat-icon>
-    </a>
-    <div class="header-title"
-         *ngIf="(feed && !feed.siteUrl) || category">
-      {{ feed && (feed | feedTitle) || category.title }}
-    </div>
-  </h2>
+  @if (!mobile) {
+    <h2 class="title">
+      @if (feed && feed.siteUrl) {
+        <a class="site-link"
+           [href]="feed.siteUrl | urlSanitize"
+           matTooltip="{{feed | feedTitle}}"
+           rel="noopener"
+           target="_blank">
+          <div class="feed-title">
+            {{feed | feedTitle}}
+          </div>
+          <mat-icon>launch</mat-icon>
+        </a>
+      }
+      @if ((feed && !feed.siteUrl) || category) {
+        <div class="header-title">
+          {{ feed && (feed | feedTitle) || category.title }}
+        </div>
+      }
+    </h2>
+  }
   <div class="spacer"></div>
   <!-- Angular Material just doesn't care -->
   <mat-form-field style=" margin-bottom: -1.3em">
@@ -25,26 +28,29 @@
            [value]="fuzzyString"
            (input)="handleFuzzy($event.target.value)">
   </mat-form-field>
-  <button class="read-button"
-          (click)="handleMarkReadClick()"
-          *ngIf="feed"
-          [disabled]="!enableMarkAsRead"
-          matTooltip="Mark all visible items read"
-          mat-icon-button>
-    <mat-icon>archive</mat-icon>
-  </button>
-  <button class="rerun-button"
-          (click)="rerunFeed()"
-          *ngIf="feed"
-          matTooltip="Rerun this feed now"
-          mat-icon-button>
-    <mat-icon>autorenew</mat-icon>
-  </button>
-  <button class="edit-button"
-          (click)="edit()"
-          *ngIf="feed || category"
-          matTooltip="Edit {{feed && (feed | feedTitle) || category.title}}"
-          mat-icon-button>
-    <mat-icon>edit</mat-icon>
-  </button>
+  @if (feed) {
+    <button class="read-button"
+            (click)="handleMarkReadClick()"
+            [disabled]="!enableMarkAsRead"
+            matTooltip="Mark all visible items read"
+            mat-icon-button>
+      <mat-icon>archive</mat-icon>
+    </button>
+  }
+  @if (feed) {
+    <button class="rerun-button"
+            (click)="rerunFeed()"
+            matTooltip="Rerun this feed now"
+            mat-icon-button>
+      <mat-icon>autorenew</mat-icon>
+    </button>
+  }
+  @if (feed || category) {
+    <button class="edit-button"
+            (click)="edit()"
+            matTooltip="Edit {{feed && (feed | feedTitle) || category.title}}"
+            mat-icon-button>
+      <mat-icon>edit</mat-icon>
+    </button>
+  }
 </div>
