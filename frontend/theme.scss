@@ -1,9 +1,10 @@
 @use '@angular/material' as mat;
-@import 'variables';
+@use "sass:map";
+@use 'variables';
 
-$primary: map-get($theme, primary);
-$accent: map-get($theme, accent);
-$warn: map-get($theme, warn);
+$primary: map.get(variables.$theme, primary);
+$accent: map.get(variables.$theme, accent);
+$warn: map.get(variables.$theme, warn);
 
 :root {
   @include mat.button-overrides(( // This isn't safe for internationalization
@@ -11,7 +12,7 @@ $warn: map-get($theme, warn);
     ));
 
   @include mat.tooltip-overrides(( // Why do I need to configure this
-      container-color: mat.m2-get-color-from-palette($primary, 700),
+      container-color: mat.m2-get-color-from-palette(variables.$primary, 700),
       supporting-text-color: white,
     ));
 }
@@ -27,15 +28,15 @@ $warn: map-get($theme, warn);
 // that you are using.
 @include mat.elevation-classes();
 @include mat.app-background();
-@include mat.all-component-themes($theme);
-@include mat.all-component-typographies($theme);
+@include mat.all-component-themes(variables.$theme);
+@include mat.all-component-typographies(variables.$theme);
 
 
 @mixin awrss-theme($theme) {
   // Parse the theme and create variables for each color in the pallete
-  $primary: map-get($theme, primary);
-  $accent: map-get($theme, accent);
-  $warn: map-get($theme, warn);
+  $primary: map.get($theme, primary);
+  $accent: map.get($theme, accent);
+  $warn: map.get($theme, warn);
 
   // This isn't safe for internationalization
   //$mdc-text-button-label-text-transform: uppercase;
@@ -71,4 +72,4 @@ $warn: map-get($theme, warn);
   }
 }
 
-@include awrss-theme($theme);
+@include awrss-theme(variables.$theme);

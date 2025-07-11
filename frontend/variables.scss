@@ -1,3 +1,4 @@
+@use "sass:map";
 @use '@angular/material' as mat;
 
 // Define the palettes for your theme using the Material Design palettes available in palette.scss
@@ -18,8 +19,8 @@ $theme: mat.m2-define-dark-theme((color: (primary: $awrss-primary,
     ));
 
 
-$primary: map-get($theme, primary);
-$accent: map-get($theme, accent);
-$warn: map-get($theme, warn);
+$primary: map.get($theme, primary);
+$accent: map.get($theme, accent);
+$warn: map.get($theme, warn);
 
 $--mat-button-text-label-text-transform: uppercase;

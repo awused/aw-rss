@@ -1,5 +1,5 @@
 @use '@angular/material' as mat;
-@import 'variables';
+@use 'variables' as var;
 
 :host {
   display: flex;
@@ -21,7 +21,7 @@
   }
 
   &.failing .time {
-    color: mat.m2-get-color-from-palette($warn);
+    color: mat.m2-get-color-from-palette(var.$warn);
   }
 }
 
@@ -41,14 +41,14 @@
 }
 
 .active {
-  background-color: mat.m2-get-color-from-palette($primary, lighter);
+  background-color: mat.m2-get-color-from-palette(var.$primary, lighter);
 
   .link {
     color: black;
   }
 
   &.failing {
-    background-color: mat.m2-get-color-from-palette($warn, darker);
+    background-color: mat.m2-get-color-from-palette(var.$warn, darker);
 
     .time {
       color: black;

@@ -1,5 +1,5 @@
 @use '@angular/material' as mat;
-@import 'variables';
+@use 'variables' as var;
 
 // TODO - remove https://github.com/angular/material2/pull/14732
 /*.home-link,
@@ -108,7 +108,7 @@
       }
 
       &.failing {
-        background-color: mat.m2-get-color-from-palette($warn, darker) !important;
+        background-color: mat.m2-get-color-from-palette(var.$warn, darker) !important;
 
         .link,
         .unread {
@@ -126,7 +126,7 @@
     }
 
     &.failing .unread {
-      color: mat.m2-get-color-from-palette($warn, darker);
+      color: mat.m2-get-color-from-palette(var.$warn, darker);
     }
 
     &.active {
@@ -138,7 +138,7 @@
       }
 
       &.failing {
-        background-color: mat.m2-get-color-from-palette($warn, darker);
+        background-color: mat.m2-get-color-from-palette(var.$warn, darker);
 
         .link,
         .unread {
@@ -164,7 +164,7 @@
 }
 
 .uncategorized-target {
-  background-color: mat.m2-get-color-from-palette($primary, darker);
+  background-color: mat.m2-get-color-from-palette(var.$primary, darker);
   margin: 0;
   padding: 84px 0;
   text-align: center;
