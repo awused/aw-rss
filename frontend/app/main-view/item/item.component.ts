@@ -1,5 +1,6 @@
 import {Component,
         HostBinding,
+        inject,
         Input,
         OnChanges,
         OnDestroy,
@@ -16,12 +17,15 @@ import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
 @Component({
-    selector: 'awrss-item',
-    templateUrl: './item.component.html',
-    styleUrls: ['./item.component.scss'],
-    standalone: false
+  selector: 'awrss-item',
+  templateUrl: './item.component.html',
+  styleUrls: ['./item.component.scss'],
+  standalone: false
 })
 export class ItemComponent implements OnInit, OnDestroy, OnChanges {
+  private readonly mutateService = inject(MutateService);
+  private readonly dataService = inject(DataService);
+
   @Input()
   public item!: Item;
   @Input()
@@ -46,9 +50,7 @@ export class ItemComponent implements OnInit, OnDestroy, OnChanges {
 
   private readonly onDestroy$: Subject<void> = new Subject();
 
-  constructor(
-      private readonly mutateService: MutateService,
-      private readonly dataService: DataService) {}
+  constructor() {}
 
 
   toggleItemRead() {

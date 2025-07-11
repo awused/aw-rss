@@ -1,6 +1,6 @@
-import {MediaMatcher} from '@angular/cdk/layout';
 import {Component,
-        HostListener} from '@angular/core';
+        HostListener,
+        inject} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
 import {Title} from '@angular/platform-browser';
 import {Router} from '@angular/router';
@@ -12,12 +12,18 @@ import {MobileService} from './services/mobile.service';
 import {RefreshService} from './services/refresh.service';
 
 @Component({
-    selector: 'awrss-root',
-    templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss'],
-    standalone: false
+  selector: 'awrss-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss'],
+  standalone: false
 })
 export class AppComponent {
+  private readonly dialog = inject(MatDialog);
+  private readonly titleService = inject(Title);
+  private readonly refreshService = inject(RefreshService);
+  private readonly router = inject(Router);
+  private readonly fuzzyFilterService = inject(FuzzyFilterService);
+
   public mobile: Observable<boolean>;
   public openNav = false;
   public unread = 0;
@@ -25,13 +31,9 @@ export class AppComponent {
   public link?: string;
   public fuzzyString: string;
 
-  constructor(
-      private readonly dialog: MatDialog,
-      mobileService: MobileService,
-      private readonly titleService: Title,
-      private readonly refreshService: RefreshService,
-      private readonly router: Router,
-      private readonly fuzzyFilterService: FuzzyFilterService) {
+  constructor() {
+    const mobileService = inject(MobileService);
+
     // Uncertain if I actually want to update the page's title constantly,
     // or just the bar at the top
     this.titleService.setTitle(this.title);

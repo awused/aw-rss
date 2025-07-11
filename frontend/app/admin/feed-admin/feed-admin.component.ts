@@ -1,4 +1,5 @@
 import {Component,
+        inject,
         OnDestroy,
         OnInit} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
@@ -15,12 +16,15 @@ import {takeUntil} from 'rxjs/operators';
 import {EditFeedDialogComponent} from '../edit-feed-dialog/edit-feed-dialog.component';
 
 @Component({
-    selector: 'awrss-feed-admin',
-    templateUrl: './feed-admin.component.html',
-    styleUrls: ['./feed-admin.component.scss'],
-    standalone: false
+  selector: 'awrss-feed-admin',
+  templateUrl: './feed-admin.component.html',
+  styleUrls: ['./feed-admin.component.scss'],
+  standalone: false
 })
 export class FeedAdminComponent implements OnInit, OnDestroy {
+  private readonly dataService = inject(DataService);
+  private readonly dialog = inject(MatDialog);
+
   private readonly onDestroy$: Subject<void> = new Subject();
   private fuzzyFilterString = '';
   private readonly fuzzyOptions: FilterOptions<Feed> = {
@@ -30,9 +34,7 @@ export class FeedAdminComponent implements OnInit, OnDestroy {
   public filteredData: FilteredData = EMPTY_FILTERED_DATA;
   public fuzzyFeeds: ReadonlyArray<Feed> = [];
 
-  constructor(
-      private readonly dataService: DataService,
-      private readonly dialog: MatDialog) {}
+  constructor() {}
 
   ngOnInit() {
     this.dataService.updates()

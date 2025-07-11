@@ -1,5 +1,5 @@
 import {Component,
-        Inject} from '@angular/core';
+        inject} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -17,25 +17,28 @@ import {MutateService} from 'frontend/app/services/mutate.service';
 export const CATEGORY_NAME_PATTERN = /^[a-z][a-z0-9-]+$/;
 
 @Component({
-    selector: 'awrss-edit-category-dialog',
-    templateUrl: './edit-category-dialog.component.html',
-    styleUrls: ['./edit-category-dialog.component.scss'],
-    standalone: false
+  selector: 'awrss-edit-category-dialog',
+  templateUrl: './edit-category-dialog.component.html',
+  styleUrls: ['./edit-category-dialog.component.scss'],
+  standalone: false
 })
 export class EditCategoryDialogComponent {
+  private readonly dialogRef = inject<MatDialogRef<EditCategoryDialogComponent>>(MatDialogRef);
+  private readonly dataService = inject(DataService);
+  private readonly mutateService = inject(MutateService);
+  private readonly snackBar = inject(MatSnackBar);
+  readonly data = inject<{
+    category: Category;
+  }>(MAT_DIALOG_DATA);
+
   public readonly category: Category;
   public readonly initialVisibility: string;
   public categoryForm: FormGroup;
   public categoryNames: ReadonlySet<string> = new Set();
 
-  constructor(
-      private readonly dialogRef: MatDialogRef<EditCategoryDialogComponent>,
-      private readonly dataService: DataService,
-      private readonly mutateService: MutateService,
-      private readonly snackBar: MatSnackBar,
-      @Inject(MAT_DIALOG_DATA) public readonly data: {
-        category: Category;
-      }) {
+  constructor() {
+    const data = this.data;
+
     this.category = data.category;
 
     let visibility = 'show';

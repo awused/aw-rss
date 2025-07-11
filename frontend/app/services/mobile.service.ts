@@ -1,5 +1,6 @@
 import {MediaMatcher} from '@angular/cdk/layout';
-import {Injectable} from '@angular/core';
+import {inject,
+        Injectable} from '@angular/core';
 import {
   BehaviorSubject,
   Observable,
@@ -15,7 +16,9 @@ export class MobileService {
 
   private mobileQueryListener: () => void;
 
-  constructor(media: MediaMatcher) {
+  constructor() {
+    const media = inject(MediaMatcher);
+
     this.mobileQuery = media.matchMedia('(max-width: 768px)');
     this.mobile$ = new BehaviorSubject(this.mobileQuery.matches);
     this.mobileQueryListener = () => this.mobile$.next(this.mobileQuery.matches);

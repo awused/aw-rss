@@ -1,23 +1,26 @@
 import {Component,
-        Inject} from '@angular/core';
+        inject} from '@angular/core';
 import {MAT_DIALOG_DATA} from '@angular/material/dialog';
 
 @Component({
-    selector: 'awrss-confirmation-dialog',
-    templateUrl: './confirmation-dialog.component.html',
-    styleUrls: ['./confirmation-dialog.component.scss'],
-    standalone: false
+  selector: 'awrss-confirmation-dialog',
+  templateUrl: './confirmation-dialog.component.html',
+  styleUrls: ['./confirmation-dialog.component.scss'],
+  standalone: false
 })
 export class ConfirmationDialogComponent {
+  readonly data = inject<{
+    title: string;
+    text: string | string[];
+    dangerous?: boolean;
+  }>(MAT_DIALOG_DATA);
+
   public text: string[];
   public disabled: boolean = false;
 
-  constructor(
-      @Inject(MAT_DIALOG_DATA) public readonly data: {
-        title: string;
-        text: string | string[];
-        dangerous?: boolean;
-      }) {
+  constructor() {
+    const data = this.data;
+
     if (typeof data.text === 'string') {
       this.text = [data.text];
     } else {

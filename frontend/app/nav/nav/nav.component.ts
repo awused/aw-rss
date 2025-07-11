@@ -4,6 +4,7 @@ import {
 } from '@angular/cdk/drag-drop';
 import {Component,
         EventEmitter,
+        inject,
         Output} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
 import {ActivatedRoute,
@@ -48,24 +49,25 @@ interface NavCategory {
 }
 
 @Component({
-    selector: 'awrss-nav',
-    templateUrl: './nav.component.html',
-    styleUrls: ['./nav.component.scss'],
-    standalone: false
+  selector: 'awrss-nav',
+  templateUrl: './nav.component.html',
+  styleUrls: ['./nav.component.scss'],
+  standalone: false
 })
 export class NavComponent {
+  private readonly mobileService = inject(MobileService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly refreshService = inject(RefreshService);
+  private readonly dataService = inject(DataService);
+  private readonly mutateService = inject(MutateService);
+  private readonly errorService = inject(ErrorService);
+  private readonly paramService = inject(ParamService);
+  private readonly dialog = inject(MatDialog);
+  private readonly feedTitlePipe = inject(FeedTitlePipe);
+
   // This controller will never be destroyed
-  constructor(
-      private readonly mobileService: MobileService,
-      private readonly route: ActivatedRoute,
-      private readonly router: Router,
-      private readonly refreshService: RefreshService,
-      private readonly dataService: DataService,
-      private readonly mutateService: MutateService,
-      private readonly errorService: ErrorService,
-      private readonly paramService: ParamService,
-      private readonly dialog: MatDialog,
-      private readonly feedTitlePipe: FeedTitlePipe) {
+  constructor() {
     this.dataService.updates().subscribe(
         (u: Updates) => this.handleUpdates(u));
 

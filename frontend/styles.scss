@@ -31,11 +31,6 @@ mat-dialog-actions {
   justify-content: end !important;
 }
 
-[mat-button] {
-  // This isn't safe for internationalization
-  // text-transform: uppercase !important;
-}
-
 // These must be global scoped
 // https://github.com/angular/material2/issues/13983
 mat-sidenav>.mat-drawer-inner-container {

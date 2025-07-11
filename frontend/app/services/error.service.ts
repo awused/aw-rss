@@ -1,5 +1,6 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import {Injectable} from '@angular/core';
+import {HttpErrorResponse} from '@angular/common/http';
+import {inject,
+        Injectable} from '@angular/core';
 import {MatSnackBar,
         MatSnackBarDismiss} from '@angular/material/snack-bar';
 import {Observable} from 'rxjs';
@@ -9,8 +10,9 @@ import {Observable} from 'rxjs';
   providedIn: 'root'
 })
 export class ErrorService {
-  constructor(
-      private readonly snackBar: MatSnackBar) {}
+  private readonly snackBar = inject(MatSnackBar);
+
+  constructor() {}
 
   public showError(error: string|Error|HttpErrorResponse): Observable<MatSnackBarDismiss> {
     let m: string;

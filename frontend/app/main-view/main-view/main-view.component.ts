@@ -1,8 +1,7 @@
-import {
-  Component,
-  OnDestroy,
-  OnInit,
-} from '@angular/core';
+import {Component,
+        inject,
+        OnDestroy,
+        OnInit} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
 import {ActivatedRoute,
         ParamMap,
@@ -40,12 +39,22 @@ import {
 const MAX_FUZZY_READ_ITEMS: number = 500;
 
 @Component({
-    selector: 'awrss-main-view',
-    templateUrl: './main-view.component.html',
-    styleUrls: ['./main-view.component.scss'],
-    standalone: false
+  selector: 'awrss-main-view',
+  templateUrl: './main-view.component.html',
+  styleUrls: ['./main-view.component.scss'],
+  standalone: false
 })
 export class MainViewComponent implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly dataService = inject(DataService);
+  private readonly dialog = inject(MatDialog);
+  private readonly feedTitlePipe = inject(FeedTitlePipe);
+  private readonly paramService = inject(ParamService);
+  private readonly mobileService = inject(MobileService);
+  private readonly mutateService = inject(MutateService);
+  private readonly fuzzyFilterService = inject(FuzzyFilterService);
+
   // @ViewChild('itemScroll')
   // public itemScroll: CdkVirtualScrollViewport;
 
@@ -79,16 +88,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
   public hasRead = false;
   public hasAllRead = false;
 
-  constructor(
-      private readonly route: ActivatedRoute,
-      private readonly router: Router,
-      private readonly dataService: DataService,
-      private readonly dialog: MatDialog,
-      private readonly feedTitlePipe: FeedTitlePipe,
-      private readonly paramService: ParamService,
-      private readonly mobileService: MobileService,
-      private readonly mutateService: MutateService,
-      private readonly fuzzyFilterService: FuzzyFilterService) {
+  constructor() {
     this.mobile = this.mobileService.mobile();
     this.handleFuzzy(this.fuzzyFilterService.getFuzzyFilterString());
   }

@@ -1,9 +1,18 @@
 @use '@angular/material' as mat;
 @import 'variables';
 
+$primary: map-get($theme, primary);
+$accent: map-get($theme, accent);
+$warn: map-get($theme, warn);
+
 :root {
   @include mat.button-overrides(( // This isn't safe for internationalization
       text-label-text-transform: uppercase,
+    ));
+
+  @include mat.tooltip-overrides(( // Why do I need to configure this
+      container-color: mat.m2-get-color-from-palette($primary, 700),
+      supporting-text-color: white,
     ));
 }
 
@@ -20,8 +29,6 @@
 @include mat.app-background();
 @include mat.all-component-themes($theme);
 @include mat.all-component-typographies($theme);
-// @include mat.all-legacy-component-themes($theme);
-// @include mat.all-legacy-component-typographies();
 
 
 @mixin awrss-theme($theme) {

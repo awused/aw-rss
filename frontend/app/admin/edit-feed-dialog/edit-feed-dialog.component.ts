@@ -1,5 +1,5 @@
 import {Component,
-        Inject} from '@angular/core';
+        inject} from '@angular/core';
 import {FormControl,
         FormGroup} from '@angular/forms';
 import {MAT_DIALOG_DATA,
@@ -13,26 +13,29 @@ import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
 @Component({
-    selector: 'awrss-edit-feed-dialog',
-    templateUrl: './edit-feed-dialog.component.html',
-    styleUrls: ['./edit-feed-dialog.component.scss'],
-    standalone: false
+  selector: 'awrss-edit-feed-dialog',
+  templateUrl: './edit-feed-dialog.component.html',
+  styleUrls: ['./edit-feed-dialog.component.scss'],
+  standalone: false
 })
 export class EditFeedDialogComponent {
+  private readonly dialogRef = inject<MatDialogRef<EditFeedDialogComponent>>(MatDialogRef);
+  private readonly dataService = inject(DataService);
+  private readonly mutateService = inject(MutateService);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly feedTitlePipe = inject(FeedTitlePipe);
+  readonly data = inject<{
+    feed: Feed;
+  }>(MAT_DIALOG_DATA);
+
   public readonly feed: Feed;
   public feedForm: FormGroup;
   public categories: ReadonlyArray<Category> = [];
 
   // This controller will never be reused
-  constructor(
-      private readonly dialogRef: MatDialogRef<EditFeedDialogComponent>,
-      private readonly dataService: DataService,
-      private readonly mutateService: MutateService,
-      private readonly snackBar: MatSnackBar,
-      private readonly feedTitlePipe: FeedTitlePipe,
-      @Inject(MAT_DIALOG_DATA) public readonly data: {
-        feed: Feed;
-      }) {
+  constructor() {
+    const data = this.data;
+
     this.feed = data.feed;
 
     this.feedForm = new FormGroup({

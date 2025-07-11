@@ -1,4 +1,5 @@
-import {Pipe,
+import {inject,
+        Pipe,
         PipeTransform,
         SecurityContext} from '@angular/core';
 import {DomSanitizer,
@@ -7,11 +8,13 @@ import {DomSanitizer,
 const SAFE_ITEM_URL_PATTERN = /^(?:(?:https?|magnet):|[^&:/?#]*(?:[/?#]|$))/gi;
 
 @Pipe({
-    name: 'urlSanitize',
-    standalone: false
+  name: 'urlSanitize',
+  standalone: false
 })
 export class UrlSanitizePipe implements PipeTransform {
-  constructor(private readonly domSanitizer: DomSanitizer) {}
+  private readonly domSanitizer = inject(DomSanitizer);
+
+  constructor() {}
 
   transform(value: string, _args?: void): SafeUrl|null {
     if (value.match(SAFE_ITEM_URL_PATTERN)) {

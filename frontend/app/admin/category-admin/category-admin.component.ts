@@ -1,4 +1,5 @@
 import {Component,
+        inject,
         OnDestroy,
         OnInit} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
@@ -15,20 +16,21 @@ import {ConfirmationDialogComponent} from '../confirmation-dialog/confirmation-d
 import {EditCategoryDialogComponent} from '../edit-category-dialog/edit-category-dialog.component';
 
 @Component({
-    selector: 'awrss-category-admin',
-    templateUrl: './category-admin.component.html',
-    styleUrls: ['./category-admin.component.scss'],
-    standalone: false
+  selector: 'awrss-category-admin',
+  templateUrl: './category-admin.component.html',
+  styleUrls: ['./category-admin.component.scss'],
+  standalone: false
 })
 export class CategoryAdminComponent implements OnInit, OnDestroy {
+  private readonly dataService = inject(DataService);
+  private readonly mutateService = inject(MutateService);
+  private readonly dialog = inject(MatDialog);
+
   private readonly onDestroy$: Subject<void> = new Subject();
   private filteredData: FilteredData = EMPTY_FILTERED_DATA;
   public sortedCategories: ReadonlyArray<Category> = [];
 
-  constructor(
-      private readonly dataService: DataService,
-      private readonly mutateService: MutateService,
-      private readonly dialog: MatDialog) {}
+  constructor() {}
 
   ngOnInit() {
     this.dataService.updates()

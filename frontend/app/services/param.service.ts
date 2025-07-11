@@ -16,7 +16,6 @@ export class ParamService {
 
   constructor() {}
 
-
   public pushMainViewParams(p?: ParamMap) {
     this.mainViewParams$.next(p);
   }

@@ -1,5 +1,6 @@
 import {Component,
         EventEmitter,
+        inject,
         Input,
         Output} from '@angular/core';
 import {MatDialog} from '@angular/material/dialog';
@@ -11,12 +12,16 @@ import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
 @Component({
-    selector: 'awrss-main-view-header',
-    templateUrl: './header.component.html',
-    styleUrls: ['./header.component.scss'],
-    standalone: false
+  selector: 'awrss-main-view-header',
+  templateUrl: './header.component.html',
+  styleUrls: ['./header.component.scss'],
+  standalone: false
 })
 export class MainViewHeaderComponent {
+  private readonly dialog = inject(MatDialog);
+  private readonly mutateService = inject(MutateService);
+  readonly fuzzyFilterService = inject(FuzzyFilterService);
+
   @Input()
   public feed?: Feed;
   @Input()
@@ -32,11 +37,7 @@ export class MainViewHeaderComponent {
 
   public fuzzyString: string;
 
-
-  constructor(
-      private readonly dialog: MatDialog,
-      private readonly mutateService: MutateService,
-      public readonly fuzzyFilterService: FuzzyFilterService) {
+  constructor() {
     this.fuzzyString = this.fuzzyFilterService.getFuzzyFilterString();
   }
 

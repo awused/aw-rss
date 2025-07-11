@@ -1,4 +1,5 @@
-import {Component} from '@angular/core';
+import {Component,
+        inject} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -17,12 +18,17 @@ import {CATEGORY_NAME_PATTERN} from '../edit-category-dialog/edit-category-dialo
 const FEED_URL_PATTERN = /^https?:\/\//i;
 
 @Component({
-    selector: 'awrss-add-dialog',
-    templateUrl: './add-dialog.component.html',
-    styleUrls: ['./add-dialog.component.scss'],
-    standalone: false
+  selector: 'awrss-add-dialog',
+  templateUrl: './add-dialog.component.html',
+  styleUrls: ['./add-dialog.component.scss'],
+  standalone: false
 })
 export class AddDialogComponent {
+  private readonly dialogRef = inject<MatDialogRef<AddDialogComponent>>(MatDialogRef);
+  private readonly dataService = inject(DataService);
+  private readonly mutateService = inject(MutateService);
+  private readonly snackBar = inject(MatSnackBar);
+
   public categoryNames: ReadonlySet<string> = new Set();
 
   public feedForm = new FormGroup({
@@ -52,11 +58,7 @@ export class AddDialogComponent {
     visibility: new FormControl('')
   });
 
-  constructor(
-      private readonly dialogRef: MatDialogRef<AddDialogComponent>,
-      private readonly dataService: DataService,
-      private readonly mutateService: MutateService,
-      private readonly snackBar: MatSnackBar) {
+  constructor() {
     // Uses take(1) internally
     this.dataService.dataForFilters({
                       validOnly: true,

@@ -1,5 +1,6 @@
-import { HttpClient } from '@angular/common/http';
-import {Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {inject,
+        Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {map,
         share} from 'rxjs/operators';
@@ -31,12 +32,10 @@ interface AddFeedResponse {
   providedIn: 'root'
 })
 export class MutateService {
-  constructor(
-      private readonly dataService: DataService,
-      private readonly http: HttpClient,
-      private readonly errorService: ErrorService,
-      private readonly loadingService: LoadingService) {}
-
+  private readonly dataService = inject(DataService);
+  private readonly http = inject(HttpClient);
+  private readonly errorService = inject(ErrorService);
+  private readonly loadingService = inject(LoadingService);
 
   public markItemRead(it: Item, read: boolean): Observable<void> {
     const url = `/api/items/${it.id}/${read ? 'read' : 'unread'}`;

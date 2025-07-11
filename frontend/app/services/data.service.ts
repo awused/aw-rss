@@ -1,5 +1,6 @@
-import { HttpClient } from '@angular/common/http';
-import {Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {inject,
+        Injectable} from '@angular/core';
 import {
   firstValueFrom,
   forkJoin,
@@ -119,6 +120,11 @@ class CategoryMetadata {
   providedIn: 'root'
 })
 export class DataService {
+  private readonly http = inject(HttpClient);
+  private readonly errorService = inject(ErrorService);
+  private readonly refreshService = inject(RefreshService);
+  private readonly loadingService = inject(LoadingService);
+
   private readonly data$: ReplaySubject<Data> = new ReplaySubject<Data>(1);
   private readonly updates$: Subject<Updates> = new Subject<Updates>();
   private readonly feedUpdates$: Observable<void>;
@@ -138,11 +144,7 @@ export class DataService {
   private readAfter?: Date;
   private lastClean: Date = new Date();
 
-  constructor(
-      private readonly http: HttpClient,
-      private readonly errorService: ErrorService,
-      private readonly refreshService: RefreshService,
-      private readonly loadingService: LoadingService) {
+  constructor() {
     this.getInitialState();
     // The data service will never be destroyed, so never unsubscribe
     this.refreshService.startedObservable()
