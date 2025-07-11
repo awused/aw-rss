@@ -16,9 +16,10 @@ import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
 @Component({
-  selector: 'awrss-item',
-  templateUrl: './item.component.html',
-  styleUrls: ['./item.component.scss']
+    selector: 'awrss-item',
+    templateUrl: './item.component.html',
+    styleUrls: ['./item.component.scss'],
+    standalone: false
 })
 export class ItemComponent implements OnInit, OnDestroy, OnChanges {
   @Input()

@@ -4,7 +4,8 @@ import {Pipe,
 import {Feed} from '../models/entities';
 
 @Pipe({
-  name: 'feedTitle'
+    name: 'feedTitle',
+    standalone: false
 })
 export class FeedTitlePipe implements PipeTransform {
   transform(feed: Feed, _args?: any): string {

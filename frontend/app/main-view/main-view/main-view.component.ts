@@ -40,9 +40,10 @@ import {
 const MAX_FUZZY_READ_ITEMS: number = 500;
 
 @Component({
-  selector: 'awrss-main-view',
-  templateUrl: './main-view.component.html',
-  styleUrls: ['./main-view.component.scss']
+    selector: 'awrss-main-view',
+    templateUrl: './main-view.component.html',
+    styleUrls: ['./main-view.component.scss'],
+    standalone: false
 })
 export class MainViewComponent implements OnInit, OnDestroy {
   // @ViewChild('itemScroll')

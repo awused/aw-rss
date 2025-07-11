@@ -10,12 +10,14 @@
 // Include the common styles for Angular Material. We include this here so that you only
 // have to load a single css file for Angular Material in your app.
 // Be sure that you only ever include this mixin once!
-@include mat.core();
+@include mat.elevation-classes();
+@include mat.app-background();
 
 // Include theme styles for core and each component used in your app.
 // Alternatively, you can import and @include the theme mixins for each component
 // that you are using.
-@include mat.core-theme($theme);
+@include mat.elevation-classes();
+@include mat.app-background();
 @include mat.all-component-themes($theme);
 @include mat.all-component-typographies($theme);
 // @include mat.all-legacy-component-themes($theme);

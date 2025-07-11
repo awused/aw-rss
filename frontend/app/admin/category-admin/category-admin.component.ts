@@ -15,9 +15,10 @@ import {ConfirmationDialogComponent} from '../confirmation-dialog/confirmation-d
 import {EditCategoryDialogComponent} from '../edit-category-dialog/edit-category-dialog.component';
 
 @Component({
-  selector: 'awrss-category-admin',
-  templateUrl: './category-admin.component.html',
-  styleUrls: ['./category-admin.component.scss']
+    selector: 'awrss-category-admin',
+    templateUrl: './category-admin.component.html',
+    styleUrls: ['./category-admin.component.scss'],
+    standalone: false
 })
 export class CategoryAdminComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();

@@ -14,8 +14,9 @@ import {FeedData} from '../nav/nav.component';
 import {FeedComponent} from './feed.component';
 
 @Component({
-  selector: 'awrss-test-wrapper',
-  template: '<awrss-feed [fd]="fd"></awrss-feed>'
+    selector: 'awrss-test-wrapper',
+    template: '<awrss-feed [fd]="fd"></awrss-feed>',
+    standalone: false
 })
 class TestWrapperComponent {
   fd = new FeedData(FEED_FIXTURES.emptyFeed);

@@ -11,9 +11,10 @@ import {FuzzyFilterService} from 'frontend/app/services/fuzzy-filter.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
 @Component({
-  selector: 'awrss-main-view-header',
-  templateUrl: './header.component.html',
-  styleUrls: ['./header.component.scss']
+    selector: 'awrss-main-view-header',
+    templateUrl: './header.component.html',
+    styleUrls: ['./header.component.scss'],
+    standalone: false
 })
 export class MainViewHeaderComponent {
   @Input()

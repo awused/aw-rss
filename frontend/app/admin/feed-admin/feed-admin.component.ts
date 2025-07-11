@@ -15,9 +15,10 @@ import {takeUntil} from 'rxjs/operators';
 import {EditFeedDialogComponent} from '../edit-feed-dialog/edit-feed-dialog.component';
 
 @Component({
-  selector: 'awrss-feed-admin',
-  templateUrl: './feed-admin.component.html',
-  styleUrls: ['./feed-admin.component.scss']
+    selector: 'awrss-feed-admin',
+    templateUrl: './feed-admin.component.html',
+    styleUrls: ['./feed-admin.component.scss'],
+    standalone: false
 })
 export class FeedAdminComponent implements OnInit, OnDestroy {
   private readonly onDestroy$: Subject<void> = new Subject();

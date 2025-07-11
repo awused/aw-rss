@@ -13,9 +13,10 @@ import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
 @Component({
-  selector: 'awrss-edit-feed-dialog',
-  templateUrl: './edit-feed-dialog.component.html',
-  styleUrls: ['./edit-feed-dialog.component.scss']
+    selector: 'awrss-edit-feed-dialog',
+    templateUrl: './edit-feed-dialog.component.html',
+    styleUrls: ['./edit-feed-dialog.component.scss'],
+    standalone: false
 })
 export class EditFeedDialogComponent {
   public readonly feed: Feed;

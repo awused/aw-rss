@@ -5,9 +5,10 @@ import {FeedData} from '../nav/nav.component';
 
 
 @Component({
-  selector: 'awrss-feed',
-  templateUrl: './feed.component.html',
-  styleUrls: ['./feed.component.scss']
+    selector: 'awrss-feed',
+    templateUrl: './feed.component.html',
+    styleUrls: ['./feed.component.scss'],
+    standalone: false
 })
 export class FeedComponent {
   @Input()

@@ -48,9 +48,10 @@ interface NavCategory {
 }
 
 @Component({
-  selector: 'awrss-nav',
-  templateUrl: './nav.component.html',
-  styleUrls: ['./nav.component.scss']
+    selector: 'awrss-nav',
+    templateUrl: './nav.component.html',
+    styleUrls: ['./nav.component.scss'],
+    standalone: false
 })
 export class NavComponent {
   // This controller will never be destroyed

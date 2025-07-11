@@ -8,8 +8,9 @@ import {RouterTestingModule} from '@angular/router/testing';
 import {PreserveParamsDirective} from './preserve-params.directive';
 
 @Component({
-  selector: 'awrss-test-wrapper',
-  template: '<a routerLink="/"></a>'
+    selector: 'awrss-test-wrapper',
+    template: '<a routerLink="/"></a>',
+    standalone: false
 })
 class TestWrapperComponent {
 }

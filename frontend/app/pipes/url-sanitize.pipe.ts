@@ -7,7 +7,8 @@ import {DomSanitizer,
 const SAFE_ITEM_URL_PATTERN = /^(?:(?:https?|magnet):|[^&:/?#]*(?:[/?#]|$))/gi;
 
 @Pipe({
-  name: 'urlSanitize'
+    name: 'urlSanitize',
+    standalone: false
 })
 export class UrlSanitizePipe implements PipeTransform {
   constructor(private readonly domSanitizer: DomSanitizer) {}

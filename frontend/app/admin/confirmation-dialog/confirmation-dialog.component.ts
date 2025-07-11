@@ -3,9 +3,10 @@ import {Component,
 import {MAT_DIALOG_DATA} from '@angular/material/dialog';
 
 @Component({
-  selector: 'awrss-confirmation-dialog',
-  templateUrl: './confirmation-dialog.component.html',
-  styleUrls: ['./confirmation-dialog.component.scss']
+    selector: 'awrss-confirmation-dialog',
+    templateUrl: './confirmation-dialog.component.html',
+    styleUrls: ['./confirmation-dialog.component.scss'],
+    standalone: false
 })
 export class ConfirmationDialogComponent {
   public text: string[];

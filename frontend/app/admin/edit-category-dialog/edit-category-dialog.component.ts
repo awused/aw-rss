@@ -17,9 +17,10 @@ import {MutateService} from 'frontend/app/services/mutate.service';
 export const CATEGORY_NAME_PATTERN = /^[a-z][a-z0-9-]+$/;
 
 @Component({
-  selector: 'awrss-edit-category-dialog',
-  templateUrl: './edit-category-dialog.component.html',
-  styleUrls: ['./edit-category-dialog.component.scss']
+    selector: 'awrss-edit-category-dialog',
+    templateUrl: './edit-category-dialog.component.html',
+    styleUrls: ['./edit-category-dialog.component.scss'],
+    standalone: false
 })
 export class EditCategoryDialogComponent {
   public readonly category: Category;

@@ -17,9 +17,10 @@ import {CATEGORY_NAME_PATTERN} from '../edit-category-dialog/edit-category-dialo
 const FEED_URL_PATTERN = /^https?:\/\//i;
 
 @Component({
-  selector: 'awrss-add-dialog',
-  templateUrl: './add-dialog.component.html',
-  styleUrls: ['./add-dialog.component.scss']
+    selector: 'awrss-add-dialog',
+    templateUrl: './add-dialog.component.html',
+    styleUrls: ['./add-dialog.component.scss'],
+    standalone: false
 })
 export class AddDialogComponent {
   public categoryNames: ReadonlySet<string> = new Set();

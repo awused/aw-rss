@@ -15,8 +15,9 @@ import {FakeMutateService} from 'frontend/app/services/mutate.service.fake';
 import {ItemComponent} from './item.component';
 
 @Component({
-  selector: 'awrss-test-wrapper',
-  template: '<awrss-item [item]="item"></awrss-item>'
+    selector: 'awrss-test-wrapper',
+    template: '<awrss-item [item]="item"></awrss-item>',
+    standalone: false
 })
 class TestWrapperComponent {
   item = ITEM_FIXTURES.emptyItem;

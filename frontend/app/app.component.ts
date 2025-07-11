@@ -12,9 +12,10 @@ import {MobileService} from './services/mobile.service';
 import {RefreshService} from './services/refresh.service';
 
 @Component({
-  selector: 'awrss-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+    selector: 'awrss-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss'],
+    standalone: false
 })
 export class AppComponent {
   public mobile: Observable<boolean>;
