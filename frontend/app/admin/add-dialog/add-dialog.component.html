@@ -30,6 +30,17 @@
                  formControlName="title"
                  matTooltip="Override the automatically detected title of the feed. Optional.">
         </mat-form-field>
+        <mat-form-field>
+          <mat-label>Category</mat-label>
+          <mat-select formControlName="categoryId">
+            <mat-option [value]="undefined">None</mat-option>
+            @for (category of categories; track category) {
+              <mat-option [value]="category.id">
+                {{category.title}}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <div>
           <mat-checkbox [formControl]="feedForm.get('force')"
                         name="force"

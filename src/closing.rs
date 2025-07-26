@@ -3,19 +3,18 @@ use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
 
 use async_channel::{Receiver, Sender, bounded};
-use once_cell::sync::Lazy;
 
 use crate::spawn_thread;
 
 type CloseSender = Mutex<Option<Sender<()>>>;
 type CloseReceiver = Receiver<()>;
 
-static CLOSED: Lazy<Arc<AtomicBool>> = Lazy::new(|| Arc::new(AtomicBool::new(false)));
-static CLOSER: Lazy<(CloseSender, CloseReceiver)> = Lazy::new(|| {
+static CLOSED: LazyLock<Arc<AtomicBool>> = LazyLock::new(|| Arc::new(AtomicBool::new(false)));
+static CLOSER: LazyLock<(CloseSender, CloseReceiver)> = LazyLock::new(|| {
     let (s, r) = bounded::<()>(1);
     (Mutex::new(Option::Some(s)), r)
 });
@@ -64,7 +63,7 @@ pub fn close() -> bool {
 }
 
 pub fn init() {
-    Lazy::force(&CLOSER);
+    LazyLock::force(&CLOSER);
 
     #[cfg(target_family = "unix")]
     spawn_thread("signals", || {

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use color_eyre::eyre::Result;
-use once_cell::unsync::Lazy;
 use serde::Serialize;
 use sqlx::prelude::FromRow;
 
@@ -64,7 +64,7 @@ pub struct ParsedInsert {
 }
 
 thread_local! {
-    static DEDUPE: Lazy<bool> = Lazy::new(|| CONFIG.dedupe);
+    static DEDUPE: LazyLock<bool> = LazyLock::new(|| CONFIG.dedupe);
 }
 
 const DEDUPE_COLUMNS: [&str; 6] = ["feed_id", "key", "title", "url", "timestamp", "read"];

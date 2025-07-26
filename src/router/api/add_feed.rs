@@ -1,15 +1,16 @@
-use axum::extract::State;
+use std::sync::LazyLock;
+
 use axum::Json;
-use color_eyre::eyre::{bail, Context};
+use axum::extract::State;
+use color_eyre::eyre::{Context, bail};
 use color_eyre::{Result, Section};
-use once_cell::sync::Lazy;
 use reqwest::Url;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use url::Host;
 
 use crate::com::feed::UserInsert;
-use crate::com::{Action, Feed, RssStruct, CLIENT};
+use crate::com::{Action, CLIENT, Feed, RssStruct};
 use crate::database::Database;
 use crate::parsing::check_valid_feed;
 use crate::router::{AppState, HttpError, HttpResult, RouterState};
@@ -21,6 +22,8 @@ pub struct Request {
     url: String,
     #[serde(default, rename = "title")]
     user_title: String,
+
+    category_id: Option<i64>,
 
     #[serde(default)]
     force: bool,
@@ -44,7 +47,7 @@ pub(super) async fn handle(
 
 
 #[rustfmt::skip]
-static SELECTOR: Lazy<Selector> = Lazy::new(|| {
+static SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
     Selector::parse("\
         body > link[type='application/rss+xml'],\
         body > link[type='application/atom+xml'],\
@@ -65,6 +68,7 @@ pub(super) async fn add(state: RouterState, req: Request) -> Result<Response> {
     let insert = UserInsert {
         url: url.to_string(),
         user_title: req.user_title,
+        category_id: req.category_id,
     };
 
     let db = state.db.lock().await;

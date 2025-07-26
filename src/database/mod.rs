@@ -18,6 +18,8 @@ use crate::com::{
 };
 use crate::config::CONFIG;
 
+const MAX_BULK_BINDS: usize = 32766;
+
 #[derive(Debug, From)]
 pub struct Transaction<'a>(Option<sqlx::Transaction<'a, Sqlite>>);
 
@@ -366,7 +368,7 @@ ORDER BY id ASC"
 
         // Default sqlite limit for versions 3.32.0+
         let hint = I::binds_count_hint();
-        if inserts.len() * hint > 32766 {
+        if inserts.len() * hint > MAX_BULK_BINDS {
             error!(
                 "Trying to insert too much: {} inserts would need {} binds, which is over the \
                  sqlite maximum. Skipping older items.",
@@ -374,7 +376,7 @@ ORDER BY id ASC"
                 inserts.len() * hint
             );
 
-            builder.push_values(inserts.into_iter().take(32766 / hint), |mut s, ins| {
+            builder.push_values(inserts.into_iter().take(MAX_BULK_BINDS / hint), |mut s, ins| {
                 ins.push_values(&mut s)
             });
         } else {

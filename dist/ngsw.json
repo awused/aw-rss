@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1752511857740,
+  "timestamp": 1753494786382,
   "index": "/index.html",
   "assetGroups": [
     {
@@ -13,7 +13,7 @@
       "urls": [
         "/favicon.ico",
         "/index.html",
-        "/main-RKX57Z65.js",
+        "/main-XOLDFSQB.js",
         "/polyfills-BUUDEW7V.js",
         "/styles-NTIYXREK.css"
       ],
@@ -43,8 +43,8 @@
     "/assets/icons/graphicsvibe-rss-feed-128.png": "cf0482e2d7320cbd24cd81787bdc733ffe57cc68",
     "/assets/icons/graphicsvibe-rss-feed-256.png": "e507661a660e7cb734f5975056537ff8286098f7",
     "/favicon.ico": "44276253107c71fd2f4a5394aa0c3c7adfc7e69c",
-    "/index.html": "2cdb42a7cc9019784b7dbd7d70e51832c2ced1f3",
-    "/main-RKX57Z65.js": "008c1729dd8b862daae4ff91dc0b03031ce0a3d9",
+    "/index.html": "fb3d0b7a64d625a2dbad7346188ebc475fdeea0e",
+    "/main-XOLDFSQB.js": "65a4343f9c86349202948408e1ab0b00d1c340ff",
     "/polyfills-BUUDEW7V.js": "f7958e7443daaa2a26783243d65aaee7fc6c5ec0",
     "/styles-NTIYXREK.css": "aadbed0b3ee2fa18cc28340a8985640359e0f1a3"
   },

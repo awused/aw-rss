@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::marker::Sized;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use axum::body::Body;
@@ -7,7 +8,6 @@ use axum::http::{HeaderMap, HeaderValue, Response};
 use axum::response::IntoResponse;
 use color_eyre::Result;
 use derive_more::From;
-use once_cell::sync::Lazy as SyncLazy;
 use once_cell::unsync::Lazy;
 use reqwest::header::{CACHE_CONTROL, USER_AGENT};
 use reqwest::{Client, StatusCode};
@@ -111,7 +111,7 @@ pub trait Insert<T: RssStruct>: Debug {
 }
 
 
-pub static CLIENT: SyncLazy<Client> = SyncLazy::new(|| {
+pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let mut headers = HeaderMap::new();
     // Workaround for dolphinemu.org, but doesn't seem to break any other feeds.
     headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));

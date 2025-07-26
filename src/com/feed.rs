@@ -136,11 +136,12 @@ impl Update<Feed> for Failing {
 pub struct UserInsert {
     pub url: String,
     pub user_title: String,
+    pub category_id: Option<i64>,
 }
 
 impl Insert<Feed> for UserInsert {
     fn columns() -> &'static [&'static str] {
-        &["url", "user_title"]
+        &["url", "user_title", "category_id"]
     }
 
     fn validate(&self) -> Result<()> {
@@ -148,7 +149,10 @@ impl Insert<Feed> for UserInsert {
     }
 
     fn push_values(self, builder: &mut super::Separated<'_, '_>) {
-        builder.push_bind(self.url).push_bind(self.user_title);
+        builder
+            .push_bind(self.url)
+            .push_bind(self.user_title)
+            .push_bind(self.category_id);
     }
 }
 

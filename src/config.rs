@@ -1,7 +1,7 @@
 use std::path::PathBuf;
+use std::sync::LazyLock;
 
 use clap::Parser;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Deserializer};
 
 
@@ -45,10 +45,10 @@ where
 }
 
 
-pub static OPTIONS: Lazy<Opt> = Lazy::new(Opt::parse);
+pub static OPTIONS: LazyLock<Opt> = LazyLock::new(Opt::parse);
 
 
-pub static CONFIG: Lazy<Config> = Lazy::new(|| {
+pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     match awconf::load_config::<Config>("aw-rss", OPTIONS.awconf.as_ref(), None::<&str>) {
         Ok((conf, Some(path))) => {
             info!("Loaded config from {path:?}");
@@ -67,6 +67,6 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
 
 
 pub fn init() {
-    Lazy::force(&OPTIONS);
-    Lazy::force(&CONFIG);
+    LazyLock::force(&OPTIONS);
+    LazyLock::force(&CONFIG);
 }

@@ -9,6 +9,7 @@ import {
 import {MatDialogRef} from '@angular/material/dialog';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {FilteredData} from 'frontend/app/models/data';
+import {Category} from 'frontend/app/models/entities';
 import {DataService} from 'frontend/app/services/data.service';
 import {MutateService} from 'frontend/app/services/mutate.service';
 
@@ -29,6 +30,8 @@ export class AddDialogComponent {
   private readonly mutateService = inject(MutateService);
   private readonly snackBar = inject(MatSnackBar);
 
+  public categories: ReadonlyArray<Category> = [];
+
   public categoryNames: ReadonlySet<string> = new Set();
 
   public feedForm = new FormGroup({
@@ -36,6 +39,7 @@ export class AddDialogComponent {
       Validators.required, Validators.pattern(FEED_URL_PATTERN)
     ]),
     title: new FormControl(''),
+    categoryId: new FormControl(undefined),
     force: new FormControl(false),
   });
 
@@ -66,16 +70,18 @@ export class AddDialogComponent {
                       excludeItems: true,
                     })
         .subscribe(
-            (fd: FilteredData) =>
-                this.categoryNames = new Set(
-                    fd.categories
-                        .map((c) => c.name)));
+            (fd: FilteredData) => {
+              this.categories = fd.categories;
+              this.categoryNames = new Set(
+                  fd.categories
+                      .map((c) => c.name));
+            });
   }
 
 
   public submitFeed(formValue: any) {
     this.mutateService
-        .newFeed(formValue.url, formValue.title, formValue.force)
+        .newFeed(formValue.url, formValue.title, formValue.force, formValue.categoryId)
         .subscribe(() => {
           this.snackBar.open(`Added Feed [${formValue.title || formValue.url}]`, '', {
             duration: 3000

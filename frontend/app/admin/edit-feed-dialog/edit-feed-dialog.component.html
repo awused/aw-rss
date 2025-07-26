@@ -19,8 +19,7 @@
            target="_blank">
           {{feed.url}}
         </a>
-      }
-      @if (feed.url.startsWith('!')) {
+      } @else {
         <div class="command">
           {{feed.url}}
         </div>

@@ -61,13 +61,14 @@ export class MutateService {
     return obs.pipe();
   }
 
-  public newFeed(feedUrl: string, title: string, force: boolean):
+  public newFeed(feedUrl: string, title: string, force: boolean, categoryId?: number):
       Observable<string[]|'invalid'|void> {
     const url = `/api/feeds/add`;
     const request = {
       url: feedUrl,
       title,
-      force
+      categoryId,
+      force,
     };
 
     this.loadingService.startLoading();
