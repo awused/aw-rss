@@ -95,3 +95,4 @@ did not want to run PHP on my server. Since starting it I've been able to
 add niche features and workaround for broken feeds that wouldn't be appropriate
 in a large and widely used project like tt-rss.
 
+Was Angular the right choice? Probably not.

@@ -188,7 +188,7 @@ impl Database {
             .map_err(Into::into)
     }
 
-    pub async fn transaction(&mut self) -> Result<Transaction> {
+    pub async fn transaction(&mut self) -> Result<Transaction<'_>> {
         Ok(Transaction(self.con()?.begin().await?.into()))
     }
 }
