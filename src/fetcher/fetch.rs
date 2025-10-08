@@ -164,6 +164,7 @@ impl FeedFetcher<'_> {
             guard.failing_feeds += 1;
             Duration::from_secs(guard.failing_feeds.saturating_mul(60))
         };
+        let dur = dur.min(MAX_POLL_PERIOD);
         drop(guard);
 
         let db = self.db.lock().await;
@@ -175,7 +176,7 @@ impl FeedFetcher<'_> {
             Err(e) => error!("{:?}", e.wrap_err("Failed to mark feed as failing")),
         }
 
-        self.status = Status::Failing(dur.min(MAX_POLL_PERIOD));
+        self.status = Status::Failing(dur);
 
         warn!("Retrying in {}", format_duration(dur));
         let sleep = time::sleep(dur);
