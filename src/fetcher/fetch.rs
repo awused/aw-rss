@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+use std::ops::ControlFlow;
 use std::string::ToString;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ use tokio::{pin, time};
 
 use super::{FeedFetcher, HostData};
 use crate::com::feed::Failing;
-use crate::com::{CLIENT, RssStruct};
+use crate::com::{CLIENT, Feed, RssStruct};
 use crate::database::Database;
 use crate::fetcher::HostKind;
 use crate::parsing::{ParsedFeed, parse_feed};
@@ -119,25 +119,42 @@ impl FeedFetcher<'_> {
     }
 
     #[instrument(level = "error", skip_all, err(Debug))]
-    async fn fetch(&mut self) -> Result<()> {
+    async fn fetch(&mut self) -> Result<ControlFlow<()>> {
         let Response { body, mut headers } = match self.host.kind {
             HostKind::Http => self.fetch_http().await?,
             HostKind::Executable => self.run_executable().await?,
         };
 
-        if let Body::Success(body) = body {
-            let ParsedFeed { update, items, ttl, extension_etag } =
-                parse_feed(&self.feed, &body).with_section(|| body.header("Body: "))?;
-            headers.ttl = ttl.or(headers.ttl);
-            headers.etag = extension_etag.or(headers.etag);
+        match body {
+            Body::Success(body) => {
+                let ParsedFeed { update, items, ttl, extension_etag } =
+                    parse_feed(&self.feed, &body).with_section(|| body.header("Body: "))?;
+                headers.ttl = ttl.or(headers.ttl);
+                headers.etag = extension_etag.or(headers.etag);
 
-            debug!("Parsed {} items and feed update: {update:?}", items.len());
-            // trace!("Items {items:?}");
+                debug!("Parsed {} items and feed update: {update:?}", items.len());
+                // trace!("Items {items:?}");
 
-            // The time spent waiting for the DB lock and writing values is unimportant for
-            // calculating the next_fetch time.
-            let db = self.db.lock().await;
-            Database::handle_parsed(db, &self.feed, update, items).await?;
+                // The time spent waiting for the DB lock and writing values is unimportant for
+                // calculating the next_fetch time.
+                let db = self.db.lock().await;
+                let updated =
+                    Database::handle_parsed(db, &self.feed, update, items).await?.take().0;
+
+                // Restart the task if the URL changes, otherwise just keep the existing allocation.
+                if self.feed.url != updated.url {
+                    return Ok(ControlFlow::Break(()));
+                }
+            }
+            Body::NotModified => {
+                // Detect if the feed has been modified by the user directly in the DB.
+                let db = self.db.lock().await;
+                let fresh: Feed = Database::get(db, self.feed.id()).await?;
+
+                if self.feed.url != fresh.url {
+                    return Ok(ControlFlow::Break(()));
+                }
+            }
         }
 
         trace!("{headers:?}");
@@ -145,7 +162,7 @@ impl FeedFetcher<'_> {
         self.next_fetch = headers.next_fetch();
         self.status = Status::Success(headers);
 
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     async fn wait(&self) {
@@ -154,7 +171,7 @@ impl FeedFetcher<'_> {
         select(sleep, self.rerun.listen()).await;
     }
 
-    async fn fail(&mut self, mut guard: MutexGuard<'_, HostData>) {
+    async fn fail(&mut self, mut guard: MutexGuard<'_, HostData>) -> ControlFlow<()> {
         let failing = Failing { since: Utc::now().into() };
 
         let dur = if let Some(dur) = self.status.failing_timeout() {
@@ -172,7 +189,13 @@ impl FeedFetcher<'_> {
         // Update the DB even if we think this was already failing, in case something else edited
         // the DB.
         match Database::single_edit(db, self.feed.id(), failing).await {
-            Ok(o) => self.feed = o.take(),
+            Ok(o) => {
+                let updated = o.take();
+                if updated.url != self.feed.url {
+                    return ControlFlow::Break(());
+                }
+                self.feed = updated;
+            }
             Err(e) => error!("{:?}", e.wrap_err("Failed to mark feed as failing")),
         }
 
@@ -182,22 +205,28 @@ impl FeedFetcher<'_> {
         let sleep = time::sleep(dur);
         pin!(sleep);
         select(sleep, select(self.rerun.listen(), self.rerun_failing.listen())).await;
+        ControlFlow::Continue(())
     }
 
     #[instrument(level = "error", skip(self), fields(feed = %self.feed))]
-    pub(super) async fn run(mut self) -> Infallible {
+    pub(super) async fn run(mut self) -> () {
         loop {
             // We only want one in-flight request per host
             let mut guard = self.host.lock.lock().await;
             match self.fetch().await {
-                Ok(_) => {
+                Ok(ControlFlow::Continue(())) => {
                     // Every time any feed succeeds, decrement, so small numbers of failing feeds
                     // cannot lock down a host.
                     guard.failing_feeds = guard.failing_feeds.saturating_sub(1);
                     drop(guard);
                     self.wait().await;
                 }
-                Err(_) => self.fail(guard).await,
+                Ok(ControlFlow::Break(())) => return,
+                Err(_) => {
+                    if self.fail(guard).await.is_break() {
+                        return;
+                    }
+                }
             }
         }
     }

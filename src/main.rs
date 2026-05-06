@@ -59,9 +59,10 @@ async fn main() -> color_eyre::Result<()> {
     #[allow(clippy::redundant_pub_crate)]
     {
         let (fetcher_sender, fetcher_receiver) = unbounded_channel();
-        let router = router::serve(listener, RouterState { db: db.clone(), fetcher_sender });
-        let fetcher = fetcher::run(&db, fetcher_receiver);
-        pin!(fetcher, router);
+        pin! {
+            let router = router::serve(listener, RouterState { db: db.clone(), fetcher_sender });
+            let fetcher = fetcher::run(&db, fetcher_receiver);
+        }
 
         tokio::select! {
             r = &mut router => {

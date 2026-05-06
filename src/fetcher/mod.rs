@@ -1,7 +1,6 @@
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::convert::Infallible;
 use std::future::Future;
 use std::rc::Rc;
 use std::time::Duration;
@@ -46,7 +45,9 @@ struct Host {
 
 struct Manager<'a> {
     receiver: UnboundedReceiver<Action>,
-    host_map: HashMap<String, &'static Host>,
+    // Using leaked references to Host makes the code much cleaner and Host is small enough this
+    // is unlikely to be a practical concern since this is for individual users.
+    host_map: HashMap<String, &'a Host>,
     active_feeds: HashMap<i64, Rc<Event>>,
     poll_deadline: Instant,
 
@@ -59,7 +60,7 @@ struct Manager<'a> {
 struct FeedFetcher<'a> {
     feed: Feed,
     db: &'a Mutex<Database>,
-    host: &'static Host,
+    host: &'a Host,
     status: Status,
     next_fetch: Instant,
     rerun: Rc<Event>,
@@ -135,8 +136,17 @@ impl<'a> Manager<'a> {
                         assert!(tasks.insert(id, fetcher.run()));
                     }
                 }
-                _ = tasks.next(), if !tasks.is_empty() => {
-                    unreachable!()
+                Some((id, _)) = tasks.next(), if !tasks.is_empty() => {
+                    self.active_feeds.remove(&id);
+                    // Hijack the usual FeedChanged mechanism, but if it's in use just wait for
+                    // regular polling. This should be very rare so no need to optimize for the
+                    // case where many feeds are updated at once.
+                    if pending_msg.is_none() {
+                        info!("Database update detected for feed {id}, restarting now");
+                        pending_msg = Some(Action::FeedChanged(id));
+                    } else {
+                        info!("Database update detected for feed {id}, restarting with next poll");
+                    }
                 }
             }
         }
@@ -146,7 +156,7 @@ impl<'a> Manager<'a> {
     async fn poll_db(
         &mut self,
         db: MutexGuard<'a, Database>,
-        tasks: &mut MappedFutures<i64, impl Future<Output = Infallible>>,
+        tasks: &mut MappedFutures<i64, impl Future<Output = ()>>,
     ) -> Result<HashMap<i64, Feed>> {
         self.poll_deadline += POLL_DURATION;
 
@@ -176,7 +186,7 @@ impl<'a> Manager<'a> {
     async fn handle(
         &mut self,
         db: MutexGuard<'a, Database>,
-        tasks: &mut MappedFutures<i64, impl Future<Output = Infallible>>,
+        tasks: &mut MappedFutures<i64, impl Future<Output = ()>>,
         action: Action,
     ) -> Result<Option<(i64, FeedFetcher<'a>)>> {
         trace!("Handling action");
@@ -226,7 +236,7 @@ impl<'a> Manager<'a> {
         }
     }
 
-    fn insert_host(&mut self, feed: &Feed) -> &'static Host {
+    fn insert_host(&mut self, feed: &Feed) -> &'a Host {
         let mut kind = HostKind::Http;
 
         let host = if feed.url.starts_with('!') {

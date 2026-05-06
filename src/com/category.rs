@@ -135,28 +135,28 @@ impl Update<Category> for UserEdit {
             return;
         }
 
-        if let Some(name) = self.name {
-            if s.name != name {
-                sep.push(" name = ").push_bind_unseparated(name);
-            }
+        if let Some(name) = self.name
+            && s.name != name
+        {
+            sep.push(" name = ").push_bind_unseparated(name);
         }
 
-        if let Some(title) = self.title {
-            if s.title != title {
-                sep.push(" title = ").push_bind_unseparated(title);
-            }
+        if let Some(title) = self.title
+            && s.title != title
+        {
+            sep.push(" title = ").push_bind_unseparated(title);
         }
 
-        if let Some(hnav) = self.hidden_nav {
-            if s.hidden_nav != hnav {
-                sep.push(" hidden_nav = ").push_bind_unseparated(hnav);
-            }
+        if let Some(hnav) = self.hidden_nav
+            && s.hidden_nav != hnav
+        {
+            sep.push(" hidden_nav = ").push_bind_unseparated(hnav);
         }
 
-        if let Some(hmain) = self.hidden_main {
-            if s.hidden_main != hmain {
-                sep.push(" hidden_main = ").push_bind_unseparated(hmain);
-            }
+        if let Some(hmain) = self.hidden_main
+            && s.hidden_main != hmain
+        {
+            sep.push(" hidden_main = ").push_bind_unseparated(hmain);
         }
     }
 }

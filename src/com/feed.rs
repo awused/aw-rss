@@ -67,16 +67,16 @@ impl Update<Feed> for UserEdit {
             sep.push(" category_id = NULL ");
         }
 
-        if let Some(disable) = self.disabled {
-            if disable != feed.disabled {
-                sep.push(" disabled = ").push_bind_unseparated(disable);
-            }
+        if let Some(disable) = self.disabled
+            && disable != feed.disabled
+        {
+            sep.push(" disabled = ").push_bind_unseparated(disable);
         }
 
-        if let Some(ut) = self.user_title {
-            if ut != feed.user_title {
-                sep.push(" user_title = ").push_bind_unseparated(ut);
-            }
+        if let Some(ut) = self.user_title
+            && ut != feed.user_title
+        {
+            sep.push(" user_title = ").push_bind_unseparated(ut);
         }
     }
 }

@@ -43,7 +43,10 @@ pub fn item_key(item_key: String, feed: &Feed, timestamp: DateTime<Utc>) -> Stri
 // Some feeds on spacebattles produce invalid URLs, but some of this code can be good for invalid
 // URLs in general.
 pub fn item_url(mut item_url: String, feed: &Feed) -> String {
-    if !item_url.starts_with("/") {
+    if !item_url.starts_with("/")
+        && !feed.site_url.starts_with("https://forums.spacebattles")
+        && !feed.site_url.starts_with("https://forums.sufficientvelocity")
+    {
         return item_url;
     }
 
@@ -60,15 +63,20 @@ pub fn item_url(mut item_url: String, feed: &Feed) -> String {
         .host_str()
         .is_some_and(|h| h == "forums.spacebattles.com" || h == "forums.sufficientvelocity.com");
 
-    if sbsv {
-        // /page-1257#post-103747651 -> /post-103747651
-        if let Some((a, b)) = item_url.split_once("/page-") {
-            if let Some((_, d)) = b.split_once("#post-") {
-                item_url = a.to_string() + "/post-" + d;
-            }
-        }
-    } else {
-        warn!("Got invalid URL {item_url} for non-SB/SV feed");
+    if sbsv
+        && let Some((a, b)) = item_url.split_once("/page-")
+        && let Some((_, d)) = b.split_once("#post-")
+    {
+        // /page-1257#post-103747651 -> /post-103747651 for consistency and stability.
+        // Both URLs seem to work, but some feeds provide one or the other. Not possible to guess
+        // the page number, so just drop it.
+        item_url = a.to_string() + "/post-" + d;
+    }
+
+    if !item_url.starts_with("/") {
+        return item_url;
+    } else if !sbsv {
+        warn!("Got invalid relative URL {item_url} for non-SB/SV feed");
     }
 
     url.set_path("");
