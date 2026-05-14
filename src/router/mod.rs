@@ -8,6 +8,7 @@ use axum::extract::State;
 use axum::http::{Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
+use reqwest::StatusCode;
 use rust_embed::Embed;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
@@ -58,7 +59,7 @@ pub async fn serve(listener: TcpListener, state: RouterState) -> color_eyre::Res
                 .make_span_with(RequestSpan {})
                 .on_response(ResponseFormat {}),
         )
-        .layer(TimeoutLayer::new(Duration::from_secs(30)))
+        .layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT ,Duration::from_secs(30)))
         // There is no particular need for a concurrency limit, but this entire application is
         // meant for one user.
         .concurrency_limit(8);

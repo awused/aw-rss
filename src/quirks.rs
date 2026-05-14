@@ -29,6 +29,8 @@ pub fn item_key(item_key: String, feed: &Feed, timestamp: DateTime<Utc>) -> Stri
             || feed.site_url.starts_with("https://forums.sufficientvelocity.com/"))
     {
         // SB/SV use urls as guids, so delegating to item_url is fine as the code is right now.
+        // TODO -- now they're using <host>/posts/<post_id> as guids which seems fine, may remove
+        // or change this code later
         return item_url(item_key, feed);
     }
 

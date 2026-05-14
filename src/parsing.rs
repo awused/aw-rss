@@ -131,7 +131,7 @@ impl From<(&Feed, rss::Item)> for ParsedInsert {
             .unwrap_or_else(|| {
                 let mut hasher = Sha256::new();
                 hasher.update(item.description.as_ref().unwrap_or(&url));
-                format!("{:X}", hasher.finalize())
+                hex::encode_upper(hasher.finalize())
             });
 
         let timestamp = item
@@ -183,7 +183,7 @@ impl From<(&Feed, atom_syndication::Entry)> for ParsedInsert {
                     hasher.update(
                         entry.content.as_ref().and_then(|c| c.value.as_ref()).unwrap_or(&url),
                     );
-                    format!("{:X}", hasher.finalize())
+                    hex::encode_upper(hasher.finalize())
                 })
         };
 

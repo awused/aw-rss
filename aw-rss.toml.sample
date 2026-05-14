@@ -35,17 +35,3 @@ log_level = "Info"
 # Whichever feed happens to go first is not deterministic.
 dedupe = true
 
-# NOT ENABLED
-# Whitelist of known cloudflare protected hosts that you trust enough to run
-# Javascript from.
-#
-# When cloudflare protection is detected for these domains, aw-rss will attempt
-# to use cfscrape, if installed (requires node and python3), to bypass the
-# basic javascript browser checks. It cannot do anything about captchas.
-#
-# For cloudflare protected domains that aren't in the whitelist, aw-rss will
-# back off aggressively but will never run their javascript.
-#
-# cloudflare_domains = [
-#   "mangadex.org"
-# ]

@@ -4,7 +4,7 @@ An RSS/Atom aggregator with a web frontend.
 
 ## Running Locally
 
-`cargo install --git github.com/awused/aw-rss --locked`
+`cargo install --git https://github.com/awused/aw-rss --locked`
 
 Copy `aw-rss.toml.sample` to `~/.config/aw-rss/aw-rss.toml` or `~/.aw-rss.toml`
 and fill it out according to the instructions.
@@ -40,15 +40,6 @@ location / {
     expires max;
 }
 ```
-
-<!-- # Cloudflare -->
-<!--  -->
-<!-- I include some limited workarounds for cloudflare protectected feeds. I update this as necessary, it is currently using: -->
-<!--  -->
-<!-- * python3 -->
-<!-- * [cloudscraper](https://github.com/venomous/cloudscraper) -->
-<!--  -->
-<!-- As a safeguard you'll have to use HTTPS and whitelist individual hosts in the config file to avoid running javascript you don't minimally trust. -->
 
 ## External Commands
 
