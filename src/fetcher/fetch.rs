@@ -21,6 +21,7 @@ use crate::com::{CLIENT, Feed, RssStruct};
 use crate::database::Database;
 use crate::fetcher::HostKind;
 use crate::parsing::{ParsedFeed, parse_feed};
+use crate::quirks::trust_headers;
 
 const DEFAULT_POLL_PERIOD: Duration = Duration::from_secs(60 * 30);
 // 6 Hours
@@ -66,7 +67,11 @@ impl FeedFetcher<'_> {
 
         let mut headers = self.status.take_headers();
 
-        let resp = headers.apply(CLIENT.get(&self.feed.url)).send().await?;
+        let resp = if trust_headers(&self.feed.site_url) {
+            headers.apply(CLIENT.get(&self.feed.url)).send().await?
+        } else {
+            CLIENT.get(&self.feed.url).send().await?
+        };
 
         headers.merge_from(&resp);
 

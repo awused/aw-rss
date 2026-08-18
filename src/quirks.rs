@@ -97,3 +97,11 @@ pub fn item_url(mut item_url: String, feed: &Feed) -> String {
 
     url.to_string()
 }
+
+// Whether headers can be trusted or not. Some software is just incompetent and sets etags but does
+// not update them, so we have to ignore the headers. For now, both etag and last modified are both
+// untrusted together.
+pub fn trust_headers(site_url: &str) -> bool {
+    !site_url.starts_with("https://forums.spacebattles")
+        && !site_url.starts_with("https://forums.sufficientvelocity")
+}
